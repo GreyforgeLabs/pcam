@@ -27,7 +27,7 @@ This matrix preserves the complete target. A row is complete only when its named
 | §27 canonicalization and hashes | PCAM-CJ1 corpus and exact digest vectors | partial: canonical serializer and unit vectors |
 | §28 save and restore | schema, round-trip, continuation equivalence | partial: slice round-trip and correction equivalence |
 | §29 networking | declared local, lockstep, rollback, and server prediction profile artifacts | missing |
-| §30-31 faults and limits | stable fault codes and every declared bound tested | missing |
+| §30-31 faults and limits | stable fault codes and every declared bound tested | partial: full core runtime fault enum and several bounds including per-entity actions; exhaustive bound enforcement pending |
 | §32 PCAM-24 | schema, compiler, lifecycle, projection, migration warnings | partial: schema and explicit TERMINATE/LOOP/CLAMP compiler |
 | §33-34 examples | examples validate and execute with expected trace/digests | missing |
 | §35 tracing | complete deterministic trace contract and canonicalized vectors | missing |
@@ -39,7 +39,7 @@ This matrix preserves the complete target. A row is complete only when its named
 | §41 repository | required structure and documentation | partial: required lanes and authority files exist |
 | §42 tooling | all eleven commands with stable machine-readable result codes | partial: all eleven command paths execute with JSON envelopes; broader normative vectors and diagnostics remain open |
 | §43 licenses | CC BY 4.0 spec, Apache-2.0 or MIT code, vector permissions, trademark separation | missing |
-| §44 security | bounded untrusted-data validation and adversarial vectors | missing |
+| §44 security | bounded untrusted-data validation and adversarial vectors | partial: document/tick/expression/runtime bounds and schema checks; exhaustive hostile corpus pending |
 | §45 release gates | eight evidence reports with no unresolved requirement | missing |
 
 ## Completion rule

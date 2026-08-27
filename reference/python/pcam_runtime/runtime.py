@@ -258,6 +258,7 @@ class TickExecutor:
                 target_definition = self.definitions_by_id[transition.target_action]
                 claims.extend(target_definition.start_claims)
                 claims.extend(target_definition.slot_claims)
+                claims.append(Claim("CAPACITY", "ACTIONS"))
                 if transition.target_kind == "CHILD_ACTION":
                     assert transition.child_slot_id is not None
                     claims.append(
@@ -268,6 +269,7 @@ class TickExecutor:
                         )
                     )
                 if transition.target_kind == "ACTION" and transition.source_disposition == "TERMINATE_SOURCE":
+                    releases.append(Claim("CAPACITY", "ACTIONS"))
                     releases.extend(
                         Claim(
                             kind=str(raw["kind"]),  # type: ignore[arg-type]
@@ -311,7 +313,11 @@ class TickExecutor:
                     transition_id=definition.id,
                     input_sequence=tick_input.sequence,
                     input_id=tick_input.input_id,
-                    claims=(*definition.start_claims, *definition.slot_claims),
+                    claims=(
+                        *definition.start_claims,
+                        *definition.slot_claims,
+                        Claim("CAPACITY", "ACTIONS"),
+                    ),
                     operations=(
                         {
                             "definition_id": definition.id,
@@ -322,6 +328,18 @@ class TickExecutor:
                 )
             )
         arbitration_state = self._arbitration_state(state)
+        capacities = dict(arbitration_state.capacities)
+        usages = dict(arbitration_state.usages)
+        for intent in intents:
+            key = ("CAPACITY", intent.owner_entity_id, "ACTIONS")
+            capacities[key] = self.profile.max_actions_per_entity
+            usages[key] = sum(
+                1
+                for action in state.action_instances.values()
+                if action.owner_entity_id == intent.owner_entity_id
+                and action.lifecycle_state not in {"TERMINATED", "FAULTED"}
+            )
+        arbitration_state = replace(arbitration_state, capacities=capacities, usages=usages)
         reserved, decisions = arbitrate(tuple(intents), arbitration_state)
         state = replace(
             state,

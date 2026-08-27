@@ -14,6 +14,7 @@ from pcam_runtime import (
     NodeDefinition,
     PredicateDefinition,
     RollbackManager,
+    RuntimeProfile,
     RuleOperation,
     SemanticFact,
     TickExecutor,
@@ -470,3 +471,15 @@ def test_parent_termination_policy_terminates_occupied_child():
     assert state.action_instances["1"].child_instance_ids == ()
     assert state.action_instances["1"].freeze_token_references == ()
     assert state.pending_events[0]["event_type"] == "CHILD_RESULT"
+
+
+def test_max_actions_per_entity_is_enforced_for_slotless_actions():
+    definition = ActionDefinition("LIMITED", 1, 0, (NodeDefinition("RUN"),))
+    executor = TickExecutor((definition,), RuntimeProfile(max_actions_per_entity=1))
+    inputs = tuple(
+        TickInput(f"start-{index}", 1, index, "START", 0, action_definition_id="LIMITED")
+        for index in range(3)
+    )
+    state, trace = executor.tick(executor.initial_state(), inputs)
+    assert len(state.action_instances) == 1
+    assert [item["accepted"] for item in trace["pre_advance_intents"]] == [True, False, False]

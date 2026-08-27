@@ -19,3 +19,4 @@
 - Integrated child-slot arbitration, parent-child identity, nesting bounds, relationship freezes, child-result events, parent termination policy, event-driven parent transitions, and parent-child save/restore continuation equivalence.
 - Implemented all eleven reference CLI paths with bounded runtime-vector loading, pinned digest verification, canonical trace and snapshot output, restore round trips, migration warnings, and rollback resimulation equivalence.
 - Added deterministic generated/property tests across every §39 category, explicit state-sufficiency and cycle-distinction tests, and a requirement-by-requirement §38 coverage map that keeps cross-architecture and partial rows open.
+- Resolved Vulcan review findings by enforcing `max_actions_per_entity` for slotless and replacement starts, aligning keyed runtime snapshot collections with the snapshot schema, and adding direct regressions for both.

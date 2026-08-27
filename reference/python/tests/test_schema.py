@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from pcam_runtime.schema import load_document, validate_document
+from pcam_runtime import ActionDefinition, NodeDefinition, TickExecutor
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -16,3 +17,8 @@ def test_negative_schema_vectors_are_rejected_with_stable_faults():
 
     wrapping = validate_document(load_document(ROOT / "tests" / "invalid" / "pcam24-wrapping-range.json"))
     assert wrapping[0].fault == "INVALID_PROFILE_RANGE"
+
+
+def test_runtime_snapshot_matches_snapshot_schema():
+    executor = TickExecutor((ActionDefinition("SNAPSHOT", 1, 0, (NodeDefinition("RUN"),)),))
+    assert validate_document(executor.initial_state().to_snapshot()) == []
