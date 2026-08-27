@@ -1,0 +1,35 @@
+{
+  "pcam_version": "3.0",
+  "kind": "action",
+  "id": "greyforge.test.idle",
+  "revision": 1,
+  "metadata": {},
+  "limits": {
+    "max_internal_transitions_per_tick": 8,
+    "buffer_capacity": 4,
+    "buffer_overflow_policy": "DROP_OLDEST"
+  },
+  "rate": {"scale": 1, "units_per_tick": 0},
+  "parameters": {},
+  "registers": {},
+  "imports": {},
+  "nodes": {
+    "done": {
+      "id": "done",
+      "mode": "TERMINAL",
+      "seekable": false,
+      "entry_assignments": [],
+      "entry_effects": [],
+      "exit_assignments": [],
+      "exit_effects": [],
+      "tags": [],
+      "extensions": {}
+    }
+  },
+  "predicates": {},
+  "semantic_facts": [],
+  "transitions": [],
+  "slot_claims": [],
+  "profiles": {},
+  "extensions": {}
+}

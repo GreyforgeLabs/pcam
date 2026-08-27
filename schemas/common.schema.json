@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.greyforge.tech/pcam/v3/common.schema.json",
+  "title": "PCAM v3 common definitions",
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_.:-]{0,127}$"
+    },
+    "u64": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    },
+    "i64": {
+      "type": "integer",
+      "minimum": -9223372036854775808,
+      "maximum": 9223372036854775807
+    },
+    "expression": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["literal"],
+          "properties": {"literal": {}},
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["ref"],
+          "properties": {"ref": {"type": "string", "minLength": 1}},
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["op", "args"],
+          "properties": {
+            "op": {
+              "enum": [
+                "and", "or", "not", "xor", "eq", "ne", "lt", "lte", "gt", "gte",
+                "add", "sub", "mul", "div", "mod", "min", "max", "clamp", "abs",
+                "contains", "intersects", "subset", "union", "difference", "if", "coalesce"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "items": {"$ref": "#/$defs/expression"},
+              "maxItems": 64
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "extensionMap": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[A-Za-z][A-Za-z0-9.-]{1,126}[A-Za-z0-9]$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "required": ["requirement", "authoritative", "payload"],
+        "properties": {
+          "requirement": {"enum": ["REQUIRED", "OPTIONAL"]},
+          "authoritative": {"type": "boolean"},
+          "omission_preserves_authority": {"type": "boolean"},
+          "payload": {}
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

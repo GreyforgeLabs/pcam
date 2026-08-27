@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+target/
+dist/
+build/
+*.egg-info/
+tests/cross-platform/local-*.json
+experiments/results/local-*

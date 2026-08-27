@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pcam-reference"
+version = "3.0.0.dev1"
+description = "PCAM v3 reference implementation"
+requires-python = ">=3.12"
+dependencies = [
+  "jsonschema>=4.10,<5",
+  "PyYAML>=6,<7"
+]
+
+[project.optional-dependencies]
+test = ["pytest>=9,<10"]
+
+[project.scripts]
+pcam = "pcam_runtime.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "reference/python"}
+
+[tool.setuptools.packages.find]
+where = ["reference/python"]
+
+[tool.pytest.ini_options]
+testpaths = ["reference/python/tests"]
+addopts = "-ra"

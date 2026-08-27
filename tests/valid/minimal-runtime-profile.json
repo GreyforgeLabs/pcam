@@ -1,0 +1,24 @@
+{
+  "pcam_version": "3.0",
+  "kind": "runtime_profile",
+  "id": "greyforge.test.runtime",
+  "revision": 1,
+  "fault_policy": "ABORT_SIMULATION",
+  "limits": {
+    "max_actions_per_entity": 16,
+    "max_action_nesting_depth": 8,
+    "max_children_per_action": 8,
+    "max_quanta_per_action_per_tick": 64,
+    "max_internal_transitions_per_action_per_tick": 64,
+    "max_buffer_entries_per_action": 32,
+    "max_pending_events_per_entity": 256,
+    "max_candidates_per_tick": 4096,
+    "max_effects_per_tick": 8192,
+    "max_redirects_per_candidate": 8,
+    "max_definition_size_bytes": 1048576,
+    "max_snapshot_size_bytes": 16777216,
+    "max_extension_state_bytes": 1048576
+  },
+  "rng_profiles": ["pcam.pcg32.v1"],
+  "extensions": {}
+}

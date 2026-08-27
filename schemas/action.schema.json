@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.greyforge.tech/pcam/v3/action.schema.json",
+  "title": "PCAM v3 action definition",
+  "type": "object",
+  "required": [
+    "pcam_version", "kind", "id", "revision", "metadata", "limits", "rate",
+    "parameters", "registers", "imports", "nodes", "predicates", "semantic_facts",
+    "transitions", "slot_claims", "profiles", "extensions"
+  ],
+  "properties": {
+    "pcam_version": {"const": "3.0"},
+    "kind": {"const": "action"},
+    "id": {"$ref": "common.schema.json#/$defs/identifier"},
+    "revision": {"$ref": "common.schema.json#/$defs/u64"},
+    "metadata": {"type": "object"},
+    "limits": {
+      "type": "object",
+      "required": ["max_internal_transitions_per_tick", "buffer_capacity", "buffer_overflow_policy"],
+      "properties": {
+        "max_internal_transitions_per_tick": {"type": "integer", "minimum": 1},
+        "buffer_capacity": {"type": "integer", "minimum": 0},
+        "buffer_overflow_policy": {"enum": ["DROP_OLDEST", "DROP_NEWEST", "FAULT"]}
+      },
+      "additionalProperties": false
+    },
+    "rate": {
+      "type": "object",
+      "required": ["scale", "units_per_tick"],
+      "properties": {
+        "scale": {"type": "integer", "minimum": 1},
+        "units_per_tick": {"$ref": "common.schema.json#/$defs/u64"}
+      },
+      "additionalProperties": false
+    },
+    "parameters": {
+      "type": "object",
+      "propertyNames": {"$ref": "common.schema.json#/$defs/identifier"},
+      "additionalProperties": {
+        "type": "object",
+        "required": ["type", "required", "capture_policy"],
+        "properties": {
+          "type": {"enum": ["BOOL", "I64", "U64", "SYMBOL", "BYTES", "SET_SYMBOL", "FIXED_ARRAY", "BOUNDED_LIST"]},
+          "required": {"type": "boolean"},
+          "default": {},
+          "minimum": {"type": "integer"},
+          "maximum": {"type": "integer"},
+          "allowed_values": {"type": "array", "maxItems": 1024},
+          "capture_policy": {"enum": ["CAPTURE_ON_START"]}
+        },
+        "additionalProperties": false
+      }
+    },
+    "registers": {
+      "type": "object",
+      "propertyNames": {"$ref": "common.schema.json#/$defs/identifier"},
+      "additionalProperties": {
+        "type": "object",
+        "required": ["type", "initial", "overflow", "serialization_policy"],
+        "properties": {
+          "type": {"enum": ["BOOL", "I64", "U64", "SYMBOL", "BYTES", "SET_SYMBOL", "FIXED_ARRAY", "BOUNDED_LIST"]},
+          "initial": {},
+          "minimum": {"type": "integer"},
+          "maximum": {"type": "integer"},
+          "capacity": {"type": "integer", "minimum": 0},
+          "overflow": {"enum": ["FAULT", "SATURATE", "WRAP"]},
+          "serialization_policy": {"enum": ["AUTHORITATIVE"]}
+        },
+        "additionalProperties": false
+      }
+    },
+    "imports": {
+      "type": "object",
+      "propertyNames": {"$ref": "common.schema.json#/$defs/identifier"},
+      "additionalProperties": {
+        "type": "object",
+        "required": ["type", "source_contract", "failure_policy", "authoritative", "serialization_dependency"],
+        "properties": {
+          "type": {"type": "string", "minLength": 1},
+          "source_contract": {"type": "string", "minLength": 1},
+          "default": {},
+          "failure_policy": {"enum": ["USE_DEFAULT", "FAULT"]},
+          "authoritative": {"type": "boolean"},
+          "serialization_dependency": {"type": "boolean"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "nodes": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"$ref": "common.schema.json#/$defs/identifier"},
+      "additionalProperties": {
+        "type": "object",
+        "required": ["id", "mode", "seekable", "entry_assignments", "entry_effects", "exit_assignments", "exit_effects", "tags", "extensions"],
+        "properties": {
+          "id": {"$ref": "common.schema.json#/$defs/identifier"},
+          "mode": {"enum": ["TIMED", "EVENT_DRIVEN", "TERMINAL"]},
+          "duration_quanta": {"type": "integer", "minimum": 1},
+          "seekable": {"type": "boolean"},
+          "entry_assignments": {"type": "array", "maxItems": 1024},
+          "entry_effects": {"type": "array", "maxItems": 1024},
+          "exit_assignments": {"type": "array", "maxItems": 1024},
+          "exit_effects": {"type": "array", "maxItems": 1024},
+          "tags": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/identifier"}, "uniqueItems": true},
+          "extensions": {"$ref": "common.schema.json#/$defs/extensionMap"}
+        },
+        "allOf": [
+          {
+            "if": {"properties": {"mode": {"const": "TIMED"}}},
+            "then": {"required": ["duration_quanta"]}
+          }
+        ],
+        "additionalProperties": false
+      }
+    },
+    "predicates": {
+      "type": "object",
+      "propertyNames": {"$ref": "common.schema.json#/$defs/identifier"},
+      "additionalProperties": {
+        "type": "object",
+        "required": ["expression", "track_edges", "metadata"],
+        "properties": {
+          "expression": {"$ref": "common.schema.json#/$defs/expression"},
+          "track_edges": {"type": "boolean"},
+          "metadata": {"type": "object"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "semantic_facts": {"type": "array", "maxItems": 4096},
+    "transitions": {"type": "array", "maxItems": 4096},
+    "slot_claims": {"type": "array", "maxItems": 128},
+    "profiles": {"type": "object"},
+    "extensions": {"$ref": "common.schema.json#/$defs/extensionMap"}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,14 @@
+{
+  "pcam_version": "3.0",
+  "kind": "pcam24",
+  "id": "greyforge.test.pcam24",
+  "revision": 1,
+  "lifecycle": "TERMINATE",
+  "rate": {"scale": 5, "units_per_tick": 2},
+  "tags": {
+    "STARTUP": [[0, 10]],
+    "ACTIVE": [[10, 14]],
+    "RECOVERY": [[14, 24]]
+  },
+  "extensions": {}
+}

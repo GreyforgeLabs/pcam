@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.greyforge.tech/pcam/v3/runtime-profile.schema.json",
+  "title": "PCAM v3 runtime profile",
+  "type": "object",
+  "required": ["pcam_version", "kind", "id", "revision", "fault_policy", "limits", "rng_profiles", "extensions"],
+  "properties": {
+    "pcam_version": {"const": "3.0"},
+    "kind": {"const": "runtime_profile"},
+    "id": {"$ref": "common.schema.json#/$defs/identifier"},
+    "revision": {"$ref": "common.schema.json#/$defs/u64"},
+    "fault_policy": {"enum": ["ABORT_SIMULATION", "FAULT_ACTION", "FAULT_ENTITY"]},
+    "limits": {
+      "type": "object",
+      "required": [
+        "max_actions_per_entity", "max_action_nesting_depth", "max_children_per_action",
+        "max_quanta_per_action_per_tick", "max_internal_transitions_per_action_per_tick",
+        "max_buffer_entries_per_action", "max_pending_events_per_entity", "max_candidates_per_tick",
+        "max_effects_per_tick", "max_redirects_per_candidate", "max_definition_size_bytes",
+        "max_snapshot_size_bytes", "max_extension_state_bytes"
+      ],
+      "additionalProperties": {"type": "integer", "minimum": 0},
+      "propertyNames": {
+        "enum": [
+          "max_actions_per_entity", "max_action_nesting_depth", "max_children_per_action",
+          "max_quanta_per_action_per_tick", "max_internal_transitions_per_action_per_tick",
+          "max_buffer_entries_per_action", "max_pending_events_per_entity", "max_candidates_per_tick",
+          "max_effects_per_tick", "max_redirects_per_candidate", "max_definition_size_bytes",
+          "max_snapshot_size_bytes", "max_extension_state_bytes"
+        ]
+      }
+    },
+    "rng_profiles": {
+      "type": "array",
+      "items": {"$ref": "common.schema.json#/$defs/identifier"},
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "extensions": {"$ref": "common.schema.json#/$defs/extensionMap"}
+  },
+  "additionalProperties": false
+}

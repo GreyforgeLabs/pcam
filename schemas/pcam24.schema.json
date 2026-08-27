@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.greyforge.tech/pcam/v3/pcam24.schema.json",
+  "title": "PCAM-24 v3 authoring source",
+  "type": "object",
+  "required": ["pcam_version", "kind", "id", "revision", "lifecycle", "rate", "tags", "extensions"],
+  "properties": {
+    "pcam_version": {"const": "3.0"},
+    "kind": {"const": "pcam24"},
+    "id": {"$ref": "common.schema.json#/$defs/identifier"},
+    "revision": {"$ref": "common.schema.json#/$defs/u64"},
+    "lifecycle": {"enum": ["TERMINATE", "LOOP", "CLAMP"]},
+    "rate": {
+      "type": "object",
+      "required": ["scale", "units_per_tick"],
+      "properties": {
+        "scale": {"type": "integer", "minimum": 1},
+        "units_per_tick": {"$ref": "common.schema.json#/$defs/u64"}
+      },
+      "additionalProperties": false
+    },
+    "tags": {
+      "type": "object",
+      "propertyNames": {"$ref": "common.schema.json#/$defs/identifier"},
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "array",
+          "prefixItems": [
+            {"type": "integer", "minimum": 0, "maximum": 23},
+            {"type": "integer", "minimum": 1, "maximum": 24}
+          ],
+          "items": false,
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "maxItems": 24
+      }
+    },
+    "metadata": {"type": "object"},
+    "extensions": {"$ref": "common.schema.json#/$defs/extensionMap"}
+  },
+  "additionalProperties": false
+}

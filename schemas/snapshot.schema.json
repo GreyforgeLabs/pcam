@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.greyforge.tech/pcam/v3/snapshot.schema.json",
+  "title": "PCAM v3 canonical snapshot",
+  "type": "object",
+  "required": [
+    "pcam_version", "tick", "definition_set_hash", "entity_records", "action_instances",
+    "resource_banks", "action_slots", "pending_inputs", "input_buffers", "pending_events",
+    "freeze_tokens", "interaction_ledgers", "rng_streams", "next_action_instance_id",
+    "next_freeze_token_id", "extension_state", "fault_state", "host_state"
+  ],
+  "properties": {
+    "pcam_version": {"const": "3.0"},
+    "tick": {"$ref": "common.schema.json#/$defs/u64"},
+    "definition_set_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "entity_records": {"type": "array", "maxItems": 1048576},
+    "action_instances": {"type": "array", "maxItems": 1048576},
+    "resource_banks": {"type": "object"},
+    "action_slots": {"type": "object"},
+    "pending_inputs": {"type": "array", "maxItems": 1048576},
+    "input_buffers": {"type": "object"},
+    "pending_events": {"type": "array", "maxItems": 1048576},
+    "freeze_tokens": {"type": "array", "maxItems": 1048576},
+    "interaction_ledgers": {"type": "array", "maxItems": 1048576},
+    "rng_streams": {"type": "array", "maxItems": 1048576},
+    "next_action_instance_id": {"$ref": "common.schema.json#/$defs/u64"},
+    "next_freeze_token_id": {"$ref": "common.schema.json#/$defs/u64"},
+    "extension_state": {},
+    "fault_state": {},
+    "host_state": {}
+  },
+  "additionalProperties": false
+}

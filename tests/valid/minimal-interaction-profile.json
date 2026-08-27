@@ -1,0 +1,8 @@
+{
+  "pcam_version": "3.0",
+  "kind": "interaction_profile",
+  "id": "greyforge.test.interactions",
+  "revision": 1,
+  "rules": [],
+  "extensions": {}
+}
