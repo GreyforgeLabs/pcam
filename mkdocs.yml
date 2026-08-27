@@ -1,0 +1,36 @@
+site_name: PCAM v3
+site_description: Deterministic semantic action model for interactive simulation
+site_url: https://greyforgelabs.github.io/pcam/
+site_author: Greyforge Labs
+repo_url: https://github.com/GreyforgeLabs/pcam
+repo_name: GreyforgeLabs/pcam
+copyright: Copyright &copy; 2026 Greyforge Labs
+
+docs_dir: site-docs
+strict: true
+
+theme:
+  name: material
+  palette:
+    scheme: slate
+    primary: deep purple
+    accent: cyan
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+
+markdown_extensions:
+  - admonition
+  - footnotes
+  - pymdownx.details
+  - pymdownx.superfences
+
+nav:
+  - Overview: index.md
+  - Architecture: architecture.md
+  - Evidence and Gates: evidence.md
+  - Run the Reference: getting-started.md
+  - Licensing: licensing.md
+

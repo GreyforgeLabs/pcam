@@ -1,10 +1,15 @@
 # PCAM v3
 
+[![PCAM v3 Conformance](https://github.com/GreyforgeLabs/pcam/actions/workflows/ci.yml/badge.svg)](https://github.com/GreyforgeLabs/pcam/actions/workflows/ci.yml)
+[![Documentation](https://github.com/GreyforgeLabs/pcam/actions/workflows/pages.yml/badge.svg)](https://greyforgelabs.github.io/pcam/)
+
 PCAM v3 is a draft deterministic semantic action-model standard for interactive simulation.
 
 The authoritative state is the complete action-machine state. Logical ticks provide ordering. PCAM-24 is an optional authoring and visualization profile. Presentation observes simulation state and never drives authoritative outcomes.
 
 This repository is under active implementation. It does not claim Stable, Normative, production-ready, cross-platform, rollback, performance, or novelty status. See [STATUS.md](STATUS.md) and the evidence ledger under `release/`.
+
+Public documentation: [greyforgelabs.github.io/pcam](https://greyforgelabs.github.io/pcam/)
 
 ## Repository map
 

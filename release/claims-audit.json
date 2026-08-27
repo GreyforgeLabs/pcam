@@ -79,6 +79,11 @@
       "path": "release/reference-runtime-gate.md",
       "context_regex": "not",
       "reason": "explicit runtime non-claim"
+    },
+    {
+      "path": "site-docs/evidence.md",
+      "context_regex": "unclaimed",
+      "reason": "public machine-ledger non-claim"
     }
   ],
   "stable_label_regex": "\\bStable, Normative\\b",
