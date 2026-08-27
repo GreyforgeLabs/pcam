@@ -68,6 +68,7 @@ struct Definition {
     buffer_capacity: usize,
     buffer_overflow_policy: String,
     default_buffer_lifetime: u64,
+    import_declarations: BTreeMap<String, Value>,
     child_slot_capacities: BTreeMap<String, u64>,
     child_termination_policies: BTreeMap<String, String>,
     start_claims: Vec<ArbitrationClaim>,
@@ -663,7 +664,11 @@ impl SimulationRuntime {
         }
         let (mut work, events_delivered) = self.deliver_events(state)?;
         let contacts = canonical_contacts(array(tick, "contacts")?)?;
-        work.host_state = json!({"contacts": contacts, "imports": {}});
+        let imports = tick.get("imports").cloned().unwrap_or_else(|| json!({}));
+        if !imports.is_object() {
+            return Err(SimulationError::InvalidVector);
+        }
+        work.host_state = json!({"contacts": contacts, "imports": imports});
 
         let inputs = canonical_inputs(array(tick, "inputs")?, work.tick)?;
         self.capture_inputs(&mut work, &inputs)?;
@@ -1174,6 +1179,7 @@ impl SimulationRuntime {
         &self,
         state: &SimulationState,
         action: &ActionSnapshot,
+        definition: &Definition,
         transition: &SimulationTransition,
     ) -> Result<bool, SimulationError> {
         let matched_input = transition
@@ -1207,7 +1213,8 @@ impl SimulationRuntime {
         let Some(expression) = &transition.guard_expression else {
             return Ok(true);
         };
-        let context = transition_guard_context(state, action, matched_input, matched_event)?;
+        let context =
+            transition_guard_context(state, action, definition, matched_input, matched_event)?;
         evaluate_expression(
             expression,
             &context,
@@ -1260,7 +1267,7 @@ impl SimulationRuntime {
             for transition in &definition.transitions {
                 if transition.source_node == action.current_node_id
                     && transition.evaluation_point == evaluation_point
-                    && self.transition_guards_match(state, &action, transition)?
+                    && self.transition_guards_match(state, &action, definition, transition)?
                 {
                     eligible.push(transition.clone());
                 }
@@ -1814,7 +1821,7 @@ impl SimulationRuntime {
                 for transition in &definition.transitions {
                     if transition.source_node == action.current_node_id
                         && transition.evaluation_point == "AFTER_QUANTUM"
-                        && self.transition_guards_match(state, &action, transition)?
+                        && self.transition_guards_match(state, &action, definition, transition)?
                     {
                         eligible.push(transition.clone());
                     }
@@ -3016,6 +3023,12 @@ fn parse_definition(raw: &Value, hash: String) -> Result<Definition, SimulationE
         buffer_capacity,
         buffer_overflow_policy,
         default_buffer_lifetime,
+        import_declarations: raw
+            .get("import_declarations")
+            .cloned()
+            .map(|value| serde_json::from_value(value).map_err(|_| SimulationError::InvalidVector))
+            .transpose()?
+            .unwrap_or_default(),
         child_slot_capacities: serde_json::from_value(child_slot_capacities)
             .map_err(|_| SimulationError::InvalidVector)?,
         child_termination_policies: serde_json::from_value(
@@ -3149,6 +3162,7 @@ fn remove_buffer_input(
 fn transition_guard_context(
     state: &SimulationState,
     action: &ActionSnapshot,
+    definition: &Definition,
     matched_input: Option<&Value>,
     matched_event: Option<&Value>,
 ) -> Result<BTreeMap<String, Value>, SimulationError> {
@@ -3193,10 +3207,41 @@ fn transition_guard_context(
             context.insert(format!("owner.resource.{identifier}"), json!(value));
         }
     }
-    if let Some(imports) = state.host_state.get("imports").and_then(Value::as_object) {
-        for (identifier, value) in imports {
-            flatten_guard_context(&format!("host.{identifier}"), value, &mut context);
+    if let Some(registers) = state
+        .entity_records
+        .get(&action.owner_entity_id.to_string())
+        .and_then(|record| record.get("entity_registers"))
+        .and_then(Value::as_object)
+    {
+        for (identifier, value) in registers {
+            flatten_guard_context(&format!("owner.register.{identifier}"), value, &mut context);
         }
+    }
+    let imports = state
+        .host_state
+        .get("imports")
+        .and_then(Value::as_object)
+        .ok_or(SimulationError::RuntimeFault)?;
+    for (identifier, declaration) in &definition.import_declarations {
+        let value = if let Some(value) = imports.get(identifier) {
+            value
+        } else if declaration.get("failure_policy").and_then(Value::as_str) == Some("USE_DEFAULT") {
+            declaration
+                .get("default")
+                .ok_or(SimulationError::RuntimeFault)?
+        } else {
+            continue;
+        };
+        if !valid_host_import(value, declaration) {
+            return Err(SimulationError::Fault(FaultContext {
+                code: "RUNTIME_FAULT".to_owned(),
+                fault: "INVALID_HOST_IMPORT".to_owned(),
+                message: identifier.clone(),
+                action_instance_id: Some(action.instance_id),
+                owner_entity_id: Some(action.owner_entity_id),
+            }));
+        }
+        flatten_guard_context(&format!("host.{identifier}"), value, &mut context);
     }
     if let Some(input) = matched_input {
         flatten_guard_context("input", input, &mut context);
@@ -3205,6 +3250,17 @@ fn transition_guard_context(
         flatten_guard_context("event", event, &mut context);
     }
     Ok(context)
+}
+
+fn valid_host_import(value: &Value, declaration: &Value) -> bool {
+    match declaration.get("type").and_then(Value::as_str) {
+        Some("BOOL") => value.is_boolean(),
+        Some("I64") => value.as_i64().is_some(),
+        Some("U64") => value.as_u64().is_some(),
+        Some("SYMBOL" | "BYTES") => value.is_string(),
+        Some(_) => true,
+        None => false,
+    }
 }
 
 fn flatten_guard_context(prefix: &str, value: &Value, context: &mut BTreeMap<String, Value>) {

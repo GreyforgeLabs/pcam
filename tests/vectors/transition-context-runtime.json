@@ -1,0 +1,109 @@
+{
+  "pcam_vector_version": "1",
+  "kind": "runtime_vector",
+  "id": "transition-context-runtime",
+  "runtime_profile": {
+    "pcam_version": "3.0",
+    "kind": "runtime_profile",
+    "id": "pcam.reference.transition-context.v1",
+    "revision": 1,
+    "fault_policy": "ABORT_SIMULATION",
+    "limits": {
+      "max_actions_per_entity": 8,
+      "max_action_nesting_depth": 4,
+      "max_children_per_action": 4,
+      "max_quanta_per_action_per_tick": 8,
+      "max_internal_transitions_per_action_per_tick": 8,
+      "max_buffer_entries_per_action": 8,
+      "max_pending_events_per_entity": 8,
+      "max_candidates_per_tick": 32,
+      "max_effects_per_tick": 32,
+      "max_redirects_per_candidate": 4,
+      "max_definition_size_bytes": 65536,
+      "max_snapshot_size_bytes": 262144,
+      "max_extension_state_bytes": 4096,
+      "max_expression_depth": 64,
+      "max_expression_nodes": 4096
+    },
+    "rng_profiles": ["pcam.pcg32.v1"],
+    "network_profiles": [{"id": "pcam.local.v1", "topology": "LOCAL_DETERMINISTIC"}],
+    "extensions": {}
+  },
+  "definitions": [
+    {
+      "id": "CONTEXT",
+      "rate_scale": 1,
+      "units_per_tick": 0,
+      "default_buffer_lifetime": 3,
+      "import_declarations": {
+        "allowed": {
+          "type": "BOOL",
+          "source_contract": "test.host.allowed",
+          "failure_policy": "FAULT",
+          "authoritative": true,
+          "serialization_dependency": true
+        }
+      },
+      "nodes": [
+        {"id": "WAIT", "mode": "EVENT_DRIVEN"},
+        {"id": "DONE", "mode": "EVENT_DRIVEN"}
+      ],
+      "transitions": [
+        {
+          "id": "context-match",
+          "source_node": "WAIT",
+          "evaluation_point": "PRE_ADVANCE",
+          "priority": 10,
+          "target_kind": "NODE",
+          "target_node": "DONE",
+          "input_command": "GO",
+          "guard_expression": {
+            "op": "and",
+            "args": [
+              {"ref": "host.allowed"},
+              {"op": "eq", "args": [{"ref": "owner.resource.STAMINA"}, {"literal": 5}]},
+              {"op": "eq", "args": [{"ref": "owner.register.mode"}, {"literal": "armed"}]},
+              {"op": "eq", "args": [{"ref": "action.owner_entity_id"}, {"literal": 1}]},
+              {"op": "eq", "args": [{"ref": "input.payload.permit"}, {"literal": true}]}
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "interaction_rules": [],
+  "effect_registry": {},
+  "initial_state": {
+    "resource_banks": {"1": {"STAMINA": 5}},
+    "slot_capacities": {},
+    "entity_records": {"1": {"entity_registers": {"mode": "armed"}, "event_inbox": []}}
+  },
+  "ticks": [
+    {
+      "inputs": [{"input_id": "start", "source_entity_id": 1, "sequence": 0, "command_id": "START", "assigned_tick": 0, "action_definition_id": "CONTEXT"}],
+      "imports": {"allowed": true},
+      "contacts": []
+    },
+    {
+      "inputs": [{"input_id": "go", "source_entity_id": 1, "sequence": 1, "command_id": "GO", "assigned_tick": 1, "payload": {"permit": true}}],
+      "imports": {"allowed": true},
+      "contacts": []
+    }
+  ],
+  "cases": [
+    {
+      "id": "all-contexts-match",
+      "allowed": true,
+      "tick_state_digests": ["d492d83a9b43fad24e699cc609187f28088758d19a3d7039208b1ff04c2b6bee", "1894c454f51fb66ff4497429f0839aa1519980364e10028bbd4ad91ccdabd80b"],
+      "final_state_digest": "1894c454f51fb66ff4497429f0839aa1519980364e10028bbd4ad91ccdabd80b",
+      "expected": {"node": "DONE", "transition_serial": 1, "input_buffer": [], "host_imports": {"allowed": true}}
+    },
+    {
+      "id": "host-context-rejects",
+      "allowed": false,
+      "tick_state_digests": ["d492d83a9b43fad24e699cc609187f28088758d19a3d7039208b1ff04c2b6bee", "bb2509b67a6b769bca825b1738f374517d29d75b286470d926c86825fa739d27"],
+      "final_state_digest": "bb2509b67a6b769bca825b1738f374517d29d75b286470d926c86825fa739d27",
+      "expected": {"node": "WAIT", "transition_serial": 0, "input_buffer": [{"buffer_entry_id": "buffer:go", "captured_tick": 1, "command_id": "GO", "input_id": "go", "payload": {"permit": true}, "priority": 0, "remaining_eligibility_ticks": 2, "sequence": 1}], "host_imports": {"allowed": false}}
+    }
+  ]
+}

@@ -39,11 +39,13 @@
       "nodes": [
         {"id": "RUN", "mode": "EVENT_DRIVEN"},
         {"id": "MID", "mode": "EVENT_DRIVEN"},
-        {"id": "DONE", "mode": "EVENT_DRIVEN"}
+        {"id": "DONE", "mode": "EVENT_DRIVEN"},
+        {"id": "WRONG", "mode": "EVENT_DRIVEN"}
       ],
       "transitions": [
-        {"id": "on-child", "source_node": "RUN", "evaluation_point": "PRE_ADVANCE", "priority": 20, "target_kind": "NODE", "target_node": "MID", "event_type": "CHILD_EVENT"},
-        {"id": "on-parent", "source_node": "MID", "evaluation_point": "POST_ADVANCE", "priority": 20, "target_kind": "NODE", "target_node": "DONE", "event_type": "PARENT_EVENT"}
+        {"id": "reject-action-payload", "source_node": "RUN", "evaluation_point": "PRE_ADVANCE", "priority": 30, "target_kind": "NODE", "target_node": "WRONG", "event_type": "ACTION_EVENT", "guard_expression": {"op": "eq", "args": [{"ref": "event.payload.mode"}, {"literal": "wrong"}]}},
+        {"id": "on-child", "source_node": "RUN", "evaluation_point": "PRE_ADVANCE", "priority": 20, "target_kind": "NODE", "target_node": "MID", "event_type": "CHILD_EVENT", "guard_expression": {"op": "eq", "args": [{"ref": "event.payload.mode"}, {"literal": "child"}]}},
+        {"id": "on-parent", "source_node": "MID", "evaluation_point": "POST_ADVANCE", "priority": 20, "target_kind": "NODE", "target_node": "DONE", "event_type": "PARENT_EVENT", "guard_expression": {"op": "eq", "args": [{"ref": "event.payload.mode"}, {"literal": "parent"}]}}
       ]
     }
   ],
@@ -78,8 +80,8 @@
   ],
   "expected": {
     "tick_state_digests": [
-      "957f789e957b15ebd56cc4aace7311f6782d9709133a0ef95eb6221c20c2457d",
-      "fbdb66e5c09072b2da7177c967bd93a7a80be95b00e70c17ea11a4f7290f65c1"
+      "8d3fbb7d0b9bbc042023cde449e9cb91c11e07dc361099c3d1dc3548a2c94910",
+      "823e7b877a26560376206dd46737d383ad0f5d6332e90cb7917f184b3b3acdcc"
     ],
     "delivered_ids": ["broadcast", "child", "parent", "action", "entity"],
     "delivery_routes": {

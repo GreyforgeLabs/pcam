@@ -185,6 +185,8 @@ def _definition(value: dict[str, Any]) -> ActionDefinition:
                 node_ids=tuple(item.get("node_ids", ())),
                 min_node_step=int(item.get("min_node_step", 0)),
                 max_node_step_exclusive=item.get("max_node_step_exclusive"),
+                expression=item.get("expression"),
+                track_edges=bool(item.get("track_edges", True)),
             )
             for item in value.get("predicates", [])
         ),
@@ -200,7 +202,10 @@ def _definition(value: dict[str, Any]) -> ActionDefinition:
         metadata=dict(value.get("metadata", {})),
         extensions=dict(value.get("extensions", {})),
         parameter_defaults=dict(value.get("parameter_defaults", {})),
-        register_initials={str(key): int(item) for key, item in value.get("register_initials", {}).items()},
+        register_initials=dict(value.get("register_initials", {})),
+        parameter_declarations=dict(value.get("parameter_declarations", {})),
+        register_declarations=dict(value.get("register_declarations", {})),
+        import_declarations=dict(value.get("import_declarations", {})),
         initial_node_id=value.get("initial_node_id"),
     )
 
