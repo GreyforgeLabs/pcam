@@ -1652,6 +1652,8 @@ impl SimulationRuntime {
                             .filter(|child_id| {
                                 state.action_instances.iter().any(|child| {
                                     child.instance_id == **child_id
+                                        && child.parent_slot_id.as_deref()
+                                            == Some(child_slot.as_str())
                                         && !matches!(
                                             child.lifecycle_state.as_str(),
                                             "TERMINATED" | "FAULTED"
@@ -2615,7 +2617,21 @@ impl SimulationRuntime {
                         })
                     })
                     .count() as u64;
-                if active_children >= capacity || active_children >= self.max_children_per_action {
+                let active_in_slot = state.action_instances[index]
+                    .child_instance_ids
+                    .iter()
+                    .filter(|child_id| {
+                        state.action_instances.iter().any(|child| {
+                            child.instance_id == **child_id
+                                && child.parent_slot_id.as_deref() == Some(child_slot.as_str())
+                                && !matches!(
+                                    child.lifecycle_state.as_str(),
+                                    "TERMINATED" | "FAULTED"
+                                )
+                        })
+                    })
+                    .count() as u64;
+                if active_in_slot >= capacity || active_children >= self.max_children_per_action {
                     return Err(contextual_runtime_fault(
                         "STATE_INVARIANT_FAILURE",
                         "child count exceeds runtime profile or slot capacity",
