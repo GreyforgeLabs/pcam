@@ -53,7 +53,7 @@ def run_vector(document: dict[str, Any], max_ticks: int = 10_000) -> VectorRun:
         str(effect_type): (str(value[0]), int(value[1]))
         for effect_type, value in document.get("effect_registry", {}).items()
     }
-    executor = TickExecutor(definitions, profile, interaction_rules=rules, effect_registry=registry or None)
+    executor = TickExecutor(definitions, profile, interaction_rules=rules, effect_registry=registry)
     initial = document.get("initial_state", {})
     state = executor.initial_state(
         resource_banks={str(key): dict(value) for key, value in initial.get("resource_banks", {}).items()},

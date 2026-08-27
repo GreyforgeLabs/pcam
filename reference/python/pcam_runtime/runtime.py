@@ -52,10 +52,14 @@ class TickExecutor:
         )
         validate_rules(interaction_rules)
         self.interaction_rules = interaction_rules
-        self.effect_registry = effect_registry or {
-            "combat.damage": ("hp", -1),
-            "combat.stagger": ("stagger", 1),
-        }
+        self.effect_registry = (
+            effect_registry
+            if effect_registry is not None
+            else {
+                "combat.damage": ("hp", -1),
+                "combat.stagger": ("stagger", 1),
+            }
+        )
         for definition in definitions:
             validate_definition(definition)
             if len(canonical_dumps(definition.to_canonical())) > self.profile.max_definition_size_bytes:

@@ -1,0 +1,128 @@
+{
+  "pcam_vector_version": "1",
+  "kind": "runtime_vector",
+  "id": "state-distinction-runtime",
+  "runtime_profile": {
+    "pcam_version": "3.0",
+    "kind": "runtime_profile",
+    "id": "pcam.reference.state-distinction-runtime.v1",
+    "revision": 1,
+    "fault_policy": "ABORT_SIMULATION",
+    "limits": {
+      "max_actions_per_entity": 8,
+      "max_action_nesting_depth": 4,
+      "max_children_per_action": 4,
+      "max_quanta_per_action_per_tick": 8,
+      "max_internal_transitions_per_action_per_tick": 8,
+      "max_buffer_entries_per_action": 8,
+      "max_pending_events_per_entity": 8,
+      "max_candidates_per_tick": 32,
+      "max_effects_per_tick": 32,
+      "max_redirects_per_candidate": 4,
+      "max_definition_size_bytes": 65536,
+      "max_snapshot_size_bytes": 262144,
+      "max_extension_state_bytes": 4096,
+      "max_expression_depth": 64,
+      "max_expression_nodes": 4096
+    },
+    "rng_profiles": ["pcam.pcg32.v1"],
+    "network_profiles": [
+      {"id": "pcam.local.v1", "topology": "LOCAL_DETERMINISTIC"}
+    ],
+    "extensions": {}
+  },
+  "definitions": [
+    {
+      "id": "STATE_DISTINCTION",
+      "rate_scale": 1,
+      "units_per_tick": 1,
+      "initial_node_id": "RUN",
+      "nodes": [{"id": "RUN", "mode": "EVENT_DRIVEN"}]
+    }
+  ],
+  "interaction_rules": [],
+  "effect_registry": {},
+  "initial_state": {},
+  "ticks": [
+    {
+      "inputs": [
+        {
+          "input_id": "start",
+          "source_entity_id": 1,
+          "sequence": 0,
+          "command_id": "START",
+          "assigned_tick": 0,
+          "action_definition_id": "STATE_DISTINCTION"
+        }
+      ],
+      "contacts": []
+    }
+  ],
+  "continuation_tick": {"inputs": [], "contacts": []},
+  "cases": [
+    {
+      "id": "distinct-stall-counters",
+      "continuation_ticks": 5,
+      "branches": [
+        {"id": "stall-4", "remaining_ticks": 4},
+        {"id": "stall-1", "remaining_ticks": 1}
+      ],
+      "expected": {
+        "stall-4": {
+          "initial_state_digest": "234ebcc841e091d1bf7e0d2f8f3d4e8e3c25fdb94b18c17e6adb17cef526cd54",
+          "tick_state_digests": [
+            "ac3a80b804e8c9c184d518b18f99f4d8e4c1b042428955735646726090162233",
+            "603d99160cd45c9a82aad81820480e5988e41b1532acd5d4dccef4f1a45c1b4e",
+            "6ee89ad186cbec64684d8c60e50e26ef71241b30d9366b532e7de0c77c8f8b46",
+            "2f44062e268fa03a170d8cc154e7fa2eb75974f8d17cb8d8356eb1e65cebad33",
+            "98402982c88cff1fa594ad97ae50ed9776e9f12c07ba3f8894c74d8aaa6767a9"
+          ],
+          "local_steps": [1, 1, 1, 1, 2],
+          "cycles": [0, 0, 0, 0, 0],
+          "remaining_ticks": [3, 2, 1, 0, 0]
+        },
+        "stall-1": {
+          "initial_state_digest": "1275c98dec0351b77fcee8b29abb24dac90b0fb7c1b46e98ae2412ee1efaae27",
+          "tick_state_digests": [
+            "115d40db2a1a5eea4ec15f45d24fd2a132be93b3966a361c8b8c1e28b9e0f347",
+            "b9d4f6762d435fb7075070a04d676ccd54f7ec51c823516c30e21b8f090f06d9",
+            "46422a88c7be4b35415545d1833fef7135451e7f3029d58ba15d3c518ac30141",
+            "4cbaa2072f52c5e658fb57fb902ec7db9a4c20514ec4209e8bb02d3dc4187b17",
+            "fe306e5dba9ba1d4dba26e30883fc0b4a4d7b285d07e77b918336cd4d253ebf7"
+          ],
+          "local_steps": [1, 2, 3, 4, 5],
+          "cycles": [0, 0, 0, 0, 0],
+          "remaining_ticks": [0, 0, 0, 0, 0]
+        }
+      }
+    },
+    {
+      "id": "distinct-cycle-values",
+      "continuation_ticks": 1,
+      "branches": [
+        {"id": "cycle-0", "cycle": 0},
+        {"id": "cycle-12", "cycle": 12}
+      ],
+      "expected": {
+        "cycle-0": {
+          "initial_state_digest": "08e314e3a2fd227ba14d5d46ede24e862b2f5cdc698533dd660f6be0ee2a6da4",
+          "tick_state_digests": [
+            "0544c3fc079f584bc2e3f5d624578684655b493e012c9ffda98555509a6be15e"
+          ],
+          "local_steps": [2],
+          "cycles": [0],
+          "remaining_ticks": [0]
+        },
+        "cycle-12": {
+          "initial_state_digest": "d15300677f1b43093ec875655db708bce7f8f698b70d8f79c1698df2712d1831",
+          "tick_state_digests": [
+            "ec9c5ea91f75a865250f759afd074eb8d9406f014174aed6b068a554b97a01eb"
+          ],
+          "local_steps": [2],
+          "cycles": [12],
+          "remaining_ticks": [0]
+        }
+      }
+    }
+  ]
+}
