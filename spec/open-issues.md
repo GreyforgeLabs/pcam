@@ -25,3 +25,11 @@ Section 10.3 requires generated quanta under `ACCRUE` to remain authoritative st
 ## Intent atomic groups
 
 Section 15.2 includes `atomic_group_id` in the intent structure, while §15.4 defines atomicity only for all claims within one intent. Cross-intent group acceptance, rejection, ordering, and identifier allocation are not defined. The Python reference currently arbitrates each intent atomically and preserves the group identifier without assigning cross-intent behavior.
+
+## Defense-fact selection
+
+The interaction expression vocabulary includes `defense.<field>`, but the candidate structure identifies only the offense fact and target entity. The specification does not define how one defense fact is selected when a target emits several simultaneous defense facts, nor how conflicting defense attributes combine. The Python reference currently requires an explicit defense fact per target for the pure interaction resolver.
+
+## Materialization operation registry
+
+Section 21.5 lists core rule operations but omits `MATERIALIZE`, while the canonical interaction example uses `op: MATERIALIZE` and §21.3 requires a materialization stage. The Python reference recognizes `MATERIALIZE` provisionally. The master operation registry must be corrected before the specification gate closes.

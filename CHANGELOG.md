@@ -11,3 +11,4 @@
 - Added deterministic input-buffer and freeze-token primitives, including TTL, overflow, consumption, activation, expiry, provisional stacking, and explicit open-issue tracking for underspecified stack semantics.
 - Integrated authoritative buffers and freeze tokens into the tick pipeline, including capture, transition consumption, expiry, progression HOLD, serialized deferred ACCRUE quanta, and snapshot round trips.
 - Added permutation-invariant atomic intent arbitration, deterministic instance-ID allocation, all core effect reducer primitives, exclusive-effect rejection traces, and open-issue tracking for undefined cross-intent atomic groups.
+- Added a directed five-stage typed interaction resolver with canonical candidate order, parry, armor modification, independent outgoing attacks, simultaneous trade, deterministic redirection limits, materialization, and interaction-spec gap tracking.

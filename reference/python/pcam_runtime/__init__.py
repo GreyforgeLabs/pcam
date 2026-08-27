@@ -25,6 +25,17 @@ from .buffers import BufferEntry, apply_consumption, capture_entry, end_tick as 
 from .freezes import FreezeToken, add_token, end_tick as expire_freeze_tokens, is_frozen, progression_accrual
 from .effects import EffectEnvelope, ReducedEffect, RejectedEffect, canonical_effects, reduce_effects
 from .intents import ArbitrationState, Claim, Intent, IntentDecision, allocate_action_instance_ids, arbitrate, canonical_intents
+from .interactions import (
+    EffectTemplate,
+    InteractionCandidate,
+    InteractionDecision,
+    InteractionRule,
+    RuleOperation,
+    SemanticFact,
+    canonical_candidates,
+    resolve_candidate,
+    validate_rules,
+)
 from .numeric import OverflowPolicy, apply_i64, apply_u64, euclidean_divmod, scale_ratio
 from .rng import PCG32Stream
 from .schema import Diagnostic, load_document, validate_document
@@ -40,10 +51,14 @@ __all__ = [
     "Diagnostic",
     "Effect",
     "EffectEnvelope",
+    "EffectTemplate",
     "FreezeToken",
     "HostSnapshot",
     "Intent",
     "IntentDecision",
+    "InteractionCandidate",
+    "InteractionDecision",
+    "InteractionRule",
     "NodeDefinition",
     "OverflowPolicy",
     "PCAMError",
@@ -55,12 +70,15 @@ __all__ = [
     "ResultCode",
     "RollbackManager",
     "RuntimeProfile",
+    "RuleOperation",
+    "SemanticFact",
     "SimulationState",
     "TickExecutor",
     "TickInput",
     "TransitionDefinition",
     "canonical_dumps",
     "canonical_effects",
+    "canonical_candidates",
     "canonical_hash",
     "canonical_intents",
     "compile_pcam24",
@@ -78,8 +96,10 @@ __all__ = [
     "is_frozen",
     "progression_accrual",
     "reduce_effects",
+    "resolve_candidate",
     "select_entry",
     "add_token",
     "validate_document",
+    "validate_rules",
     "scale_ratio",
 ]
