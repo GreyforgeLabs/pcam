@@ -31,7 +31,7 @@ This matrix preserves the complete target. A row is complete only when its named
 | §32 PCAM-24 | schema, compiler, lifecycle, projection, migration warnings | partial: schema and explicit TERMINATE/LOOP/CLAMP compiler |
 | §33-34 examples | examples validate and execute with expected trace/digests | missing |
 | §35 tracing | complete deterministic trace contract and canonicalized vectors | missing |
-| §36 extensions | namespace, required/optional, authoritative extension validation | missing |
+| §36 extensions | namespace, required/optional, authoritative extension validation | partial: namespace and omission rules, declarative authoritative contracts, payload schemas, bounded state, registry identity hashing, and negative vectors; an end-to-end authoritative extension remains open |
 | §37 classes | evidence manifest for each claimed class | missing |
 | §38 mandatory tests | all 20 tests implemented and passing | partial: coverage map committed; 38.19 missing and several rows still composed/partial |
 | §39 generated tests | all listed generators plus determinism and continuation properties | partial: deterministic generated surfaces cover every listed category; breadth and independent execution remain open |

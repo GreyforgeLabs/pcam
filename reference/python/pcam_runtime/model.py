@@ -325,6 +325,7 @@ class ActionDefinition:
     buffer_overflow_policy: Literal["DROP_OLDEST", "DROP_NEWEST", "FAULT"] = "DROP_OLDEST"
     default_buffer_lifetime: int = 1
     metadata: dict[str, object] = field(default_factory=dict)
+    extensions: dict[str, object] = field(default_factory=dict)
 
     @property
     def definition_hash(self) -> str:
@@ -334,6 +335,7 @@ class ActionDefinition:
         return {
             "id": self.id,
             "metadata": self.metadata,
+            "extensions": self.extensions,
             "nodes": [node.__dict__ for node in self.nodes],
             "predicates": [predicate.__dict__ for predicate in self.predicates],
             "semantic_facts": self.semantic_facts,

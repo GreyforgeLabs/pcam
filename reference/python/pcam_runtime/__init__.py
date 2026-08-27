@@ -6,6 +6,7 @@ preserving slice without claiming full PCAM-RUN-3 or rollback conformance.
 
 from .canonical import canonical_dumps, canonical_hash
 from .errors import PCAMError, PCAMFault, ResultCode
+from .extensions import ExtensionRegistration, ExtensionRegistry, ExtensionValidation
 from .model import (
     ActionDefinition,
     Contact,
@@ -58,6 +59,9 @@ __all__ = [
     "EffectEnvelope",
     "EffectTemplate",
     "EventEnvelope",
+    "ExtensionRegistration",
+    "ExtensionRegistry",
+    "ExtensionValidation",
     "FactBinding",
     "FreezeToken",
     "HostSnapshot",

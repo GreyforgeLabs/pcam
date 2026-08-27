@@ -55,7 +55,10 @@
     "extensionMap": {
       "type": "object",
       "propertyNames": {
-        "pattern": "^[A-Za-z][A-Za-z0-9.-]{1,126}[A-Za-z0-9]$"
+        "type": "string",
+        "minLength": 3,
+        "maxLength": 128,
+        "pattern": "^[A-Za-z][A-Za-z0-9-]*(\\.[A-Za-z][A-Za-z0-9-]*)+$"
       },
       "additionalProperties": {
         "type": "object",
@@ -64,8 +67,52 @@
           "requirement": {"enum": ["REQUIRED", "OPTIONAL"]},
           "authoritative": {"type": "boolean"},
           "omission_preserves_authority": {"type": "boolean"},
+          "schema_id": {"type": "string", "minLength": 1, "maxLength": 512},
+          "canonical_encoding": {"$ref": "#/$defs/identifier"},
+          "validation_id": {"$ref": "#/$defs/identifier"},
+          "runtime_semantics_id": {"$ref": "#/$defs/identifier"},
+          "ordering_id": {"$ref": "#/$defs/identifier"},
+          "fault_behavior_id": {"$ref": "#/$defs/identifier"},
+          "snapshot_schema_id": {"type": "string", "minLength": 1, "maxLength": 512},
+          "rollback_behavior_id": {"$ref": "#/$defs/identifier"},
+          "determinism_vectors": {
+            "type": "array",
+            "items": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+            "minItems": 1,
+            "maxItems": 1024,
+            "uniqueItems": true
+          },
           "payload": {}
         },
+        "allOf": [
+          {
+            "if": {"properties": {"requirement": {"const": "OPTIONAL"}}, "required": ["requirement"]},
+            "then": {
+              "required": ["omission_preserves_authority"],
+              "properties": {
+                "authoritative": {"const": false},
+                "omission_preserves_authority": {"const": true}
+              }
+            }
+          },
+          {
+            "if": {"properties": {"authoritative": {"const": true}}, "required": ["authoritative"]},
+            "then": {
+              "required": [
+                "schema_id",
+                "canonical_encoding",
+                "validation_id",
+                "runtime_semantics_id",
+                "ordering_id",
+                "fault_behavior_id",
+                "snapshot_schema_id",
+                "rollback_behavior_id",
+                "determinism_vectors"
+              ],
+              "properties": {"requirement": {"const": "REQUIRED"}}
+            }
+          }
+        ],
         "additionalProperties": false
       }
     }

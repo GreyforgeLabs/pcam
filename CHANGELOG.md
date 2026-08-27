@@ -23,3 +23,4 @@
 - Added an independent Rust PCAM-CJ1 canonicalizer and hasher with shared exact-byte, digest, definition, integer-boundary, Unicode-normalization, escaping, and floating-point-rejection vectors; the independent runtime gate remains open.
 - Added machine-readable networking topology declarations, required latency and correction fields, duplicate-ID rejection, and canonical runtime-profile hashes that bind all §31 limits; executable network services remain open.
 - Adopted CC BY 4.0 for the specification and documentation, MIT for implementation code and schemas, and CC0 1.0 for reusable conformance vectors, with separate trademark and patent statements.
+- Added bounded declarative extension registration, safe optional omission, unknown-required rejection, authoritative contract and payload validation, registry identity hashing, and snapshot extension-state limits; end-to-end authoritative extension semantics remain open.

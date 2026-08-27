@@ -174,6 +174,7 @@ def _definition(value: dict[str, Any]) -> ActionDefinition:
         buffer_overflow_policy=str(value.get("buffer_overflow_policy", "DROP_OLDEST")),  # type: ignore[arg-type]
         default_buffer_lifetime=int(value.get("default_buffer_lifetime", 1)),
         metadata=dict(value.get("metadata", {})),
+        extensions=dict(value.get("extensions", {})),
     )
 
 

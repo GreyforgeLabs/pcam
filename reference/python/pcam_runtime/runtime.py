@@ -5,10 +5,11 @@ from __future__ import annotations
 from dataclasses import replace
 
 from .buffers import BufferEntry, apply_consumption, capture_entry, end_tick as expire_buffers, select_entry
-from .canonical import canonical_hash
+from .canonical import canonical_dumps, canonical_hash
 from .effects import EffectEnvelope, reduce_effects
 from .errors import PCAMError, PCAMFault, ResultCode
 from .events import EventEnvelope, deliver_due, event_from_snapshot, event_snapshot
+from .extensions import ExtensionRegistry
 from .freezes import FreezeToken, add_token, end_tick as expire_freezes, is_frozen, progression_accrual
 from .interactions import InteractionCandidate, InteractionRule, SemanticFact, resolve_candidate, validate_rules
 from .intents import ArbitrationState, Claim, Intent, IntentDecision, arbitrate
@@ -25,8 +26,11 @@ class TickExecutor:
         profile: RuntimeProfile | None = None,
         interaction_rules: tuple[InteractionRule, ...] = (),
         effect_registry: dict[str, tuple[str, int]] | None = None,
+        extension_registry: ExtensionRegistry | None = None,
     ):
         self.profile = profile or RuntimeProfile()
+        self.extension_registry = extension_registry or ExtensionRegistry()
+        self.extension_registry.validate(self.profile.extensions, self.profile.max_extension_state_bytes)
         validate_rules(interaction_rules)
         self.interaction_rules = interaction_rules
         self.effect_registry = effect_registry or {
@@ -35,6 +39,7 @@ class TickExecutor:
         }
         for definition in definitions:
             validate_definition(definition)
+            self.extension_registry.validate(definition.extensions, self.profile.max_extension_state_bytes)
         self.definitions_by_id = {definition.id: definition for definition in definitions}
         self.definitions_by_hash = {definition.definition_hash: definition for definition in definitions}
         for definition in definitions:
@@ -52,7 +57,7 @@ class TickExecutor:
                     "definition_hash": definition.definition_hash,
                     "definition_id": definition.id,
                     "effect_registry_hash": canonical_hash(self.effect_registry),
-                    "extension_registry_hash": canonical_hash([]),
+                    "extension_registry_hash": self.extension_registry.identity_hash,
                     "interaction_profile_hash": canonical_hash(self.interaction_rules),
                     "runtime_profile_hash": self.profile.profile_hash,
                 }
@@ -196,6 +201,7 @@ class TickExecutor:
                 PCAMFault.SNAPSHOT_DEFINITION_MISMATCH,
                 state.definition_set_hash,
             )
+        self._validate_limits(state, 0, 0)
         return state
 
     def _deliver_events(self, state: SimulationState) -> tuple[SimulationState, list[str]]:
@@ -947,6 +953,21 @@ class TickExecutor:
     def _validate_limits(self, state: SimulationState, candidate_count: int, effect_count: int) -> None:
         if candidate_count > self.profile.max_candidates_per_tick or effect_count > self.profile.max_effects_per_tick:
             raise PCAMError(ResultCode.RUNTIME_FAULT, PCAMFault.STATE_INVARIANT_FAILURE, str(state.tick))
+        extension_state = {
+            "actions": {
+                key: action.extension_state
+                for key, action in sorted(state.action_instances.items(), key=lambda item: int(item[0]))
+                if action.extension_state
+            },
+            "simulation": state.extension_state,
+        }
+        has_extension_state = bool(state.extension_state) or bool(extension_state["actions"])
+        if has_extension_state and len(canonical_dumps(extension_state)) > self.profile.max_extension_state_bytes:
+            raise PCAMError(
+                ResultCode.RUNTIME_FAULT,
+                PCAMFault.EXTENSION_LIMIT_EXCEEDED,
+                str(state.tick),
+            )
 
     def _maintenance(self, state: SimulationState) -> SimulationState:
         state = self._finalize_child_results(state)
