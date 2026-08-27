@@ -2,7 +2,7 @@
 name = "pcam-independent"
 version = "0.1.0"
 edition = "2024"
-license = "Apache-2.0"
+license = "MIT"
 description = "Independent Rust implementation lane for PCAM v3"
 
 [dependencies]

@@ -22,3 +22,4 @@
 - Resolved Vulcan review findings by enforcing `max_actions_per_entity` for slotless and replacement starts, aligning keyed runtime snapshot collections with the snapshot schema, and adding direct regressions for both.
 - Added an independent Rust PCAM-CJ1 canonicalizer and hasher with shared exact-byte, digest, definition, integer-boundary, Unicode-normalization, escaping, and floating-point-rejection vectors; the independent runtime gate remains open.
 - Added machine-readable networking topology declarations, required latency and correction fields, duplicate-ID rejection, and canonical runtime-profile hashes that bind all §31 limits; executable network services remain open.
+- Adopted CC BY 4.0 for the specification and documentation, MIT for implementation code and schemas, and CC0 1.0 for reusable conformance vectors, with separate trademark and patent statements.

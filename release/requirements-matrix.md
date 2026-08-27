@@ -38,7 +38,7 @@ This matrix preserves the complete target. A row is complete only when its named
 | §40 migration | v1/v2 importer warnings and version rejection vectors | missing |
 | §41 repository | required structure and documentation | partial: required lanes and authority files exist |
 | §42 tooling | all eleven commands with stable machine-readable result codes | partial: all eleven command paths execute with JSON envelopes; broader normative vectors and diagnostics remain open |
-| §43 licenses | CC BY 4.0 spec, Apache-2.0 or MIT code, vector permissions, trademark separation | missing |
+| §43 licenses | CC BY 4.0 spec, Apache-2.0 or MIT code, vector permissions, trademark separation | complete: per-path license map, full CC BY 4.0, MIT, and CC0 1.0 texts, attribution, separate trademark policy, and explicit patent statement |
 | §44 security | bounded untrusted-data validation and adversarial vectors | partial: document/tick/expression/runtime bounds and schema checks; exhaustive hostile corpus pending |
 | §45 release gates | eight evidence reports with no unresolved requirement | partial: independent-language PCAM-CJ1 evidence exists; the independent runtime, cross-architecture manifests, experiments, audits, and remaining gates are open |
 

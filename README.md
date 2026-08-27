@@ -39,4 +39,8 @@ The Rust lane currently covers only independent PCAM-CJ1 canonicalization and ha
 - Requirement map: `release/requirements-matrix.md`
 - Claims ledger: `release/claims-gate.md`
 
+## Licensing
+
+Specification and documentation are CC BY 4.0, implementation code and schemas are MIT, and reusable conformance vectors under `tests/` are CC0 1.0. See `LICENSE` and `LICENSES/README.md`; trademark and patent statements are separate.
+
 Autonomy, Engineered.

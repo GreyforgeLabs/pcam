@@ -6,6 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "pcam-reference"
 version = "3.0.0.dev1"
 description = "PCAM v3 reference implementation"
+license = {file = "LICENSES/MIT.txt"}
 requires-python = ">=3.12"
 dependencies = [
   "jsonschema>=4.10,<5",
@@ -20,9 +21,11 @@ pcam = "pcam_runtime.cli:main"
 
 [tool.setuptools]
 package-dir = {"" = "reference/python"}
+license-files = ["LICENSES/MIT.txt"]
 
 [tool.setuptools.packages.find]
 where = ["reference/python"]
+exclude = ["tests*"]
 
 [tool.pytest.ini_options]
 testpaths = ["reference/python/tests"]

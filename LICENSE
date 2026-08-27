@@ -1,0 +1,9 @@
+PCAM v3 uses multiple licenses by file category.
+
+- Specification and documentation: CC BY 4.0
+- Reference and independent implementation code: MIT
+- Schemas, build metadata, and tooling: MIT
+- Conformance vectors and external test data under tests/: CC0 1.0
+
+The authoritative path map, notices, and complete legal texts are in LICENSES/.
+Trademark and patent statements are separate in TRADEMARKS.md and PATENTS.md.
