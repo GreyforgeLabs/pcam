@@ -1,0 +1,211 @@
+{
+  "pcam_vector_version": "1",
+  "kind": "runtime_vector",
+  "id": "mixed-stage-runtime",
+  "runtime_profile": {
+    "pcam_version": "3.0",
+    "kind": "runtime_profile",
+    "id": "pcam.reference.mixed-stage-runtime.v1",
+    "revision": 1,
+    "fault_policy": "ABORT_SIMULATION",
+    "limits": {
+      "max_actions_per_entity": 8,
+      "max_action_nesting_depth": 4,
+      "max_children_per_action": 4,
+      "max_quanta_per_action_per_tick": 8,
+      "max_internal_transitions_per_action_per_tick": 8,
+      "max_buffer_entries_per_action": 8,
+      "max_pending_events_per_entity": 8,
+      "max_candidates_per_tick": 32,
+      "max_effects_per_tick": 32,
+      "max_redirects_per_candidate": 4,
+      "max_definition_size_bytes": 65536,
+      "max_snapshot_size_bytes": 262144,
+      "max_extension_state_bytes": 4096,
+      "max_expression_depth": 64,
+      "max_expression_nodes": 4096
+    },
+    "rng_profiles": ["pcam.pcg32.v1"],
+    "network_profiles": [
+      {"id": "pcam.local.v1", "topology": "LOCAL_DETERMINISTIC"}
+    ],
+    "extensions": {}
+  },
+  "definitions": [
+    {
+      "id": "PARENT",
+      "rate_scale": 1,
+      "units_per_tick": 0,
+      "initial_node_id": "WAIT",
+      "nodes": [
+        {"id": "WAIT", "mode": "EVENT_DRIVEN"},
+        {"id": "DONE", "mode": "TERMINAL"}
+      ],
+      "child_slot_capacities": {"SUB": 1},
+      "child_termination_policies": {"SUB": "TERMINATE_CHILD"},
+      "transitions": [
+        {
+          "id": "launch",
+          "source_node": "WAIT",
+          "evaluation_point": "PRE_ADVANCE",
+          "priority": 10,
+          "target_kind": "CHILD_ACTION",
+          "target_action": "CHILD",
+          "child_slot_id": "SUB",
+          "parent_policy": "FREEZE_PROGRESSION",
+          "input_command": "LAUNCH"
+        },
+        {
+          "id": "complete",
+          "source_node": "WAIT",
+          "evaluation_point": "PRE_ADVANCE",
+          "priority": 5,
+          "target_kind": "NODE",
+          "target_node": "DONE",
+          "event_type": "CHILD_RESULT"
+        }
+      ]
+    },
+    {
+      "id": "CHILD",
+      "rate_scale": 2,
+      "units_per_tick": 1,
+      "initial_node_id": "RUN",
+      "nodes": [{"id": "RUN", "mode": "EVENT_DRIVEN"}],
+      "predicates": [{"id": "ACTIVE", "node_ids": ["RUN"]}],
+      "semantic_facts": [
+        {
+          "fact": {
+            "fact_id": "strike",
+            "direction": "OFFENSE",
+            "channels": ["STRIKE"],
+            "effect_templates": [
+              {
+                "effect_type": "combat.damage",
+                "effect_class": "DAMAGE",
+                "payload": 7,
+                "reducer": "SUM"
+              }
+            ]
+          },
+          "when_predicate": "ACTIVE",
+          "hit_policy": {
+            "kind": "ONCE_PER_ACTION_INSTANCE",
+            "receipt_on": "ON_IMPACT"
+          }
+        }
+      ],
+      "transitions": [
+        {
+          "id": "finish",
+          "source_node": "RUN",
+          "evaluation_point": "AFTER_QUANTUM",
+          "priority": 1,
+          "target_kind": "TERMINATE"
+        }
+      ]
+    },
+    {
+      "id": "DEFENDER",
+      "rate_scale": 1,
+      "units_per_tick": 0,
+      "nodes": [{"id": "GUARD", "mode": "EVENT_DRIVEN"}],
+      "predicates": [{"id": "ACTIVE", "node_ids": ["GUARD"]}],
+      "semantic_facts": [
+        {
+          "fact": {
+            "fact_id": "guard",
+            "direction": "DEFENSE",
+            "tags": []
+          },
+          "when_predicate": "ACTIVE",
+          "hit_policy": {"kind": "UNBOUNDED", "receipt_on": "ON_CONTACT"}
+        }
+      ]
+    }
+  ],
+  "interaction_rules": [
+    {
+      "rule_id": "materialize",
+      "stage": "MATERIALIZATION",
+      "order": 10,
+      "condition": {"literal": true},
+      "operations": [{"op": "MATERIALIZE"}]
+    }
+  ],
+  "effect_registry": {"combat.damage": ["hp", -1]},
+  "initial_state": {
+    "resource_banks": {"2": {"hp": 50}},
+    "slot_capacities": {}
+  },
+  "ticks": [
+    {
+      "inputs": [
+        {
+          "input_id": "parent",
+          "source_entity_id": 1,
+          "sequence": 0,
+          "command_id": "START",
+          "assigned_tick": 0,
+          "action_definition_id": "PARENT"
+        },
+        {
+          "input_id": "defender",
+          "source_entity_id": 2,
+          "sequence": 0,
+          "command_id": "START",
+          "assigned_tick": 0,
+          "action_definition_id": "DEFENDER"
+        }
+      ],
+      "contacts": []
+    },
+    {
+      "inputs": [
+        {
+          "input_id": "launch",
+          "source_entity_id": 1,
+          "sequence": 1,
+          "command_id": "LAUNCH",
+          "assigned_tick": 1
+        }
+      ],
+      "contacts": [
+        {
+          "candidate_id": "child-strike",
+          "source_instance_id": 3,
+          "source_entity_id": 1,
+          "target_entity_id": 2,
+          "fact_id": "strike",
+          "defense_fact_id": "guard",
+          "contact_id": "contact"
+        }
+      ]
+    },
+    {"inputs": [], "contacts": []},
+    {"inputs": [], "contacts": []}
+  ],
+  "expected": {
+    "definition_hashes": {
+      "CHILD": "6d672355bc8348a789216da161c9c6f51aff707287e04cdf67c6099868ac4d01",
+      "DEFENDER": "65e1c22e370583fd767ea2e63fd5383ae8b2c9ac4c6a4dc98c7ce0320f2a9f89",
+      "PARENT": "d406e2589eee0e447384b50136faa7950fb5db3864576130a37b257c7d889211"
+    },
+    "definition_set_hash": "71b0301920c4c8701056184cb48302c767c701729defd9378b114b0fbe2a9030",
+    "tick_state_digests": [
+      "cd11bfbdcb5681dc694d299361bc86916a77251e6782d26ea1f8ac4da0eaad01",
+      "646081da37e1988f2c9cfdb01b4a8a0cfbe3550600408ada362aace025278c51",
+      "ae79ebe9e55abe531f6bd5db5f551ff96d79ac20a29dd1b5f960dcb6709313b2",
+      "cb9967f522fd57059fbc3681299114c09151fbcd978e4cdb95eda1795758c3a5"
+    ],
+    "mid_state_digest": "646081da37e1988f2c9cfdb01b4a8a0cfbe3550600408ada362aace025278c51",
+    "final_state_digest": "cb9967f522fd57059fbc3681299114c09151fbcd978e4cdb95eda1795758c3a5",
+    "corrected_tick": 1,
+    "corrected_tick_state_digests": [
+      "25743e59cb52556c5414822ea388bc2f01716b5c149481062011999ff3d7eb43",
+      "ea52a98c370cc72a8498e6046750f0cbc6b79d6a67513174762c7e24d704e41d",
+      "3c354c4a5485d103a5c96fcb1350a92894c3cb5084eb44b7b7943448eec0d580"
+    ],
+    "corrected_final_state_digest": "3c354c4a5485d103a5c96fcb1350a92894c3cb5084eb44b7b7943448eec0d580"
+  }
+}

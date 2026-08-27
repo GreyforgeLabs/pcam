@@ -16,7 +16,9 @@ Deterministic tracing now maps all 22 §35 fields through `trace-contract.json`,
 
 Direct starts now validate declared parameter bindings before allocation, deep-capture bounded values, preserve them through snapshots, and reject missing, unknown, or invalid bindings atomically. Action and child transition targets remain default-only as required by the Core target schema.
 
-## Known remaining interpreter gaps
+`tests/vectors/mixed-stage-runtime.json` closes the bounded mixed-stage execution gap in Python and independent Rust. One exact scenario combines child launch and current-tick progression, semantic interaction, receipt and effect commit, freeze and child-result maintenance, complete mid-state restore, continuation equivalence, raw start-order invariance, and corrected-input retained replay that matches direct execution.
 
-- Independent normative-vector breadth remains insufficient to rule out divergence in broader mixed-stage combinations despite exact one-pass pre-transition and direct-start arbitration, simultaneous post-transition arbitration with deferred target progression, atomic replacement, checked cycle advance, explicit transition-effect RNG draws with restore continuation, all five Core event delivery modes, frozen-snapshot lethal trade, armored incoming mitigation with a preserved outgoing attack, typed armor and parry, 24 generated complete interaction-pipeline cases, two-hop redirect rebinding and final-target commit, all six complete-state ledger-policy paths, all five parent launch policies, all four child termination policies, bounded recursive child launches, and 27 generated progression, interaction, and effect fault cases under all three policies.
+## Known remaining gate gaps
+
+- No bounded mixed-stage interpreter divergence is known after the shared vector, but complete runtime conformance remains unclaimed until the remaining full-definition, hostile canonicalization, networking-service, and cross-platform evidence in the requirements matrix is closed.
 - Linux ARM64 digest evidence is unavailable, so this gate cannot contribute to cross-platform closure.

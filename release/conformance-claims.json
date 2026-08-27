@@ -19,19 +19,19 @@
     "PCAM-RUN-3": {
       "claimed": false,
       "requirements": {
-        "normative_tick_pipeline": {"status": "OPEN", "evidence": ["reference/python/tests/test_runtime_slice.py", "tests/vectors/event-effect-runtime.json"]},
+        "normative_tick_pipeline": {"status": "PASS", "evidence": ["release/trace-contract.json", "tests/vectors/mixed-stage-runtime.json", "reference/python/tests/test_mixed_stage_runtime.py", "independent/rust/tests/mixed_stage_runtime_vectors.rs"]},
         "action_progression": {"status": "OPEN", "evidence": ["tests/vectors/action-runtime.json"]},
         "transitions": {"status": "OPEN", "evidence": ["tests/vectors/action-runtime.json", "tests/vectors/transition-context-runtime.json", "tests/vectors/initial-entry-effects-runtime.json", "tests/vectors/fault-target-runtime.json", "tests/vectors/collection-register-runtime.json"]},
         "predicates": {"status": "PASS", "evidence": ["tests/vectors/action-runtime.json", "tests/vectors/transition-context-runtime.json", "tests/vectors/predicate-graphs.json"]},
         "buffers": {"status": "OPEN", "evidence": ["tests/vectors/action-runtime.json"]},
         "intents_and_claims": {"status": "PASS", "evidence": ["reference/python/tests/test_intents.py", "tests/vectors/contended-starts.json", "tests/vectors/transition-replacement.json", "tests/vectors/pre-stage-arbitration.json", "tests/vectors/post-stage-arbitration.json", "tests/generated/core-properties-v1.json", "reference/python/tests/test_shared_generated_core.py", "independent/rust/tests/generated_core_properties.rs"]},
-        "parent_child_actions": {"status": "OPEN", "evidence": ["reference/python/tests/test_runtime_slice.py", "tests/vectors/parent-child.json", "tests/vectors/parent-policies.json", "tests/vectors/child-termination-policies.json", "tests/vectors/nesting-runtime.json", "tests/vectors/child-global-limit-runtime.json"]},
+        "parent_child_actions": {"status": "PASS", "evidence": ["reference/python/tests/test_runtime_slice.py", "tests/vectors/parent-child.json", "tests/vectors/parent-policies.json", "tests/vectors/child-termination-policies.json", "tests/vectors/nesting-runtime.json", "tests/vectors/child-global-limit-runtime.json", "tests/vectors/mixed-stage-runtime.json", "reference/python/tests/test_mixed_stage_runtime.py", "independent/rust/tests/mixed_stage_runtime_vectors.rs"]},
         "freeze_tokens": {"status": "OPEN", "evidence": ["tests/vectors/action-runtime.json", "tests/vectors/event-delivery-runtime.json", "tests/vectors/once-freeze-runtime.json", "tests/vectors/rng-freeze-runtime.json", "tests/vectors/freeze-domain-timing.json"]},
         "interaction_resolution": {"status": "PASS", "evidence": ["reference/python/tests/test_interactions.py", "tests/vectors/interactions.json", "tests/vectors/interaction-runtime.json", "tests/vectors/simultaneous-trade-runtime.json", "tests/vectors/redirect-runtime.json", "tests/generated/core-properties-v1.json", "reference/python/tests/test_shared_generated_core.py", "independent/rust/tests/generated_core_properties.rs"]},
         "ledgers": {"status": "PASS", "evidence": ["reference/python/tests/test_ledgers.py", "tests/vectors/ledgers.json", "tests/vectors/ledger-runtime.json", "tests/vectors/once-freeze-runtime.json", "tests/vectors/interaction-runtime.json", "tests/generated/core-properties-v1.json", "reference/python/tests/test_shared_generated_core.py", "independent/rust/tests/generated_core_properties.rs"]},
         "effect_reduction": {"status": "OPEN", "evidence": ["reference/python/tests/test_effects.py", "tests/vectors/event-effect-runtime.json", "tests/vectors/custom-effect-ordered-fold.json", "tests/vectors/custom-effect-runtime.json"]},
-        "snapshot_and_restore": {"status": "OPEN", "evidence": ["reference/python/tests/test_runtime_slice.py", "tests/vectors/action-runtime.json"]},
-        "canonical_state_digest": {"status": "OPEN", "evidence": ["tests/vectors/action-runtime.json"]}
+        "snapshot_and_restore": {"status": "PASS", "evidence": ["tests/vectors/action-runtime.json", "tests/vectors/parent-child.json", "tests/vectors/mixed-stage-runtime.json", "reference/python/tests/test_mixed_stage_runtime.py", "independent/rust/tests/mixed_stage_runtime_vectors.rs"]},
+        "canonical_state_digest": {"status": "PASS", "evidence": ["tests/vectors/action-runtime.json", "tests/vectors/state-distinction-runtime.json", "tests/vectors/mixed-stage-runtime.json", "reference/python/tests/test_mixed_stage_runtime.py", "independent/rust/tests/mixed_stage_runtime_vectors.rs"]}
       }
     },
     "PCAM-DET-3": {
@@ -42,7 +42,7 @@
         "deterministic_contact_generation": {"status": "OPEN", "evidence": ["reference/python/tests/test_runtime_slice.py"]},
         "deterministic_host_effects": {"status": "OPEN", "evidence": ["reference/python/tests/test_effects.py"]},
         "deterministic_numeric_behavior": {"status": "PASS", "evidence": ["tests/vectors/numeric-rng.json", "tests/vectors/rng-runtime.json", "tests/vectors/rng-call-order-runtime.json"]},
-        "cross_run_state_digest_identity": {"status": "OPEN", "evidence": ["reference/python/tests/test_generated_properties.py", "tests/generated/core-properties-v1.json", "reference/python/tests/test_shared_generated_core.py", "independent/rust/tests/generated_core_properties.rs"]}
+        "cross_run_state_digest_identity": {"status": "PASS", "evidence": ["reference/python/tests/test_generated_properties.py", "tests/generated/core-properties-v1.json", "reference/python/tests/test_shared_generated_core.py", "independent/rust/tests/generated_core_properties.rs", "tests/vectors/mixed-stage-runtime.json", "reference/python/tests/test_mixed_stage_runtime.py", "independent/rust/tests/mixed_stage_runtime_vectors.rs"]}
       }
     },
     "PCAM-RB-3": {
