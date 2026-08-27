@@ -273,6 +273,24 @@ fn independent_simulation_matches_contended_start_arbitration_state() {
         serde_json::json!([1])
     );
     assert_eq!(state.next_action_instance_id, 2);
+
+    let mut reversed_vector = vector.clone();
+    reversed_vector["ticks"][0]["inputs"]
+        .as_array_mut()
+        .unwrap()
+        .reverse();
+    let reversed_runtime = SimulationRuntime::from_vector(&reversed_vector).unwrap();
+    let reversed_initial = reversed_runtime.initial_state(&reversed_vector).unwrap();
+    let (reversed_state, reversed_trace) = reversed_runtime
+        .tick(&reversed_initial, &reversed_vector["ticks"][0])
+        .unwrap();
+    assert_eq!(reversed_state, state);
+    assert_eq!(
+        reversed_trace.state_digest,
+        vector["expected"]["tick_state_digests"][0]
+            .as_str()
+            .unwrap()
+    );
 }
 
 #[test]

@@ -186,6 +186,14 @@ def test_python_contended_starts_match_shared_arbitration_state_digest():
         "usage": 1,
     }
 
+    reversed_document = json.loads(json.dumps(document))
+    reversed_document["ticks"][0]["inputs"].reverse()
+    reversed_run = run_vector(reversed_document)
+    assert reversed_run.final_state.to_snapshot() == run.final_state.to_snapshot()
+    assert [trace["state_digest"] for trace in reversed_run.traces] == expected[
+        "tick_state_digests"
+    ]
+
 
 def _advance_document(manager, state, run, document, tick_zero_inputs=None):
     for tick_index in range(len(document["ticks"])):
