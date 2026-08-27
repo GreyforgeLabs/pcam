@@ -312,6 +312,7 @@ class TransitionDefinition:
     target_kind: Literal["NODE", "ACTION", "CHILD_ACTION", "TERMINATE", "FAULT"] = "NODE"
     target_node: str | None = None
     target_action: str | None = None
+    fault_code: str | None = None
     source_disposition: Literal["TERMINATE_SOURCE", "SUSPEND_SOURCE", "KEEP_SOURCE"] = "TERMINATE_SOURCE"
     child_slot_id: str | None = None
     parent_policy: str | None = None
@@ -407,7 +408,11 @@ class ActionDefinition:
             },
             "transitions": [
                 {
-                    **transition.__dict__,
+                    **{
+                        key: value
+                        for key, value in transition.__dict__.items()
+                        if key != "fault_code" or value is not None
+                    },
                     "effects": [effect.__dict__ for effect in transition.effects],
                     "definition_effects": [effect.__dict__ for effect in transition.definition_effects],
                 }
@@ -601,6 +606,25 @@ def validate_definition(definition: ActionDefinition) -> None:
                 "TERMINATE_PARENT",
             }:
                 raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.STATE_INVARIANT_FAILURE, transition.id)
+        if transition.target_kind == "FAULT":
+            if transition.fault_code is None:
+                raise PCAMError(
+                    ResultCode.DEFINITION_REJECTED,
+                    PCAMFault.STATE_INVARIANT_FAILURE,
+                    transition.id,
+                )
+            if not CANONICAL_ID.match(transition.fault_code):
+                raise PCAMError(
+                    ResultCode.DEFINITION_REJECTED,
+                    PCAMFault.INVALID_CANONICAL_IDENTIFIER,
+                    transition.fault_code,
+                )
+        elif transition.fault_code is not None:
+            raise PCAMError(
+                ResultCode.DEFINITION_REJECTED,
+                PCAMFault.STATE_INVARIANT_FAILURE,
+                transition.id,
+            )
         if transition.guard_predicate is not None and transition.guard_predicate not in predicate_ids:
             raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.STATE_INVARIANT_FAILURE, transition.guard_predicate)
         key = (transition.source_node, transition.evaluation_point, transition.priority)

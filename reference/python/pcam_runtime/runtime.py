@@ -1132,7 +1132,8 @@ class TickExecutor:
             state, action = self._terminate_action(state, action, "TERMINATED")
             action = replace(action, transition_serial=action.transition_serial + 1)
         elif transition.target_kind == "FAULT":
-            state, action = self._terminate_action(state, action, "FAULTED", transition.id)
+            assert transition.fault_code is not None
+            state, action = self._terminate_action(state, action, "FAULTED", transition.fault_code)
             action = replace(action, transition_serial=action.transition_serial + 1)
         elif transition.target_kind == "ACTION":
             assert transition.target_action is not None

@@ -266,6 +266,7 @@ def _transition(value: dict[str, Any]) -> TransitionDefinition:
         target_kind=str(value.get("target_kind", "NODE")),  # type: ignore[arg-type]
         target_node=value.get("target_node"),
         target_action=value.get("target_action"),
+        fault_code=value.get("fault_code"),
         target_step=int(value.get("target_step", 0)),
         source_disposition=str(value.get("source_disposition", "TERMINATE_SOURCE")),  # type: ignore[arg-type]
         child_slot_id=value.get("child_slot_id"),

@@ -96,6 +96,7 @@ struct SimulationTransition {
     target_node: Option<String>,
     target_step: u64,
     target_action: Option<String>,
+    fault_code: Option<String>,
     child_slot_id: Option<String>,
     parent_policy: Option<String>,
     source_disposition: String,
@@ -2409,7 +2410,12 @@ impl SimulationRuntime {
                     .transition_serial
                     .checked_add(1)
                     .ok_or(SimulationError::RuntimeFault)?;
-                state.action_instances[index].fault_record = Some(transition.id.clone());
+                state.action_instances[index].fault_record = Some(
+                    transition
+                        .fault_code
+                        .clone()
+                        .ok_or(SimulationError::RuntimeFault)?,
+                );
                 self.terminate_action(state, action_id, "FAULTED", None)?;
             }
             "ACTION" => {
@@ -3045,7 +3051,7 @@ fn canonical_transition(raw: &Value) -> Result<Value, SimulationError> {
         })
         .collect::<Vec<_>>();
     let definition_effects = canonical_definition_effects(raw.get("definition_effects"))?;
-    Ok(json!({
+    let mut canonical = json!({
         "assignments": raw.get("assignments").cloned().unwrap_or_else(|| json!([])),
         "child_slot_id": raw.get("child_slot_id").cloned().unwrap_or(Value::Null),
         "claims": canonical_claims(raw.get("claims"))?,
@@ -3070,7 +3076,14 @@ fn canonical_transition(raw: &Value) -> Result<Value, SimulationError> {
         "target_kind": raw.get("target_kind").cloned().unwrap_or_else(|| json!("NODE")),
         "target_node": raw.get("target_node").cloned().unwrap_or(Value::Null),
         "target_step": raw.get("target_step").cloned().unwrap_or_else(|| json!(0)),
-    }))
+    });
+    if let Some(fault_code) = raw.get("fault_code") {
+        canonical
+            .as_object_mut()
+            .ok_or(SimulationError::InvalidVector)?
+            .insert("fault_code".to_owned(), fault_code.clone());
+    }
+    Ok(canonical)
 }
 
 fn canonical_definition_effects(raw: Option<&Value>) -> Result<Vec<Value>, SimulationError> {
@@ -3446,6 +3459,10 @@ fn parse_definition(raw: &Value, hash: String) -> Result<Definition, SimulationE
                 target_step,
                 target_action: transition
                     .get("target_action")
+                    .and_then(Value::as_str)
+                    .map(str::to_owned),
+                fault_code: transition
+                    .get("fault_code")
                     .and_then(Value::as_str)
                     .map(str::to_owned),
                 child_slot_id: transition
@@ -3957,6 +3974,12 @@ fn validate_simulation_definition(definition: &Definition) -> Result<(), Simulat
     }
     let mut priorities = BTreeSet::new();
     for transition in &definition.transitions {
+        if transition.target_kind != "FAULT" && transition.fault_code.is_some() {
+            return Err(definition_fault(
+                "STATE_INVARIANT_FAILURE",
+                "non-FAULT target declares a fault code",
+            ));
+        }
         if !matches!(
             transition.evaluation_point.as_str(),
             "PRE_ADVANCE" | "AFTER_QUANTUM" | "POST_ADVANCE"
@@ -4053,7 +4076,21 @@ fn validate_simulation_definition(definition: &Definition) -> Result<(), Simulat
                     ));
                 }
             }
-            "TERMINATE" | "FAULT" => {}
+            "TERMINATE" => {}
+            "FAULT" => {
+                let Some(fault_code) = transition.fault_code.as_deref() else {
+                    return Err(definition_fault(
+                        "STATE_INVARIANT_FAILURE",
+                        "FAULT target requires a fault code",
+                    ));
+                };
+                if !valid_canonical_identifier(fault_code) {
+                    return Err(definition_fault(
+                        "INVALID_CANONICAL_IDENTIFIER",
+                        "FAULT target code is not a canonical identifier",
+                    ));
+                }
+            }
             _ => {
                 return Err(definition_fault(
                     "STATE_INVARIANT_FAILURE",
@@ -4084,6 +4121,16 @@ fn validate_simulation_definition_targets(
         }
     }
     Ok(())
+}
+
+fn valid_canonical_identifier(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    !bytes.is_empty()
+        && bytes.len() <= 128
+        && bytes[0].is_ascii_alphabetic()
+        && bytes[1..]
+            .iter()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'.' | b':' | b'-'))
 }
 
 fn collect_host_import_references(expression: &Value, references: &mut BTreeSet<String>) {

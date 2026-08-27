@@ -1,0 +1,237 @@
+{
+  "pcam_vector_version": "1",
+  "kind": "runtime_vector",
+  "id": "fault-target-runtime",
+  "runtime_profile": {
+    "pcam_version": "3.0",
+    "kind": "runtime_profile",
+    "id": "pcam.reference.fault-target.v1",
+    "revision": 1,
+    "fault_policy": "ABORT_SIMULATION",
+    "limits": {
+      "max_actions_per_entity": 8,
+      "max_action_nesting_depth": 4,
+      "max_children_per_action": 4,
+      "max_quanta_per_action_per_tick": 8,
+      "max_internal_transitions_per_action_per_tick": 8,
+      "max_buffer_entries_per_action": 8,
+      "max_pending_events_per_entity": 8,
+      "max_candidates_per_tick": 32,
+      "max_effects_per_tick": 32,
+      "max_redirects_per_candidate": 4,
+      "max_definition_size_bytes": 65536,
+      "max_snapshot_size_bytes": 262144,
+      "max_extension_state_bytes": 4096,
+      "max_expression_depth": 64,
+      "max_expression_nodes": 4096
+    },
+    "rng_profiles": ["pcam.pcg32.v1"],
+    "network_profiles": [{"id": "pcam.local.v1", "topology": "LOCAL_DETERMINISTIC"}],
+    "extensions": {}
+  },
+  "definitions": [
+    {
+      "id": "DECLARED_FAULT",
+      "rate_scale": 1,
+      "units_per_tick": 0,
+      "register_declarations": {
+        "order": {"type": "U64", "minimum": 0, "maximum": 10, "overflow": "FAULT"}
+      },
+      "register_initials": {"order": 0},
+      "nodes": [
+        {
+          "id": "WAIT",
+          "mode": "EVENT_DRIVEN",
+          "exit_assignments": [
+            {
+              "target": "action.register.order",
+              "value": {"op": "add", "args": [{"ref": "action.register.order"}, {"literal": 1}]}
+            }
+          ],
+          "exit_effects": [
+            {
+              "effect_type": "trace.fault-source-exit",
+              "effect_class": "TRACE",
+              "authoritative": false,
+              "payload": {"order": {"ref": "action.register.order"}}
+            }
+          ]
+        }
+      ],
+      "transitions": [
+        {
+          "id": "trip",
+          "source_node": "WAIT",
+          "evaluation_point": "PRE_ADVANCE",
+          "priority": 10,
+          "target_kind": "FAULT",
+          "fault_code": "DECLARED_TRIP",
+          "input_command": "TRIP",
+          "consume_policy": "ON_ACCEPT",
+          "exit_assignments": [
+            {
+              "target": "action.register.order",
+              "value": {"op": "add", "args": [{"ref": "action.register.order"}, {"literal": 1}]}
+            }
+          ],
+          "assignments": [
+            {
+              "target": "action.register.order",
+              "value": {"op": "add", "args": [{"ref": "action.register.order"}, {"literal": 1}]}
+            }
+          ],
+          "definition_effects": [
+            {
+              "effect_type": "trace.fault-transition",
+              "effect_class": "TRACE",
+              "authoritative": false,
+              "payload": {"order": {"ref": "action.register.order"}, "fault_code": "DECLARED_TRIP"}
+            },
+            {
+              "effect_type": "test.delta",
+              "effect_class": "RESOURCE",
+              "authoritative": true,
+              "reducer": "SUM",
+              "payload": {"literal": 2}
+            }
+          ],
+          "entry_assignments": [
+            {
+              "target": "action.register.order",
+              "value": {"op": "add", "args": [{"ref": "action.register.order"}, {"literal": 1}]}
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "interaction_rules": [],
+  "effect_registry": {"test.delta": ["STAMINA", 1]},
+  "initial_state": {"resource_banks": {"1": {"STAMINA": 5}}},
+  "ticks": [
+    {
+      "inputs": [
+        {
+          "input_id": "start",
+          "source_entity_id": 1,
+          "sequence": 0,
+          "command_id": "START",
+          "assigned_tick": 0,
+          "action_definition_id": "DECLARED_FAULT"
+        }
+      ],
+      "contacts": []
+    },
+    {
+      "inputs": [
+        {
+          "input_id": "trip",
+          "source_entity_id": 1,
+          "sequence": 1,
+          "command_id": "TRIP",
+          "assigned_tick": 1
+        }
+      ],
+      "contacts": []
+    },
+    {"inputs": [], "contacts": []}
+  ],
+  "definition_fault_cases": [
+    {
+      "id": "missing-fault-code",
+      "fault_code": null,
+      "fault": "STATE_INVARIANT_FAILURE"
+    },
+    {
+      "id": "invalid-fault-code",
+      "fault_code": "bad code",
+      "fault": "INVALID_CANONICAL_IDENTIFIER"
+    },
+    {
+      "id": "fault-code-on-terminate",
+      "target_kind": "TERMINATE",
+      "fault_code": "DECLARED_TRIP",
+      "fault": "STATE_INVARIANT_FAILURE"
+    }
+  ],
+  "expected": {
+    "definition_hash": "e575cc7a5171f0d104f0c9d57a67de964c2264e8c3032a73bd8ccb759a2ced81",
+    "definition_set_hash": "f7e98583f1f681591f8559df3d8226c182534cd5d90c0aee9d99248bce82e4d3",
+    "tick_state_digests": [
+      "5f0fd4cfcec171c439c9ba4aa6782114f4cb6673a7dff73269e06a670907e15c",
+      "00a065cd310da096425c5876b0c623fc809a04412a56feda6562664dcb4ff5bf",
+      "5a955558b6143b10d793d827aa4291f4b174060db05b522fc2e661d200288a99"
+    ],
+    "final_state_digest": "5a955558b6143b10d793d827aa4291f4b174060db05b522fc2e661d200288a99",
+    "summary": {
+      "tick": 3,
+      "lifecycle": "FAULTED",
+      "fault_record": "DECLARED_TRIP",
+      "transition_serial": 1,
+      "emission_serial": 3,
+      "registers": {"order": 4},
+      "input_buffer": [],
+      "stamina": 7
+    },
+    "traces": [
+      {"selected_transitions": [], "emitted": [], "reduced": [], "faults": []},
+      {
+        "selected_transitions": [
+          {"intent_id": "1:1:trip:1:trip", "transition_id": "trip"}
+        ],
+        "emitted": [
+          {
+            "effect_id": "1:1:0",
+            "effect_type": "trace.fault-source-exit",
+            "effect_class": "TRACE",
+            "source_entity_id": 1,
+            "target_entity_id": 1,
+            "source_action_instance_id": 1,
+            "origin_tick": 1,
+            "priority": 0,
+            "payload": {"order": 2},
+            "reducer": "ORDERED",
+            "authoritative": false
+          },
+          {
+            "effect_id": "1:1:1",
+            "effect_type": "trace.fault-transition",
+            "effect_class": "TRACE",
+            "source_entity_id": 1,
+            "target_entity_id": 1,
+            "source_action_instance_id": 1,
+            "origin_tick": 1,
+            "priority": 0,
+            "payload": {"fault_code": "DECLARED_TRIP", "order": 3},
+            "reducer": "ORDERED",
+            "authoritative": false
+          },
+          {
+            "effect_id": "1:1:2",
+            "effect_type": "test.delta",
+            "effect_class": "RESOURCE",
+            "source_entity_id": 1,
+            "target_entity_id": 1,
+            "source_action_instance_id": 1,
+            "origin_tick": 1,
+            "priority": 0,
+            "payload": 2,
+            "reducer": "SUM",
+            "authoritative": true
+          }
+        ],
+        "reduced": [
+          {
+            "effect_type": "test.delta",
+            "reducer": "SUM",
+            "target_entity_id": 1,
+            "value": 2,
+            "source_effect_ids": ["1:1:2"]
+          }
+        ],
+        "faults": []
+      },
+      {"selected_transitions": [], "emitted": [], "reduced": [], "faults": []}
+    ]
+  }
+}

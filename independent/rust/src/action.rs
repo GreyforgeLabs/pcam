@@ -64,6 +64,8 @@ pub struct TransitionDefinition {
     pub target_kind: String,
     pub target_node: Option<String>,
     #[serde(default)]
+    pub fault_code: Option<String>,
+    #[serde(default)]
     pub target_step: u64,
     pub guard_expression: Option<Value>,
     pub input_command: Option<String>,
@@ -270,6 +272,9 @@ pub fn validate_definition(definition: &ActionDefinition) -> Result<(), ActionEr
     }
     let mut priorities = BTreeSet::new();
     for transition in &definition.transitions {
+        if transition.target_kind != "FAULT" && transition.fault_code.is_some() {
+            return Err(ActionError::InvalidDefinition);
+        }
         if !nodes.contains_key(transition.source_node.as_str())
             || !matches!(
                 transition.evaluation_point.as_str(),
@@ -297,7 +302,16 @@ pub fn validate_definition(definition: &ActionDefinition) -> Result<(), ActionEr
             {
                 return Err(ActionError::InvalidDefinition);
             }
-        } else if !matches!(transition.target_kind.as_str(), "TERMINATE" | "FAULT") {
+        } else if transition.target_kind == "FAULT" {
+            if transition
+                .fault_code
+                .as_ref()
+                .is_none_or(|code| !valid_canonical_identifier(code))
+            {
+                return Err(ActionError::InvalidDefinition);
+            }
+        } else if transition.target_kind == "TERMINATE" {
+        } else {
             return Err(ActionError::InvalidDefinition);
         }
         if !matches!(
@@ -309,6 +323,16 @@ pub fn validate_definition(definition: &ActionDefinition) -> Result<(), ActionEr
     }
     validate_predicates(&definition.predicates)?;
     Ok(())
+}
+
+fn valid_canonical_identifier(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    !bytes.is_empty()
+        && bytes.len() <= 128
+        && bytes[0].is_ascii_alphabetic()
+        && bytes[1..]
+            .iter()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'.' | b':' | b'-'))
 }
 
 pub fn start(definition: &ActionDefinition) -> Result<ActionInstance, ActionError> {
@@ -896,7 +920,7 @@ fn apply_transition(
         "TERMINATE" => action.lifecycle_state = "TERMINATED".to_owned(),
         "FAULT" => {
             action.lifecycle_state = "FAULTED".to_owned();
-            action.fault_record = Some(transition.id.clone());
+            action.fault_record = transition.fault_code.clone();
         }
         _ => return Err(ActionError::InvalidDefinition),
     }
