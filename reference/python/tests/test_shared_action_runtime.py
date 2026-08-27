@@ -6,7 +6,9 @@ import pytest
 
 from pcam_runtime import (
     ActionDefinition,
+    Assignment,
     canonical_hash,
+    DefinitionEffect,
     FreezeToken,
     NodeDefinition,
     PCAMError,
@@ -21,6 +23,29 @@ ROOT = Path(__file__).resolve().parents[3]
 
 
 def _definition(raw):
+    def assignment(value):
+        return Assignment(target=value["target"], value=value["value"])
+
+    def effect(value):
+        return DefinitionEffect(**value)
+
+    def node(value):
+        normalized = dict(value)
+        for field in ("entry_assignments", "exit_assignments"):
+            normalized[field] = tuple(assignment(item) for item in value.get(field, ()))
+        for field in ("entry_effects", "exit_effects"):
+            normalized[field] = tuple(effect(item) for item in value.get(field, ()))
+        return NodeDefinition(**normalized)
+
+    def transition(value):
+        normalized = dict(value)
+        for field in ("exit_assignments", "assignments", "entry_assignments"):
+            normalized[field] = tuple(assignment(item) for item in value.get(field, ()))
+        normalized["definition_effects"] = tuple(
+            effect(item) for item in value.get("definition_effects", ())
+        )
+        return TransitionDefinition(**normalized)
+
     return ActionDefinition(
         id=raw["id"],
         rate_scale=raw["rate"]["scale"],
@@ -29,9 +54,10 @@ def _definition(raw):
         buffer_capacity=raw.get("buffer_capacity", 8),
         buffer_overflow_policy=raw.get("buffer_overflow_policy", "DROP_OLDEST"),
         default_buffer_lifetime=raw.get("default_buffer_lifetime", 1),
-        nodes=tuple(NodeDefinition(**node) for node in raw["nodes"]),
+        nodes=tuple(node(value) for value in raw["nodes"]),
         predicates=tuple(PredicateDefinition(**predicate) for predicate in raw.get("predicates", ())),
-        transitions=tuple(TransitionDefinition(**transition) for transition in raw["transitions"]),
+        transitions=tuple(transition(value) for value in raw["transitions"]),
+        register_initials=raw.get("register_initials", {}),
     )
 
 
@@ -45,7 +71,7 @@ def _profile(raw):
 
 
 def _projection(action):
-    return {
+    projection = {
         "owner_entity_id": action.owner_entity_id,
         "lifecycle_state": action.lifecycle_state,
         "current_node_id": action.current_node_id,
@@ -62,6 +88,11 @@ def _projection(action):
         "input_buffer": [entry.__dict__ for entry in action.input_buffer],
         "fault_record": action.fault_record,
     }
+    if action.registers:
+        projection["registers"] = action.registers
+    if action.emission_serial:
+        projection["emission_serial"] = action.emission_serial
+    return projection
 
 
 def _vectors():
@@ -100,6 +131,7 @@ def test_python_runtime_matches_shared_progression_and_transition_vectors():
         definition = _definition(case["definition"])
         executor = TickExecutor((definition,), profile=_profile(vectors["limits"]))
         state = executor.initial_state()
+        actual_effects = []
         for tick_index, expected in enumerate(case["expected"]):
             state = _apply_freezes(state, case.get("freezes", [{}] * case["ticks"])[tick_index], tick_index)
             inputs = tuple(TickInput(**item) for item in case.get("inputs", [])[tick_index]) if case.get("inputs") else ()
@@ -114,10 +146,13 @@ def test_python_runtime_matches_shared_progression_and_transition_vectors():
                         action_definition_id=definition.id,
                     )
                 )
-            state, _ = executor.tick(state, inputs)
+            state, trace = executor.tick(state, inputs)
+            actual_effects.append(trace["typed_effects_emitted"])
             actual = _projection(state.action_instances["1"])
             assert {key: actual[key] for key in expected} == expected, case["id"]
         assert canonical_hash(actual) == case["final_state_sha256"], case["id"]
+        if "expected_effects" in case:
+            assert actual_effects == case["expected_effects"], case["id"]
         restored = executor.restore(executor.save(state))
         assert _projection(restored.action_instances["1"]) == actual, case["id"]
         restored, _ = executor.tick(restored)

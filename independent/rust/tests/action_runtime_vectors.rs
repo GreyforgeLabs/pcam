@@ -45,6 +45,8 @@ struct Case {
     #[serde(default)]
     freezes: Vec<FreezeControls>,
     expected: Vec<Value>,
+    #[serde(default)]
+    expected_effects: Vec<Vec<Value>>,
     final_state_sha256: String,
     continuation_state_sha256: String,
 }
@@ -98,9 +100,10 @@ fn independent_runtime_matches_shared_progression_and_transition_vectors() {
     for case in vectors.cases {
         assert_eq!(case.ticks, case.expected.len(), "{}", case.id);
         let mut action = start(&case.definition).unwrap();
+        let mut actual_effects = Vec::new();
         for (tick_index, expected) in case.expected.iter().enumerate() {
             let default_freezes = FreezeControls::default();
-            tick_with_controls(
+            let result = tick_with_controls(
                 &mut action,
                 &case.definition,
                 vectors.limits.clone().into(),
@@ -113,7 +116,17 @@ fn independent_runtime_matches_shared_progression_and_transition_vectors() {
                 case.freezes.get(tick_index).unwrap_or(&default_freezes),
             )
             .unwrap();
+            actual_effects.push(
+                result
+                    .effects
+                    .iter()
+                    .map(|effect| serde_json::to_value(effect).unwrap())
+                    .collect::<Vec<_>>(),
+            );
             assert_expected(&serde_json::to_value(&action).unwrap(), expected, &case.id);
+        }
+        if !case.expected_effects.is_empty() {
+            assert_eq!(actual_effects, case.expected_effects, "{}", case.id);
         }
         let action_snapshot = snapshot(&action).unwrap();
         assert_eq!(

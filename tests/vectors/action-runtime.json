@@ -290,6 +290,93 @@
         {"input_buffer": [{"buffer_entry_id": "buffer:kept", "input_id": "kept", "command_id": "KEPT", "payload": {}, "captured_tick": 2, "remaining_eligibility_ticks": 1, "priority": 0, "sequence": 2}]},
         {"input_buffer": []}
       ]
+    },
+    {
+      "id": "matched-input-operation-order-and-effects",
+      "definition": {
+        "id": "OPERATIONS",
+        "rate": {"scale": 1, "units_per_tick": 0},
+        "initial_node": "RUN",
+        "default_buffer_lifetime": 2,
+        "register_initials": {"order": 0},
+        "nodes": [
+          {
+            "id": "RUN",
+            "mode": "EVENT_DRIVEN",
+            "exit_assignments": [
+              {"target": "action.register.order", "value": {"op": "add", "args": [{"ref": "action.register.order"}, {"literal": 1}]}}
+            ],
+            "exit_effects": [
+              {"effect_type": "trace.node-exit", "effect_class": "TRACE", "authoritative": false, "payload": {"ref": "action.register.order"}, "reducer": "ORDERED"}
+            ]
+          },
+          {
+            "id": "DONE",
+            "mode": "TERMINAL",
+            "entry_assignments": [
+              {"target": "action.register.order", "value": {"op": "add", "args": [{"ref": "action.register.order"}, {"literal": 1}]}}
+            ],
+            "entry_effects": [
+              {"effect_type": "trace.node-entry", "effect_class": "TRACE", "authoritative": false, "payload": {"ref": "action.register.order"}, "reducer": "ORDERED"}
+            ]
+          }
+        ],
+        "transitions": [
+          {
+            "id": "execute",
+            "source_node": "RUN",
+            "evaluation_point": "PRE_ADVANCE",
+            "priority": 1,
+            "target_kind": "NODE",
+            "target_node": "DONE",
+            "input_command": "GO",
+            "guard_expression": {"op": "eq", "args": [{"ref": "input.payload.power"}, {"literal": 7}]},
+            "exit_assignments": [
+              {"target": "action.register.order", "value": {"op": "add", "args": [{"ref": "action.register.order"}, {"literal": 1}]}}
+            ],
+            "assignments": [
+              {"target": "action.register.order", "value": {"op": "add", "args": [{"ref": "action.register.order"}, {"literal": 1}]}}
+            ],
+            "cycle_delta": 5,
+            "definition_effects": [
+              {
+                "effect_type": "trace.transition",
+                "effect_class": "TRACE",
+                "authoritative": false,
+                "payload": {
+                  "cycle": {"ref": "action.cycle"},
+                  "order": {"ref": "action.register.order"},
+                  "power": {"ref": "input.payload.power"},
+                  "sequence": {"ref": "input.sequence"}
+                },
+                "reducer": "ORDERED"
+              }
+            ],
+            "entry_assignments": [
+              {"target": "action.register.order", "value": {"op": "add", "args": [{"ref": "action.register.order"}, {"literal": 1}]}}
+            ]
+          }
+        ]
+      },
+      "ticks": 2,
+      "final_state_sha256": "5826f32d7c0f98d551b9c9afd18b0b063ead01994d56a1dd5a5ff5506b4326f2",
+      "continuation_state_sha256": "5826f32d7c0f98d551b9c9afd18b0b063ead01994d56a1dd5a5ff5506b4326f2",
+      "inputs": [
+        [],
+        [{"assigned_tick": 1, "source_entity_id": 1, "sequence": 9, "command_id": "GO", "payload": {"power": 7}, "input_id": "go"}]
+      ],
+      "expected": [
+        {"current_node_id": "RUN", "registers": {"order": 0}, "cycle": 0},
+        {"current_node_id": "DONE", "lifecycle_state": "TERMINATED", "registers": {"order": 5}, "cycle": 5, "emission_serial": 3, "transition_serial": 1}
+      ],
+      "expected_effects": [
+        [],
+        [
+          {"effect_id": "1:1:0", "effect_type": "trace.node-exit", "effect_class": "TRACE", "source_entity_id": 1, "target_entity_id": 1, "source_action_instance_id": 1, "origin_tick": 1, "priority": 0, "payload": 2, "reducer": "ORDERED", "authoritative": false},
+          {"effect_id": "1:1:1", "effect_type": "trace.transition", "effect_class": "TRACE", "source_entity_id": 1, "target_entity_id": 1, "source_action_instance_id": 1, "origin_tick": 1, "priority": 0, "payload": {"cycle": 5, "order": 3, "power": 7, "sequence": 9}, "reducer": "ORDERED", "authoritative": false},
+          {"effect_id": "1:1:2", "effect_type": "trace.node-entry", "effect_class": "TRACE", "source_entity_id": 1, "target_entity_id": 1, "source_action_instance_id": 1, "origin_tick": 1, "priority": 0, "payload": 5, "reducer": "ORDERED", "authoritative": false}
+        ]
+      ]
     }
   ],
   "definition_fault_cases": [

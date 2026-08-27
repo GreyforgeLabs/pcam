@@ -26,6 +26,32 @@ pub struct NodeDefinition {
     pub duration_quanta: Option<u64>,
     #[serde(default)]
     pub seekable: bool,
+    #[serde(default)]
+    pub entry_assignments: Vec<Assignment>,
+    #[serde(default)]
+    pub entry_effects: Vec<DefinitionEffect>,
+    #[serde(default)]
+    pub exit_assignments: Vec<Assignment>,
+    #[serde(default)]
+    pub exit_effects: Vec<DefinitionEffect>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct Assignment {
+    pub target: String,
+    pub value: Value,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct DefinitionEffect {
+    pub effect_type: String,
+    pub authoritative: bool,
+    pub payload: Value,
+    pub effect_class: Option<String>,
+    pub reducer: Option<String>,
+    pub target: Option<u64>,
+    #[serde(default)]
+    pub priority: i64,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -43,6 +69,16 @@ pub struct TransitionDefinition {
     pub input_command: Option<String>,
     #[serde(default = "on_accept")]
     pub consume_policy: String,
+    #[serde(default)]
+    pub exit_assignments: Vec<Assignment>,
+    #[serde(default)]
+    pub assignments: Vec<Assignment>,
+    #[serde(default)]
+    pub entry_assignments: Vec<Assignment>,
+    #[serde(default)]
+    pub definition_effects: Vec<DefinitionEffect>,
+    #[serde(default)]
+    pub cycle_delta: i64,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -69,6 +105,8 @@ pub struct ActionDefinition {
     pub buffer_overflow_policy: String,
     #[serde(default = "default_buffer_lifetime")]
     pub default_buffer_lifetime: u64,
+    #[serde(default)]
+    pub register_initials: BTreeMap<String, Value>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -132,12 +170,32 @@ pub struct ActionInstance {
     pub predicate_exit_serials: BTreeMap<String, u64>,
     pub input_buffer: Vec<BufferEntry>,
     pub fault_record: Option<String>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub registers: BTreeMap<String, Value>,
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub emission_serial: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct EmittedEffect {
+    pub effect_id: String,
+    pub effect_type: String,
+    pub effect_class: String,
+    pub source_entity_id: u64,
+    pub target_entity_id: u64,
+    pub source_action_instance_id: u64,
+    pub origin_tick: u64,
+    pub priority: i64,
+    pub payload: Value,
+    pub reducer: String,
+    pub authoritative: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TickResult {
     pub quanta: u64,
     pub transitions: Vec<String>,
+    pub effects: Vec<EmittedEffect>,
 }
 
 pub fn snapshot(action: &ActionInstance) -> Result<Value, ActionError> {
@@ -283,6 +341,8 @@ pub fn start_owned(
         predicate_exit_serials: BTreeMap::new(),
         input_buffer: Vec::new(),
         fault_record: None,
+        registers: definition.register_initials.clone(),
+        emission_serial: 0,
     })
 }
 
@@ -356,21 +416,32 @@ fn tick_inner(
         return Ok(TickResult {
             quanta: 0,
             transitions: Vec::new(),
+            effects: Vec::new(),
         });
     }
     let mut applied = Vec::new();
+    let mut emitted = Vec::new();
     if include_pre_advance {
         if !freezes.input_capture {
             capture_inputs(action, definition, current_tick, inputs)?;
         }
         if !freezes.pre_advance_transitions {
-            apply_selected(action, definition, "PRE_ADVANCE", &mut applied, limits)?;
+            apply_selected(
+                action,
+                definition,
+                "PRE_ADVANCE",
+                &mut applied,
+                &mut emitted,
+                limits,
+                current_tick,
+            )?;
         }
     }
     if action.lifecycle_state != "RUNNING" {
         return Ok(TickResult {
             quanta: 0,
             transitions: applied,
+            effects: emitted,
         });
     }
     let quanta = if freezes.progression.as_deref() == Some("HOLD") {
@@ -418,7 +489,8 @@ fn tick_inner(
             if internal_transitions >= limits.max_internal_transitions_per_tick {
                 return Err(ActionError::TransitionLimitExceeded);
             }
-            apply_transition(action, definition, transition)?;
+            let effects = apply_transition(action, definition, transition, limits, current_tick)?;
+            emitted.extend(effects);
             applied.push(transition.id.clone());
             internal_transitions = internal_transitions
                 .checked_add(1)
@@ -426,7 +498,15 @@ fn tick_inner(
         }
     }
     if action.lifecycle_state == "RUNNING" && !freezes.post_advance_transitions {
-        apply_selected(action, definition, "POST_ADVANCE", &mut applied, limits)?;
+        apply_selected(
+            action,
+            definition,
+            "POST_ADVANCE",
+            &mut applied,
+            &mut emitted,
+            limits,
+            current_tick,
+        )?;
     }
     semantic_snapshot(action, definition, limits)?;
     if !freezes.buffer_expiry {
@@ -435,6 +515,7 @@ fn tick_inner(
     Ok(TickResult {
         quanta,
         transitions: applied,
+        effects: emitted,
     })
 }
 
@@ -443,12 +524,20 @@ fn apply_selected(
     definition: &ActionDefinition,
     point: &str,
     applied: &mut Vec<String>,
+    emitted: &mut Vec<EmittedEffect>,
     limits: RuntimeLimits,
+    current_tick: u64,
 ) -> Result<bool, ActionError> {
     let Some(transition) = select(action, definition, point, limits)? else {
         return Ok(false);
     };
-    apply_transition(action, definition, transition)?;
+    emitted.extend(apply_transition(
+        action,
+        definition,
+        transition,
+        limits,
+        current_tick,
+    )?);
     applied.push(transition.id.clone());
     Ok(true)
 }
@@ -489,7 +578,11 @@ fn guard(
     let Some(expression) = &transition.guard_expression else {
         return Ok(true);
     };
-    let context = action_context(action);
+    let matched_input = transition
+        .input_command
+        .as_ref()
+        .and_then(|command| select_buffer_entry(&action.input_buffer, command));
+    let context = transition_context(action, matched_input);
     evaluate(
         expression,
         &context,
@@ -516,7 +609,47 @@ fn action_context(action: &ActionInstance) -> BTreeMap<String, Value> {
     for (predicate, truth) in &action.predicate_truth_state {
         context.insert(format!("action.predicate.{predicate}"), json!(truth));
     }
+    for (register, value) in &action.registers {
+        context.insert(format!("action.register.{register}"), value.clone());
+    }
     context
+}
+
+fn transition_context(
+    action: &ActionInstance,
+    matched_input: Option<&BufferEntry>,
+) -> BTreeMap<String, Value> {
+    let mut context = action_context(action);
+    if let Some(entry) = matched_input {
+        context.insert(
+            "input.buffer_entry_id".to_owned(),
+            json!(entry.buffer_entry_id),
+        );
+        context.insert("input.input_id".to_owned(), json!(entry.input_id));
+        context.insert("input.command_id".to_owned(), json!(entry.command_id));
+        context.insert("input.captured_tick".to_owned(), json!(entry.captured_tick));
+        context.insert(
+            "input.remaining_eligibility_ticks".to_owned(),
+            json!(entry.remaining_eligibility_ticks),
+        );
+        context.insert("input.priority".to_owned(), json!(entry.priority));
+        context.insert("input.sequence".to_owned(), json!(entry.sequence));
+        flatten_context(
+            "input.payload",
+            &Value::Object(entry.payload.clone().into_iter().collect()),
+            &mut context,
+        );
+    }
+    context
+}
+
+fn flatten_context(prefix: &str, value: &Value, context: &mut BTreeMap<String, Value>) {
+    context.insert(prefix.to_owned(), value.clone());
+    if let Value::Object(object) = value {
+        for (key, nested) in object {
+            flatten_context(&format!("{prefix}.{key}"), nested, context);
+        }
+    }
 }
 
 fn semantic_snapshot(
@@ -677,12 +810,59 @@ fn apply_transition(
     action: &mut ActionInstance,
     definition: &ActionDefinition,
     transition: &TransitionDefinition,
-) -> Result<(), ActionError> {
-    let consumed = transition
+    limits: RuntimeLimits,
+    current_tick: u64,
+) -> Result<Vec<EmittedEffect>, ActionError> {
+    let matched_input = transition
         .input_command
         .as_ref()
         .and_then(|command| select_buffer_entry(&action.input_buffer, command))
+        .cloned();
+    let consumed = matched_input
+        .as_ref()
         .map(|entry| entry.buffer_entry_id.clone());
+    let source = node(definition, &action.current_node_id)?.clone();
+    let mut emitted = Vec::new();
+
+    apply_assignments(
+        action,
+        &source.exit_assignments,
+        matched_input.as_ref(),
+        limits,
+    )?;
+    apply_assignments(
+        action,
+        &transition.exit_assignments,
+        matched_input.as_ref(),
+        limits,
+    )?;
+    emitted.extend(materialize_effects(
+        action,
+        &source.exit_effects,
+        matched_input.as_ref(),
+        limits,
+        current_tick,
+    )?);
+    apply_assignments(
+        action,
+        &transition.assignments,
+        matched_input.as_ref(),
+        limits,
+    )?;
+    action.cycle = add_signed_u64(action.cycle, transition.cycle_delta)?;
+    emitted.extend(materialize_effects(
+        action,
+        &transition.definition_effects,
+        matched_input.as_ref(),
+        limits,
+        current_tick,
+    )?);
+    apply_assignments(
+        action,
+        &transition.entry_assignments,
+        matched_input.as_ref(),
+        limits,
+    )?;
     action.transition_serial = action
         .transition_serial
         .checked_add(1)
@@ -696,6 +876,19 @@ fn apply_transition(
             let target = node(definition, target_id)?;
             action.current_node_id = target_id.to_owned();
             action.node_step = transition.target_step;
+            apply_assignments(
+                action,
+                &target.entry_assignments,
+                matched_input.as_ref(),
+                limits,
+            )?;
+            emitted.extend(materialize_effects(
+                action,
+                &target.entry_effects,
+                matched_input.as_ref(),
+                limits,
+                current_tick,
+            )?);
             if target.mode == "TERMINAL" {
                 action.lifecycle_state = "TERMINATED".to_owned();
             }
@@ -714,7 +907,122 @@ fn apply_transition(
             .input_buffer
             .retain(|entry| entry.buffer_entry_id != buffer_entry_id);
     }
+    Ok(emitted)
+}
+
+fn apply_assignments(
+    action: &mut ActionInstance,
+    assignments: &[Assignment],
+    matched_input: Option<&BufferEntry>,
+    limits: RuntimeLimits,
+) -> Result<(), ActionError> {
+    for assignment in assignments {
+        let register = assignment
+            .target
+            .strip_prefix("action.register.")
+            .ok_or(ActionError::StateInvariant)?;
+        if !action.registers.contains_key(register) {
+            return Err(ActionError::StateInvariant);
+        }
+        let context = transition_context(action, matched_input);
+        let value = evaluate(
+            &assignment.value,
+            &context,
+            limits.max_expression_depth,
+            limits.max_expression_nodes,
+        )
+        .map_err(map_expression)?;
+        action.registers.insert(register.to_owned(), value);
+    }
     Ok(())
+}
+
+fn materialize_effects(
+    action: &mut ActionInstance,
+    effects: &[DefinitionEffect],
+    matched_input: Option<&BufferEntry>,
+    limits: RuntimeLimits,
+    current_tick: u64,
+) -> Result<Vec<EmittedEffect>, ActionError> {
+    let mut emitted = Vec::new();
+    for effect in effects {
+        let context = transition_context(action, matched_input);
+        let payload = resolve_payload(&effect.payload, &context, limits)?;
+        emitted.push(EmittedEffect {
+            effect_id: format!("{current_tick}:1:{}", action.emission_serial),
+            effect_type: effect.effect_type.clone(),
+            effect_class: effect.effect_class.clone().unwrap_or_else(|| {
+                if effect.authoritative {
+                    effect.effect_type.clone()
+                } else {
+                    "PRESENTATION".to_owned()
+                }
+            }),
+            source_entity_id: action.owner_entity_id,
+            target_entity_id: effect.target.unwrap_or(action.owner_entity_id),
+            source_action_instance_id: 1,
+            origin_tick: current_tick,
+            priority: effect.priority,
+            payload,
+            reducer: effect
+                .reducer
+                .clone()
+                .unwrap_or_else(|| "ORDERED".to_owned()),
+            authoritative: effect.authoritative,
+        });
+        action.emission_serial = action
+            .emission_serial
+            .checked_add(1)
+            .ok_or(ActionError::IntegerOverflow)?;
+    }
+    Ok(emitted)
+}
+
+fn resolve_payload(
+    payload: &Value,
+    context: &BTreeMap<String, Value>,
+    limits: RuntimeLimits,
+) -> Result<Value, ActionError> {
+    match payload {
+        Value::Object(object)
+            if (object.len() == 1
+                && (object.contains_key("literal") || object.contains_key("ref")))
+                || (object.len() == 2
+                    && object.contains_key("args")
+                    && object.contains_key("op")) =>
+        {
+            evaluate(
+                payload,
+                context,
+                limits.max_expression_depth,
+                limits.max_expression_nodes,
+            )
+            .map_err(map_expression)
+        }
+        Value::Object(object) => object
+            .iter()
+            .map(|(key, value)| Ok((key.clone(), resolve_payload(value, context, limits)?)))
+            .collect::<Result<serde_json::Map<String, Value>, ActionError>>()
+            .map(Value::Object),
+        Value::Array(values) => values
+            .iter()
+            .map(|value| resolve_payload(value, context, limits))
+            .collect::<Result<Vec<_>, _>>()
+            .map(Value::Array),
+        _ => Ok(payload.clone()),
+    }
+}
+
+fn add_signed_u64(value: u64, delta: i64) -> Result<u64, ActionError> {
+    if delta >= 0 {
+        value
+            .checked_add(delta as u64)
+            .ok_or(ActionError::IntegerOverflow)
+    } else {
+        value
+            .checked_sub(delta.unsigned_abs())
+            .ok_or(ActionError::IntegerOverflow)
+    }
 }
 
 fn capture_inputs(
@@ -863,4 +1171,8 @@ fn drop_oldest() -> String {
 
 fn default_buffer_lifetime() -> u64 {
     1
+}
+
+fn is_zero(value: &u64) -> bool {
+    *value == 0
 }
