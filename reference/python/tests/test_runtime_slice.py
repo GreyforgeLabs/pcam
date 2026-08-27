@@ -3,6 +3,7 @@ from dataclasses import replace
 from pcam_runtime import (
     ActionDefinition,
     Contact,
+    Claim,
     Effect,
     EffectTemplate,
     FactBinding,
@@ -265,3 +266,96 @@ def test_contact_enumeration_permutation_produces_identical_state_digest():
     right, right_trace = executor.tick(initial, (start,), HostSnapshot(contacts=(duplicate, first)))
     assert left.to_snapshot() == right.to_snapshot()
     assert left_trace["state_digest"] == right_trace["state_digest"]
+
+
+def test_competing_action_starts_reserve_resource_and_slot_atomically():
+    definition = ActionDefinition(
+        id="SLOTTED",
+        rate_scale=1,
+        units_per_tick=0,
+        nodes=(NodeDefinition(id="RUN"),),
+        start_claims=(Claim("RESOURCE", "STAMINA", 7),),
+        slot_claims=(Claim("ACTION_SLOT", "FULL_BODY"),),
+    )
+    executor = TickExecutor((definition,))
+    initial = executor.initial_state(
+        resource_banks={"1": {"STAMINA": 10}},
+        slot_capacities={"1": {"FULL_BODY": 1}},
+    )
+    later = TickInput("later", 1, 2, "START", 0, action_definition_id="SLOTTED")
+    earlier = TickInput("earlier", 1, 1, "START", 0, action_definition_id="SLOTTED")
+    state, trace = executor.tick(initial, (later, earlier))
+    assert list(state.action_instances) == ["1"]
+    assert state.resource_banks["1"]["STAMINA"] == 3
+    assert state.action_slots["1"]["FULL_BODY"] == {
+        "capacity": 1,
+        "instance_ids": [1],
+        "usage": 1,
+    }
+    assert [item["accepted"] for item in trace["pre_advance_intents"]] == [True, False]
+
+
+def _replacement_definitions() -> tuple[ActionDefinition, ActionDefinition]:
+    target = ActionDefinition(
+        id="DODGE",
+        rate_scale=1,
+        units_per_tick=0,
+        nodes=(NodeDefinition(id="DODGING"),),
+        start_claims=(Claim("RESOURCE", "STAMINA", 5),),
+        slot_claims=(Claim("ACTION_SLOT", "FULL_BODY"),),
+    )
+    source = ActionDefinition(
+        id="SOURCE",
+        rate_scale=1,
+        units_per_tick=0,
+        nodes=(NodeDefinition(id="WAIT"),),
+        slot_claims=(Claim("ACTION_SLOT", "FULL_BODY"),),
+        transitions=(
+            TransitionDefinition(
+                id="replace_with_dodge",
+                source_node="WAIT",
+                evaluation_point="PRE_ADVANCE",
+                priority=10,
+                target_kind="ACTION",
+                target_action="DODGE",
+                source_disposition="TERMINATE_SOURCE",
+                input_command="REPLACE",
+            ),
+        ),
+    )
+    return source, target
+
+
+def test_slot_replacement_does_not_terminate_source_when_target_claims_fail():
+    executor = TickExecutor(_replacement_definitions())
+    state = executor.initial_state(
+        resource_banks={"1": {"STAMINA": 4}},
+        slot_capacities={"1": {"FULL_BODY": 1}},
+    )
+    state, _ = executor.tick(
+        state,
+        (TickInput("start", 1, 0, "START", 0, action_definition_id="SOURCE"),),
+    )
+    state, trace = executor.tick(state, (TickInput("replace", 1, 1, "REPLACE", 1),))
+    assert state.action_instances["1"].lifecycle_state == "RUNNING"
+    assert len(state.action_instances) == 1
+    assert state.resource_banks["1"]["STAMINA"] == 4
+    assert trace["pre_advance_intents"][0]["accepted"] is False
+
+
+def test_slot_replacement_starts_target_and_terminates_source_atomically():
+    executor = TickExecutor(_replacement_definitions())
+    state = executor.initial_state(
+        resource_banks={"1": {"STAMINA": 5}},
+        slot_capacities={"1": {"FULL_BODY": 1}},
+    )
+    state, _ = executor.tick(
+        state,
+        (TickInput("start", 1, 0, "START", 0, action_definition_id="SOURCE"),),
+    )
+    state, trace = executor.tick(state, (TickInput("replace", 1, 1, "REPLACE", 1),))
+    assert state.action_instances["1"].lifecycle_state == "TERMINATED"
+    assert state.action_instances["2"].current_node_id == "DODGING"
+    assert state.resource_banks["1"]["STAMINA"] == 0
+    assert state.action_slots["1"]["FULL_BODY"]["instance_ids"] == [2]
+    assert trace["pre_advance_intents"][0]["accepted"] is True

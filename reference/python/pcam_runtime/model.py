@@ -9,6 +9,7 @@ from typing import Literal
 from .canonical import canonical_hash
 from .errors import PCAMError, PCAMFault, ResultCode
 from .interactions import SemanticFact
+from .intents import Claim
 from .ledgers import HitPolicy
 
 CANONICAL_ID = re.compile(r"^[A-Za-z][A-Za-z0-9_.:-]{0,127}$")
@@ -55,12 +56,17 @@ class TransitionDefinition:
     source_node: str
     evaluation_point: Literal["PRE_ADVANCE", "AFTER_QUANTUM", "POST_ADVANCE"]
     priority: int
-    target_kind: Literal["NODE", "TERMINATE", "FAULT"] = "NODE"
+    target_kind: Literal["NODE", "ACTION", "CHILD_ACTION", "TERMINATE", "FAULT"] = "NODE"
     target_node: str | None = None
+    target_action: str | None = None
+    source_disposition: Literal["TERMINATE_SOURCE", "SUSPEND_SOURCE", "KEEP_SOURCE"] = "TERMINATE_SOURCE"
+    child_slot_id: str | None = None
+    parent_policy: str | None = None
     target_step: int = 0
     guard_predicate: str | None = None
     input_command: str | None = None
     consume_policy: Literal["ON_ACCEPT", "ON_ATTEMPT", "NEVER"] = "ON_ACCEPT"
+    claims: tuple[Claim, ...] = ()
     effects: tuple["Effect", ...] = ()
 
 
@@ -94,6 +100,8 @@ class ActionDefinition:
     predicates: tuple[PredicateDefinition, ...] = ()
     semantic_facts: tuple[FactBinding, ...] = ()
     transitions: tuple[TransitionDefinition, ...] = ()
+    start_claims: tuple[Claim, ...] = ()
+    slot_claims: tuple[Claim, ...] = ()
     buffer_capacity: int = 8
     buffer_overflow_policy: Literal["DROP_OLDEST", "DROP_NEWEST", "FAULT"] = "DROP_OLDEST"
     default_buffer_lifetime: int = 1
@@ -110,6 +118,8 @@ class ActionDefinition:
             "nodes": [node.__dict__ for node in self.nodes],
             "predicates": [predicate.__dict__ for predicate in self.predicates],
             "semantic_facts": self.semantic_facts,
+            "start_claims": self.start_claims,
+            "slot_claims": self.slot_claims,
             "rate": {"scale": self.rate_scale, "units_per_tick": self.units_per_tick},
             "buffer": {
                 "capacity": self.buffer_capacity,
@@ -193,6 +203,8 @@ def validate_definition(definition: ActionDefinition) -> None:
             raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.STATE_INVARIANT_FAILURE, node.id)
     seen_priorities: set[tuple[str, str, int]] = set()
     for transition in definition.transitions:
+        if transition.evaluation_point == "AFTER_QUANTUM" and transition.claims:
+            raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.STATE_INVARIANT_FAILURE, transition.id)
         if transition.source_node not in node_ids:
             raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.STATE_INVARIANT_FAILURE, transition.source_node)
         if transition.target_kind == "NODE":

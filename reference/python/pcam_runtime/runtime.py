@@ -10,6 +10,7 @@ from .effects import EffectEnvelope, reduce_effects
 from .errors import PCAMError, PCAMFault, ResultCode
 from .freezes import end_tick as expire_freezes, is_frozen, progression_accrual
 from .interactions import InteractionCandidate, InteractionRule, SemanticFact, resolve_candidate, validate_rules
+from .intents import ArbitrationState, Claim, Intent, IntentDecision, arbitrate
 from .ledgers import LedgerContext, is_eligible as ledger_is_eligible, receipt_required, write_receipt
 from .model import ActionDefinition, Contact, Effect, FactBinding, HostSnapshot, RuntimeProfile, TickInput, TransitionDefinition, validate_definition
 from .numeric import apply_u64
@@ -35,6 +36,15 @@ class TickExecutor:
             validate_definition(definition)
         self.definitions_by_id = {definition.id: definition for definition in definitions}
         self.definitions_by_hash = {definition.definition_hash: definition for definition in definitions}
+        for definition in definitions:
+            for transition in definition.transitions:
+                if transition.target_kind in {"ACTION", "CHILD_ACTION"}:
+                    if transition.target_action not in self.definitions_by_id:
+                        raise PCAMError(
+                            ResultCode.DEFINITION_REJECTED,
+                            PCAMFault.MISSING_REFERENCE,
+                            str(transition.target_action),
+                        )
         self.definition_set_hash = canonical_hash(
             [
                 {
@@ -49,11 +59,23 @@ class TickExecutor:
             ]
         )
 
-    def initial_state(self, resource_banks: dict[str, dict[str, int]] | None = None) -> SimulationState:
+    def initial_state(
+        self,
+        resource_banks: dict[str, dict[str, int]] | None = None,
+        slot_capacities: dict[str, dict[str, int]] | None = None,
+    ) -> SimulationState:
+        action_slots = {
+            str(entity): {
+                slot: {"capacity": capacity, "instance_ids": [], "usage": 0}
+                for slot, capacity in slots.items()
+            }
+            for entity, slots in (slot_capacities or {}).items()
+        }
         return SimulationState(
             tick=0,
             definition_set_hash=self.definition_set_hash,
             resource_banks=resource_banks or {},
+            action_slots=action_slots,
         )
 
     def tick(
@@ -87,12 +109,9 @@ class TickExecutor:
         pre_intents = self._evaluate_transitions(work, "PRE_ADVANCE")
 
         self._stage(trace, 4, "pre_advance_arbitration")
-        for instance_id, intent in pre_intents:
-            work, emitted = self._apply_transition(work, instance_id, intent)
-            effects.extend(emitted)
-        for tick_input in start_inputs:
-            if tick_input.action_definition_id:
-                work = self._start_action(work, tick_input.action_definition_id, tick_input.source_entity_id)
+        work, emitted, pre_decisions = self._arbitrate_stage(work, pre_intents, start_inputs)
+        effects.extend(emitted)
+        trace["pre_advance_intents"] = pre_decisions
 
         self._stage(trace, 5, "action_progression")
         for key in sorted(work.action_instances, key=lambda item: int(item)):
@@ -107,9 +126,10 @@ class TickExecutor:
                 trace.setdefault("node_changes", []).extend(node_changes)  # type: ignore[union-attr]
 
         self._stage(trace, 6, "post_advance_intent_evaluation_and_arbitration")
-        for instance_id, intent in self._evaluate_transitions(work, "POST_ADVANCE"):
-            work, emitted = self._apply_transition(work, instance_id, intent)
-            effects.extend(emitted)
+        post_intents = self._evaluate_transitions(work, "POST_ADVANCE")
+        work, emitted, post_decisions = self._arbitrate_stage(work, post_intents, [])
+        effects.extend(emitted)
+        trace["post_advance_intents"] = post_decisions
 
         self._stage(trace, 7, "semantic_snapshot")
         work, predicate_changes, facts, active_bindings = self._semantic_snapshot(work)
@@ -190,6 +210,152 @@ class TickExecutor:
             ),
         )
 
+    def _arbitrate_stage(
+        self,
+        state: SimulationState,
+        transitions: list[tuple[int, TransitionDefinition]],
+        start_inputs: list[TickInput],
+    ) -> tuple[SimulationState, list[Effect], list[dict[str, object]]]:
+        intents: list[Intent] = []
+        for instance_id, transition in transitions:
+            action = state.action_instances[str(instance_id)]
+            matched = select_entry(action.input_buffer, transition.input_command) if transition.input_command else None
+            claims = list(transition.claims)
+            releases = []
+            if transition.target_kind in {"ACTION", "CHILD_ACTION"}:
+                assert transition.target_action is not None
+                target_definition = self.definitions_by_id[transition.target_action]
+                claims.extend(target_definition.start_claims)
+                claims.extend(target_definition.slot_claims)
+                if transition.target_kind == "ACTION" and transition.source_disposition == "TERMINATE_SOURCE":
+                    releases.extend(
+                        Claim(
+                            kind=str(raw["kind"]),  # type: ignore[arg-type]
+                            key=str(raw["key"]),
+                            amount=int(raw["amount"]),
+                        )
+                        for raw in action.slot_claims
+                    )
+            intents.append(
+                Intent(
+                    intent_kind="TRANSITION",
+                    intent_priority=transition.priority,
+                    owner_entity_id=action.owner_entity_id,
+                    source_action_instance_id=instance_id,
+                    transition_id=transition.id,
+                    input_sequence=matched.sequence if matched else 0,
+                    input_id=matched.input_id if matched else f"internal:{state.tick}:{instance_id}:{transition.id}",
+                    claims=tuple(claims),
+                    releases=tuple(releases),
+                    operations=(
+                        {
+                            "instance_id": instance_id,
+                            "kind": "TRANSITION",
+                            "transition_id": transition.id,
+                        },
+                    ),
+                )
+            )
+        for tick_input in start_inputs:
+            if tick_input.action_definition_id is None:
+                continue
+            definition = self.definitions_by_id.get(tick_input.action_definition_id)
+            if definition is None:
+                raise PCAMError(ResultCode.RUNTIME_FAULT, PCAMFault.STATE_INVARIANT_FAILURE, tick_input.action_definition_id)
+            intents.append(
+                Intent(
+                    intent_kind="ACTION_START",
+                    intent_priority=0,
+                    owner_entity_id=tick_input.source_entity_id,
+                    source_action_instance_id=0,
+                    transition_id=definition.id,
+                    input_sequence=tick_input.sequence,
+                    input_id=tick_input.input_id,
+                    claims=(*definition.start_claims, *definition.slot_claims),
+                    operations=(
+                        {
+                            "definition_id": definition.id,
+                            "kind": "START",
+                            "owner_entity_id": tick_input.source_entity_id,
+                        },
+                    ),
+                )
+            )
+        arbitration_state = self._arbitration_state(state)
+        reserved, decisions = arbitrate(tuple(intents), arbitration_state)
+        state = replace(
+            state,
+            resource_banks={str(owner): dict(bank) for owner, bank in reserved.resource_banks.items()},
+        )
+        effects: list[Effect] = []
+        decision_trace: list[dict[str, object]] = []
+        for decision in decisions:
+            decision_trace.append(
+                {
+                    "accepted": decision.accepted,
+                    "intent_id": decision.intent.identity,
+                    "reason": decision.reason,
+                }
+            )
+            if not decision.accepted:
+                state = self._consume_rejected_attempt(state, decision)
+                continue
+            for operation in decision.intent.operations:
+                if operation["kind"] == "START":
+                    state = self._start_action(
+                        state,
+                        str(operation["definition_id"]),
+                        int(operation["owner_entity_id"]),
+                    )
+                elif operation["kind"] == "TRANSITION":
+                    instance_id = int(operation["instance_id"])
+                    action = state.action_instances[str(instance_id)]
+                    definition = self.definitions_by_hash[action.definition_hash]
+                    transition = next(
+                        item for item in definition.transitions if item.id == operation["transition_id"]
+                    )
+                    state, emitted = self._apply_transition(state, instance_id, transition)
+                    effects.extend(emitted)
+        return self._rebuild_action_slots(state), effects, decision_trace
+
+    def _arbitration_state(self, state: SimulationState) -> ArbitrationState:
+        capacities: dict[tuple[str, int, str], int] = {}
+        usages: dict[tuple[str, int, str], int] = {}
+        for entity, slots in state.action_slots.items():
+            for slot, record in dict(slots).items():
+                values = dict(record)
+                key = ("ACTION_SLOT", int(entity), str(slot))
+                capacities[key] = int(values["capacity"])
+                usages[key] = int(values.get("usage", len(values.get("instance_ids", []))))
+        return ArbitrationState(
+            resource_banks={int(owner): dict(bank) for owner, bank in state.resource_banks.items()},
+            capacities=capacities,
+            usages=usages,
+        )
+
+    def _consume_rejected_attempt(self, state: SimulationState, decision: IntentDecision) -> SimulationState:
+        if decision.intent.intent_kind != "TRANSITION":
+            return state
+        action = state.action_instances.get(str(decision.intent.source_action_instance_id))
+        if action is None:
+            return state
+        definition = self.definitions_by_hash[action.definition_hash]
+        transition = next(item for item in definition.transitions if item.id == decision.intent.transition_id)
+        matched = select_entry(action.input_buffer, transition.input_command) if transition.input_command else None
+        return _put_action(
+            state,
+            replace(
+                action,
+                input_buffer=apply_consumption(
+                    action.input_buffer,
+                    matched,
+                    transition.consume_policy,
+                    accepted=False,
+                    attempted=True,
+                ),
+            ),
+        )
+
     def _start_action(self, state: SimulationState, definition_id: str, owner_entity_id: int) -> SimulationState:
         definition = self.definitions_by_id[definition_id]
         node = definition.nodes[0]
@@ -200,10 +366,46 @@ class TickExecutor:
             definition_hash=definition.definition_hash,
             current_node_id=node.id,
             current_rate_units=definition.units_per_tick,
+            slot_claims=tuple(
+                {
+                    "amount": claim.amount,
+                    "key": claim.key,
+                    "kind": claim.kind,
+                }
+                for claim in definition.slot_claims
+            ),
         )
         actions = dict(state.action_instances)
         actions[str(instance_id)] = action
         return replace(state, action_instances=actions, next_action_instance_id=instance_id + 1)
+
+    def _rebuild_action_slots(self, state: SimulationState) -> SimulationState:
+        rebuilt = {
+            entity: {
+                slot: {
+                    "capacity": int(dict(record)["capacity"]),
+                    "instance_ids": [],
+                    "usage": 0,
+                }
+                for slot, record in dict(slots).items()
+            }
+            for entity, slots in state.action_slots.items()
+        }
+        for key in sorted(state.action_instances, key=int):
+            action = state.action_instances[key]
+            if action.lifecycle_state in {"TERMINATED", "FAULTED"}:
+                continue
+            entity = str(action.owner_entity_id)
+            for raw_claim in action.slot_claims:
+                claim = dict(raw_claim)
+                if claim["kind"] != "ACTION_SLOT":
+                    continue
+                slot = str(claim["key"])
+                if entity not in rebuilt or slot not in rebuilt[entity]:
+                    raise PCAMError(ResultCode.RUNTIME_FAULT, PCAMFault.STATE_INVARIANT_FAILURE, f"{entity}:{slot}")
+                rebuilt[entity][slot]["instance_ids"].append(action.instance_id)
+                rebuilt[entity][slot]["usage"] += int(claim["amount"])
+        return replace(state, action_slots=rebuilt)
 
     def _capture_inputs(self, state: SimulationState, inputs: list[TickInput]) -> SimulationState:
         for key in sorted(state.action_instances, key=int):
@@ -316,6 +518,30 @@ class TickExecutor:
             action = replace(action, lifecycle_state="TERMINATED", transition_serial=action.transition_serial + 1)
         elif transition.target_kind == "FAULT":
             action = replace(action, lifecycle_state="FAULTED", fault_record=transition.id, transition_serial=action.transition_serial + 1)
+        elif transition.target_kind == "ACTION":
+            assert transition.target_action is not None
+            owner_entity_id = action.owner_entity_id
+            if transition.source_disposition == "TERMINATE_SOURCE":
+                action = replace(action, lifecycle_state="TERMINATED", transition_serial=action.transition_serial + 1)
+            elif transition.source_disposition == "SUSPEND_SOURCE":
+                action = replace(action, lifecycle_state="SUSPENDED", transition_serial=action.transition_serial + 1)
+            else:
+                action = replace(action, transition_serial=action.transition_serial + 1)
+            action = replace(
+                action,
+                input_buffer=apply_consumption(
+                    action.input_buffer,
+                    matched_input,
+                    transition.consume_policy,
+                    accepted=True,
+                    attempted=True,
+                ),
+            )
+            state = _put_action(state, action)
+            state = self._start_action(state, transition.target_action, owner_entity_id)
+            return state, list(transition.effects)
+        elif transition.target_kind == "CHILD_ACTION":
+            raise PCAMError(ResultCode.RUNTIME_FAULT, PCAMFault.STATE_INVARIANT_FAILURE, "child actions not integrated")
         else:
             assert transition.target_node is not None
             action = replace(

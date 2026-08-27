@@ -33,6 +33,7 @@ class Intent:
     input_sequence: int
     input_id: str
     claims: tuple[Claim, ...] = ()
+    releases: tuple[Claim, ...] = ()
     operations: tuple[dict[str, object], ...] = ()
     atomic_group_id: str = "default"
 
@@ -88,11 +89,12 @@ def arbitrate(
     decisions: list[IntentDecision] = []
     for intent in canonical_intents(intents):
         claims = _aggregate_claims(intent)
-        failure = _first_failure(intent, claims, work)
+        releases = _aggregate_claims(intent, release=True)
+        failure = _first_failure(intent, claims, releases, work)
         if failure is not None:
             decisions.append(IntentDecision(intent, False, failure))
             continue
-        work = _reserve(intent, claims, work)
+        work = _reserve(intent, claims, releases, work)
         decisions.append(IntentDecision(intent, True, "ACCEPTED"))
     return work, tuple(decisions)
 
@@ -113,9 +115,9 @@ def allocate_action_instance_ids(
     return allocated, next_id
 
 
-def _aggregate_claims(intent: Intent) -> tuple[Claim, ...]:
+def _aggregate_claims(intent: Intent, release: bool = False) -> tuple[Claim, ...]:
     aggregated: dict[tuple[str, int | None, str], int] = {}
-    for claim in intent.claims:
+    for claim in intent.releases if release else intent.claims:
         key = (claim.kind, claim.owner_id, claim.key)
         aggregated[key] = apply_u64(aggregated.get(key, 0) + claim.amount)
     return tuple(
@@ -135,11 +137,21 @@ def _claim_owner(intent: Intent, claim: Claim) -> int:
     return intent.owner_entity_id
 
 
-def _first_failure(intent: Intent, claims: tuple[Claim, ...], state: ArbitrationState) -> str | None:
+def _first_failure(
+    intent: Intent,
+    claims: tuple[Claim, ...],
+    releases: tuple[Claim, ...],
+    state: ArbitrationState,
+) -> str | None:
+    release_amounts = {
+        (claim.kind, _claim_owner(intent, claim), claim.key): claim.amount
+        for claim in releases
+    }
     for claim in claims:
         owner = _claim_owner(intent, claim)
         if claim.kind == "RESOURCE":
             available = state.resource_banks.get(owner, {}).get(claim.key, 0)
+            available += release_amounts.get((claim.kind, owner, claim.key), 0)
             if claim.amount > available:
                 return f"RESOURCE_UNAVAILABLE:{owner}:{claim.key}"
         elif claim.kind == "EXCLUSIVE_KEY":
@@ -149,15 +161,31 @@ def _first_failure(intent: Intent, claims: tuple[Claim, ...], state: Arbitration
             capacity_key = (claim.kind, owner, claim.key)
             capacity = state.capacities.get(capacity_key, 0)
             usage = state.usages.get(capacity_key, 0)
+            usage -= release_amounts.get((claim.kind, owner, claim.key), 0)
             if usage + claim.amount > capacity:
                 return f"CAPACITY_UNAVAILABLE:{claim.kind}:{owner}:{claim.key}"
     return None
 
 
-def _reserve(intent: Intent, claims: tuple[Claim, ...], state: ArbitrationState) -> ArbitrationState:
+def _reserve(
+    intent: Intent,
+    claims: tuple[Claim, ...],
+    releases: tuple[Claim, ...],
+    state: ArbitrationState,
+) -> ArbitrationState:
     banks = {owner: dict(bank) for owner, bank in state.resource_banks.items()}
     usages = dict(state.usages)
     exclusive = set(state.exclusive_keys)
+    for release in releases:
+        owner = _claim_owner(intent, release)
+        if release.kind == "RESOURCE":
+            banks.setdefault(owner, {})
+            banks[owner][release.key] = apply_u64(banks[owner].get(release.key, 0) + release.amount)
+        elif release.kind == "EXCLUSIVE_KEY":
+            exclusive.discard(release.key)
+        else:
+            key = (release.kind, owner, release.key)
+            usages[key] = max(0, usages.get(key, 0) - release.amount)
     for claim in claims:
         owner = _claim_owner(intent, claim)
         if claim.kind == "RESOURCE":

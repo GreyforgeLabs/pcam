@@ -57,3 +57,38 @@ def test_instance_identifiers_follow_accepted_canonical_order():
     assert allocated[decisions[0].intent.identity] == 40
     assert allocated[decisions[1].intent.identity] == 41
     assert next_id == 42
+
+
+def test_replacement_release_is_atomic_with_target_claims():
+    replacement = Intent(
+        intent_kind="ACTION_REPLACE",
+        intent_priority=10,
+        owner_entity_id=1,
+        source_action_instance_id=8,
+        transition_id="replace",
+        input_sequence=1,
+        input_id="replace-input",
+        claims=(Claim("ACTION_SLOT", "FULL_BODY"), Claim("RESOURCE", "STAMINA", 5)),
+        releases=(Claim("ACTION_SLOT", "FULL_BODY"),),
+        operations=({"start_action": "DODGE"},),
+    )
+    initial = ArbitrationState(
+        resource_banks={1: {"STAMINA": 4}},
+        capacities={("ACTION_SLOT", 1, "FULL_BODY"): 1},
+        usages={("ACTION_SLOT", 1, "FULL_BODY"): 1},
+    )
+    rejected_state, decisions = arbitrate((replacement,), initial)
+    assert not decisions[0].accepted
+    assert rejected_state.usages[("ACTION_SLOT", 1, "FULL_BODY")] == 1
+
+    accepted_state, decisions = arbitrate(
+        (replacement,),
+        ArbitrationState(
+            resource_banks={1: {"STAMINA": 5}},
+            capacities=initial.capacities,
+            usages=initial.usages,
+        ),
+    )
+    assert decisions[0].accepted
+    assert accepted_state.usages[("ACTION_SLOT", 1, "FULL_BODY")] == 1
+    assert accepted_state.resource_banks[1]["STAMINA"] == 0

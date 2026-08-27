@@ -14,3 +14,4 @@
 - Added a directed five-stage typed interaction resolver with canonical candidate order, parry, armor modification, independent outgoing attacks, simultaneous trade, deterministic redirection limits, materialization, and interaction-spec gap tracking.
 - Added all six core hit-policy key strategies, explicit receipt timing, same-tick provisional receipt behavior, cooldown eligibility, cycle distinction, and predicate-reactivation vectors.
 - Integrated typed semantic facts, interaction rules, ledger policies, canonical reducers, and effect registry commits into stages 7-10; canonicalized host contact snapshots so raw enumeration permutations produce identical state digests.
+- Integrated resource and action-slot intents into pre/post arbitration, deterministic competing starts, source-slot provisional release, and atomic action replacement that preserves the source when any target claim fails.
