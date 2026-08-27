@@ -13,6 +13,7 @@ from .model import (
     ActionDefinition,
     Assignment,
     Contact,
+    DefinitionEffect,
     Effect,
     FactBinding,
     HostSnapshot,
@@ -183,6 +184,12 @@ def _definition(value: dict[str, Any]) -> ActionDefinition:
                 exit_assignments=tuple(
                     _assignment(assignment) for assignment in item.get("exit_assignments", [])
                 ),
+                entry_effects=tuple(
+                    _definition_effect(effect) for effect in item.get("entry_effects", [])
+                ),
+                exit_effects=tuple(
+                    _definition_effect(effect) for effect in item.get("exit_effects", [])
+                ),
             )
             for item in value["nodes"]
         ),
@@ -273,12 +280,27 @@ def _transition(value: dict[str, Any]) -> TransitionDefinition:
         exit_assignments=tuple(_assignment(item) for item in value.get("exit_assignments", [])),
         assignments=tuple(_assignment(item) for item in value.get("assignments", [])),
         entry_assignments=tuple(_assignment(item) for item in value.get("entry_assignments", [])),
+        definition_effects=tuple(
+            _definition_effect(item) for item in value.get("definition_effects", [])
+        ),
         cycle_delta=int(value.get("cycle_delta", 0)),
     )
 
 
 def _assignment(value: dict[str, Any]) -> Assignment:
     return Assignment(target=str(value["target"]), value=dict(value["value"]))
+
+
+def _definition_effect(value: dict[str, Any]) -> DefinitionEffect:
+    return DefinitionEffect(
+        effect_type=str(value["effect_type"]),
+        authoritative=bool(value["authoritative"]),
+        payload=value["payload"],
+        effect_class=value.get("effect_class"),
+        reducer=value.get("reducer"),
+        target=value.get("target"),
+        priority=int(value.get("priority", 0)),
+    )
 
 
 def _effect(value: dict[str, Any]) -> Effect:

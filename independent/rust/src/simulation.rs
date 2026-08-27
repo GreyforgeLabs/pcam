@@ -65,6 +65,8 @@ struct Definition {
     nodes: BTreeMap<String, String>,
     node_entry_assignments: BTreeMap<String, Vec<RuntimeAssignment>>,
     node_exit_assignments: BTreeMap<String, Vec<RuntimeAssignment>>,
+    node_entry_effects: BTreeMap<String, Vec<RuntimeDefinitionEffect>>,
+    node_exit_effects: BTreeMap<String, Vec<RuntimeDefinitionEffect>>,
     predicates: Vec<Predicate>,
     facts: Vec<FactBinding>,
     transitions: Vec<SimulationTransition>,
@@ -105,6 +107,7 @@ struct SimulationTransition {
     exit_assignments: Vec<RuntimeAssignment>,
     assignments: Vec<RuntimeAssignment>,
     entry_assignments: Vec<RuntimeAssignment>,
+    definition_effects: Vec<RuntimeDefinitionEffect>,
     effects: Vec<RuntimeEffect>,
 }
 
@@ -112,6 +115,18 @@ struct SimulationTransition {
 struct RuntimeAssignment {
     target: String,
     value: Value,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct RuntimeDefinitionEffect {
+    effect_type: String,
+    authoritative: bool,
+    payload: Value,
+    effect_class: Option<String>,
+    reducer: Option<String>,
+    target: Option<Value>,
+    #[serde(default)]
+    priority: i64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -698,6 +713,7 @@ impl SimulationRuntime {
         let inputs = canonical_inputs(array(tick, "inputs")?, work.tick)?;
         self.capture_inputs(&mut work, &inputs)?;
         let mut runtime_effects = Vec::new();
+        let mut definition_effects = Vec::new();
         let input_order = inputs
             .iter()
             .map(|input| string_field(input, "input_id").map(str::to_owned))
@@ -708,14 +724,16 @@ impl SimulationRuntime {
             "PRE_ADVANCE",
             true,
             &mut runtime_effects,
+            &mut definition_effects,
         )?;
-        self.progress_actions(&mut work, &mut runtime_effects)?;
+        self.progress_actions(&mut work, &mut runtime_effects, &mut definition_effects)?;
         self.arbitrate_transition_stage(
             &mut work,
             &inputs,
             "POST_ADVANCE",
             false,
             &mut runtime_effects,
+            &mut definition_effects,
         )?;
 
         let action_ids = work
@@ -773,7 +791,7 @@ impl SimulationRuntime {
             .iter()
             .map(|contact| string_field(contact, "candidate_id").map(str::to_owned))
             .collect::<Result<Vec<_>, _>>()?;
-        let mut effects = Vec::new();
+        let mut effects = definition_effects;
         let mut receipts = Vec::new();
         for contact in &contacts {
             let instance_id = u64_field(contact, "source_instance_id")?;
@@ -1365,6 +1383,7 @@ impl SimulationRuntime {
         evaluation_point: &str,
         include_direct_starts: bool,
         runtime_effects: &mut Vec<RuntimeEffect>,
+        definition_effects: &mut Vec<EffectEnvelope>,
     ) -> Result<(), SimulationError> {
         let action_ids = state
             .action_instances
@@ -1662,6 +1681,7 @@ impl SimulationRuntime {
                         decision.intent.source_action_instance_id,
                         transition,
                         runtime_effects,
+                        definition_effects,
                         matched_input.as_ref(),
                         matched_event.as_ref(),
                     )?;
@@ -1931,6 +1951,7 @@ impl SimulationRuntime {
         &self,
         state: &mut SimulationState,
         runtime_effects: &mut Vec<RuntimeEffect>,
+        definition_effects: &mut Vec<EffectEnvelope>,
     ) -> Result<(), SimulationError> {
         let action_ids = state
             .action_instances
@@ -2027,6 +2048,7 @@ impl SimulationRuntime {
                         action_id,
                         &transition,
                         runtime_effects,
+                        definition_effects,
                         matched_input.as_ref(),
                         matched_event.as_ref(),
                     )?;
@@ -2095,12 +2117,115 @@ impl SimulationRuntime {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
+    fn materialize_runtime_definition_effects(
+        &self,
+        state: &mut SimulationState,
+        action_id: u64,
+        definition: &Definition,
+        effects: &[RuntimeDefinitionEffect],
+        matched_input: Option<&Value>,
+        matched_event: Option<&Value>,
+        emitted: &mut Vec<EffectEnvelope>,
+    ) -> Result<(), SimulationError> {
+        for effect in effects {
+            let action = state
+                .action_instances
+                .iter()
+                .find(|action| action.instance_id == action_id)
+                .cloned()
+                .ok_or(SimulationError::RuntimeFault)?;
+            let mut context = transition_guard_context(
+                state,
+                &action,
+                definition,
+                &effect.payload,
+                matched_input,
+                matched_event,
+            )?;
+            let target_entity_id = match &effect.target {
+                None => action.owner_entity_id,
+                Some(Value::Number(number)) => number
+                    .as_u64()
+                    .ok_or_else(|| assignment_fault("STATE_INVARIANT_FAILURE", action_id, state))?,
+                Some(Value::String(reference)) => {
+                    let target_expression = json!({"ref": reference});
+                    context.extend(transition_guard_context(
+                        state,
+                        &action,
+                        definition,
+                        &target_expression,
+                        matched_input,
+                        matched_event,
+                    )?);
+                    evaluate_expression(
+                        &target_expression,
+                        &context,
+                        self.max_expression_depth,
+                        self.max_expression_nodes,
+                    )
+                    .map_err(|error| predicate_expression_fault(error, &action))?
+                    .as_u64()
+                    .ok_or_else(|| assignment_fault("STATE_INVARIANT_FAILURE", action_id, state))?
+                }
+                Some(_) => {
+                    return Err(assignment_fault(
+                        "STATE_INVARIANT_FAILURE",
+                        action_id,
+                        state,
+                    ));
+                }
+            };
+            let payload = resolve_runtime_definition_payload(
+                &effect.payload,
+                &context,
+                self.max_expression_depth,
+                self.max_expression_nodes,
+            )
+            .map_err(|error| predicate_expression_fault(error, &action))?;
+            emitted.push(EffectEnvelope {
+                effect_id: format!("{}:{}:{}", state.tick, action_id, action.emission_serial),
+                effect_type: effect.effect_type.clone(),
+                effect_class: effect.effect_class.clone().unwrap_or_else(|| {
+                    if effect.authoritative {
+                        effect.effect_type.clone()
+                    } else {
+                        "PRESENTATION".to_owned()
+                    }
+                }),
+                source_entity_id: action.owner_entity_id,
+                target_entity_id,
+                source_action_instance_id: action_id,
+                origin_tick: state.tick,
+                priority: effect.priority,
+                payload,
+                reducer: effect
+                    .reducer
+                    .clone()
+                    .unwrap_or_else(|| "ORDERED".to_owned()),
+                authoritative: effect.authoritative,
+            });
+            let next = action
+                .emission_serial
+                .checked_add(1)
+                .ok_or_else(|| assignment_fault("INTEGER_OVERFLOW", action_id, state))?;
+            state
+                .action_instances
+                .iter_mut()
+                .find(|action| action.instance_id == action_id)
+                .ok_or(SimulationError::RuntimeFault)?
+                .emission_serial = next;
+        }
+        Ok(())
+    }
+
     fn apply_simulation_transition(
         &self,
         state: &mut SimulationState,
         action_id: u64,
         transition: &SimulationTransition,
         runtime_effects: &mut Vec<RuntimeEffect>,
+        definition_effects: &mut Vec<EffectEnvelope>,
         matched_input: Option<&Value>,
         matched_event: Option<&Value>,
     ) -> Result<(), SimulationError> {
@@ -2135,6 +2260,19 @@ impl SimulationRuntime {
             matched_input,
             matched_event,
         )?;
+        self.materialize_runtime_definition_effects(
+            state,
+            action_id,
+            definition,
+            definition
+                .node_exit_effects
+                .get(&source_node)
+                .map(Vec::as_slice)
+                .unwrap_or(&[]),
+            matched_input,
+            matched_event,
+            definition_effects,
+        )?;
         self.apply_runtime_assignments(
             state,
             action_id,
@@ -2147,6 +2285,15 @@ impl SimulationRuntime {
             .cycle
             .checked_add(transition.cycle_delta)
             .ok_or(SimulationError::RuntimeFault)?;
+        self.materialize_runtime_definition_effects(
+            state,
+            action_id,
+            definition,
+            &transition.definition_effects,
+            matched_input,
+            matched_event,
+            definition_effects,
+        )?;
         runtime_effects.extend(transition.effects.clone());
         self.apply_runtime_assignments(
             state,
@@ -2179,6 +2326,19 @@ impl SimulationRuntime {
                         .unwrap_or(&[]),
                     matched_input,
                     matched_event,
+                )?;
+                self.materialize_runtime_definition_effects(
+                    state,
+                    action_id,
+                    definition,
+                    definition
+                        .node_entry_effects
+                        .get(target)
+                        .map(Vec::as_slice)
+                        .unwrap_or(&[]),
+                    matched_input,
+                    matched_event,
+                    definition_effects,
                 )?;
                 if definition
                     .nodes
@@ -2799,17 +2959,32 @@ fn parse_runtime_assignments(
         .collect()
 }
 
+fn parse_runtime_definition_effects(
+    raw: &Value,
+    field: &str,
+) -> Result<Vec<RuntimeDefinitionEffect>, SimulationError> {
+    raw.get(field)
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .map(|effect| serde_json::from_value(effect).map_err(|_| SimulationError::InvalidVector))
+        .collect()
+}
+
 fn canonical_definition(raw: &Value) -> Result<Value, SimulationError> {
     let id = string_field(raw, "id")?;
     let nodes = array(raw, "nodes")?
         .iter()
         .map(|node| {
+            let entry_effects = canonical_definition_effects(node.get("entry_effects"))?;
+            let exit_effects = canonical_definition_effects(node.get("exit_effects"))?;
             Ok(json!({
                 "duration_quanta": node.get("duration_quanta").cloned().unwrap_or(Value::Null),
                 "entry_assignments": node.get("entry_assignments").cloned().unwrap_or_else(|| json!([])),
-                "entry_effects": node.get("entry_effects").cloned().unwrap_or_else(|| json!([])),
+                "entry_effects": entry_effects,
                 "exit_assignments": node.get("exit_assignments").cloned().unwrap_or_else(|| json!([])),
-                "exit_effects": node.get("exit_effects").cloned().unwrap_or_else(|| json!([])),
+                "exit_effects": exit_effects,
                 "extensions": node.get("extensions").cloned().unwrap_or_else(|| json!({})),
                 "id": string_field(node, "id")?,
                 "mode": node.get("mode").cloned().unwrap_or_else(|| json!("EVENT_DRIVEN")),
@@ -2901,13 +3076,14 @@ fn canonical_transition(raw: &Value) -> Result<Value, SimulationError> {
             })
         })
         .collect::<Vec<_>>();
+    let definition_effects = canonical_definition_effects(raw.get("definition_effects"))?;
     Ok(json!({
         "assignments": raw.get("assignments").cloned().unwrap_or_else(|| json!([])),
         "child_slot_id": raw.get("child_slot_id").cloned().unwrap_or(Value::Null),
         "claims": canonical_claims(raw.get("claims"))?,
         "consume_policy": raw.get("consume_policy").cloned().unwrap_or_else(|| json!("ON_ACCEPT")),
         "cycle_delta": raw.get("cycle_delta").cloned().unwrap_or_else(|| json!(0)),
-        "definition_effects": raw.get("definition_effects").cloned().unwrap_or_else(|| json!([])),
+        "definition_effects": definition_effects,
         "effects": effects,
         "entry_assignments": raw.get("entry_assignments").cloned().unwrap_or_else(|| json!([])),
         "evaluation_point": raw["evaluation_point"].clone(),
@@ -2927,6 +3103,25 @@ fn canonical_transition(raw: &Value) -> Result<Value, SimulationError> {
         "target_node": raw.get("target_node").cloned().unwrap_or(Value::Null),
         "target_step": raw.get("target_step").cloned().unwrap_or_else(|| json!(0)),
     }))
+}
+
+fn canonical_definition_effects(raw: Option<&Value>) -> Result<Vec<Value>, SimulationError> {
+    raw.and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .iter()
+        .map(|effect| {
+            Ok(json!({
+                "authoritative": effect.get("authoritative").and_then(Value::as_bool).ok_or(SimulationError::InvalidVector)?,
+                "effect_class": effect.get("effect_class").cloned().unwrap_or(Value::Null),
+                "effect_type": string_field(effect, "effect_type")?,
+                "payload": effect.get("payload").cloned().ok_or(SimulationError::InvalidVector)?,
+                "priority": effect.get("priority").cloned().unwrap_or_else(|| json!(0)),
+                "reducer": effect.get("reducer").cloned().unwrap_or(Value::Null),
+                "target": effect.get("target").cloned().unwrap_or(Value::Null),
+            }))
+        })
+        .collect()
 }
 
 fn canonical_claims(raw: Option<&Value>) -> Result<Value, SimulationError> {
@@ -3102,6 +3297,24 @@ fn parse_definition(raw: &Value, hash: String) -> Result<Definition, SimulationE
             Ok((
                 string_field(node, "id")?.to_owned(),
                 parse_runtime_assignments(node, "exit_assignments")?,
+            ))
+        })
+        .collect::<Result<BTreeMap<_, _>, SimulationError>>()?;
+    let node_entry_effects = raw_nodes
+        .iter()
+        .map(|node| {
+            Ok((
+                string_field(node, "id")?.to_owned(),
+                parse_runtime_definition_effects(node, "entry_effects")?,
+            ))
+        })
+        .collect::<Result<BTreeMap<_, _>, SimulationError>>()?;
+    let node_exit_effects = raw_nodes
+        .iter()
+        .map(|node| {
+            Ok((
+                string_field(node, "id")?.to_owned(),
+                parse_runtime_definition_effects(node, "exit_effects")?,
             ))
         })
         .collect::<Result<BTreeMap<_, _>, SimulationError>>()?;
@@ -3297,6 +3510,10 @@ fn parse_definition(raw: &Value, hash: String) -> Result<Definition, SimulationE
                 exit_assignments: parse_runtime_assignments(transition, "exit_assignments")?,
                 assignments: parse_runtime_assignments(transition, "assignments")?,
                 entry_assignments: parse_runtime_assignments(transition, "entry_assignments")?,
+                definition_effects: parse_runtime_definition_effects(
+                    transition,
+                    "definition_effects",
+                )?,
                 effects: transition
                     .get("effects")
                     .and_then(Value::as_array)
@@ -3353,6 +3570,8 @@ fn parse_definition(raw: &Value, hash: String) -> Result<Definition, SimulationE
         nodes,
         node_entry_assignments,
         node_exit_assignments,
+        node_entry_effects,
+        node_exit_effects,
         predicates,
         facts,
         transitions,
@@ -4169,6 +4388,41 @@ fn normalize_bounded_integer(
             action_id,
             state,
         )),
+    }
+}
+
+fn resolve_runtime_definition_payload(
+    payload: &Value,
+    context: &BTreeMap<String, Value>,
+    max_depth: usize,
+    max_nodes: usize,
+) -> Result<Value, EvalError> {
+    match payload {
+        Value::Object(object)
+            if (object.len() == 1
+                && (object.contains_key("literal") || object.contains_key("ref")))
+                || (object.len() == 2
+                    && object.contains_key("args")
+                    && object.contains_key("op")) =>
+        {
+            evaluate_expression(payload, context, max_depth, max_nodes)
+        }
+        Value::Object(object) => object
+            .iter()
+            .map(|(key, value)| {
+                Ok((
+                    key.clone(),
+                    resolve_runtime_definition_payload(value, context, max_depth, max_nodes)?,
+                ))
+            })
+            .collect::<Result<Map<String, Value>, EvalError>>()
+            .map(Value::Object),
+        Value::Array(values) => values
+            .iter()
+            .map(|value| resolve_runtime_definition_payload(value, context, max_depth, max_nodes))
+            .collect::<Result<Vec<_>, _>>()
+            .map(Value::Array),
+        _ => Ok(payload.clone()),
     }
 }
 

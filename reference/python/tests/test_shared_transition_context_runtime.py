@@ -37,6 +37,8 @@ def test_python_complete_state_transition_context_matches_shared_vectors():
         summary = {
             "node": action.current_node_id,
             "transition_serial": action.transition_serial,
+            "emission_serial": action.emission_serial,
+            "stamina": state.resource_banks["1"]["STAMINA"],
             "captured_parameters": action.captured_parameters,
             "registers": action.registers,
             "predicate_truth_state": action.predicate_truth_state,
@@ -47,6 +49,9 @@ def test_python_complete_state_transition_context_matches_shared_vectors():
         assert [trace["state_digest"] for trace in run.traces] == case["tick_state_digests"]
         assert state.state_hash() == case["final_state_digest"], case["id"]
         assert summary == case["expected"], case["id"]
+        effect_expectation = vector["effect_expectations"][case["effect_expectation"]]
+        assert run.traces[-1]["typed_effects_emitted"] == effect_expectation["emitted"], case["id"]
+        assert run.traces[-1]["effect_reduction"] == effect_expectation["reduced"], case["id"]
 
 
 def test_python_transition_context_rejects_invalid_host_imports():

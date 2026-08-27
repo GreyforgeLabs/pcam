@@ -31,8 +31,11 @@ fn independent_complete_state_transition_context_matches_shared_vectors() {
         let runtime = SimulationRuntime::from_vector(&document).unwrap();
         let mut state = runtime.initial_state(&document).unwrap();
         let mut digests = Vec::new();
+        let mut traces = Vec::new();
         for tick in document["ticks"].as_array().unwrap() {
-            (state, _) = runtime.tick(&state, tick).unwrap();
+            let result = runtime.tick(&state, tick).unwrap();
+            state = result.0;
+            traces.push(result.1);
             digests.push(state.digest().unwrap());
         }
         let action = state
@@ -43,6 +46,8 @@ fn independent_complete_state_transition_context_matches_shared_vectors() {
         let summary = json!({
             "node": action.current_node_id,
             "transition_serial": action.transition_serial,
+            "emission_serial": action.emission_serial,
+            "stamina": state.resource_banks["1"]["STAMINA"],
             "captured_parameters": action.captured_parameters,
             "registers": action.registers,
             "predicate_truth_state": action.predicate_truth_state,
@@ -63,6 +68,20 @@ fn independent_complete_state_transition_context_matches_shared_vectors() {
             case["id"]
         );
         assert_eq!(summary, case["expected"], "{}:summary", case["id"]);
+        let effect_expectation =
+            &vector["effect_expectations"][case["effect_expectation"].as_str().unwrap()];
+        assert_eq!(
+            json!(&traces.last().unwrap().effects),
+            effect_expectation["emitted"],
+            "{}:effects",
+            case["id"]
+        );
+        assert_eq!(
+            json!(&traces.last().unwrap().reduced),
+            effect_expectation["reduced"],
+            "{}:reduced",
+            case["id"]
+        );
     }
 }
 
