@@ -29,8 +29,8 @@ This matrix preserves the complete target. A row is complete only when its named
 | §29 networking | declared local, lockstep, rollback, and server prediction profile artifacts | partial: machine-readable topology declarations, required mechanism/limit fields, canonical profile hashing, and rejection vectors; executable network services remain open |
 | §30-31 faults and limits | stable fault codes and every declared bound tested | partial: full core runtime fault enum, validated fault-policy declaration, canonically hashed required limits, extension-state bound, and several runtime bounds; policy execution and exhaustive bound enforcement remain open |
 | §32 PCAM-24 | schema, compiler, lifecycle, projection, migration warnings | partial: schema and explicit TERMINATE/LOOP/CLAMP compiler |
-| §33-34 examples | examples validate and execute with expected trace/digests | missing |
-| §35 tracing | complete deterministic trace contract and canonicalized vectors | missing |
+| §33-34 examples | examples validate and execute with expected trace/digests | complete: schema-valid Heavy Strike, Dodge, and combat interaction documents execute for 60 ticks with pinned document, definition-set, trace, and final-state digests plus parry, armor, duplicate-contact, and trade assertions |
+| §35 tracing | complete deterministic trace contract and canonicalized vectors | partial: canonical 60-tick example trace and vertical-slice trace digests are pinned; complete field coverage and rejection-reason vectors remain open |
 | §36 extensions | namespace, required/optional, authoritative extension validation | partial: namespace and omission rules, declarative authoritative contracts, payload schemas, bounded state, registry identity hashing, and negative vectors; an end-to-end authoritative extension remains open |
 | §37 classes | evidence manifest for each claimed class | missing |
 | §38 mandatory tests | all 20 tests implemented and passing | partial: coverage map committed; 38.19 missing and several rows still composed/partial |

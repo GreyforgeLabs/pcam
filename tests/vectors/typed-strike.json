@@ -120,7 +120,7 @@
     {"inputs": [], "contacts": []}
   ],
   "expected": {
-    "final_state_digest": "61df57c1d6259000317210f3558eca5e17b19beaf3e665f0ba8f70247cf2288e"
+    "final_state_digest": "032d4be9b6851dc04c91922aab2312245686916a8ce4e2f28a8c83d6ff88c805"
   },
   "rollback": {
     "corrected_tick": 0,

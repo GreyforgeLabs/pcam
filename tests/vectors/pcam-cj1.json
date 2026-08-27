@@ -29,6 +29,6 @@
   ],
   "definition_case": {
     "path": "tests/valid/minimal-action.json",
-    "sha256": "9182120083f099895ea9ff5c8ef1024c2d492cad6e601a07167bf00c7bded5d2"
+    "sha256": "6875ce2e6e8c26eca36131545acdaf076ddafc78f2b928af7f33be2310baef06"
   }
 }

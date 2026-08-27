@@ -524,6 +524,7 @@ rate: {}
 parameters: {}
 registers: {}
 imports: {}
+initial_node: <node-identifier>
 nodes: {}
 predicates: {}
 semantic_facts: []
@@ -614,6 +615,8 @@ serialization dependency
 An authoritative import MUST be included in host snapshots and rollback state.
 
 ## 8.7 Nodes
+
+Each action definition MUST declare `initial_node` as the identifier of one node in its `nodes` map. Map insertion order MUST NOT select the initial node.
 
 A node MUST contain:
 
@@ -2760,6 +2763,8 @@ A conforming PCAM-24 implementation MUST state:
 
 # 33. Canonical Action Example
 
+The machine-valid, executable repository artifact for this section is `examples/heavy-strike.action.yaml`, with its dependency in `examples/dodge.action.yaml` and pinned execution evidence in `examples/heavy-strike.scenario.json`. The listing below is the readable design form; repository conformance claims use the machine-valid artifact.
+
 The following example defines a heavy strike with:
 
 - Twenty-four semantic quanta
@@ -2809,6 +2814,8 @@ imports:
   grounded:
     type: BOOL
     authoritative: true
+
+initial_node: startup
 
 slot_claims:
   - slot: FULL_BODY
@@ -3024,6 +3031,8 @@ profiles:
 ---
 
 # 34. Canonical Interaction Example
+
+The machine-valid, executable repository artifact for this section is `examples/combat.interaction.yaml`. Its armor, parry, duplicate-contact, and independent-outgoing behavior is exercised by the pinned Heavy Strike scenario and reference tests.
 
 The following interaction profile demonstrates typed parry and armor behavior without a global property hierarchy.
 

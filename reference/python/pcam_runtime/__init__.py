@@ -5,6 +5,7 @@ preserving slice without claiming full PCAM-RUN-3 or rollback conformance.
 """
 
 from .canonical import canonical_dumps, canonical_hash
+from .documents import action_from_document, interaction_rules_from_document
 from .errors import PCAMError, PCAMFault, ResultCode
 from .extensions import ExtensionRegistration, ExtensionRegistry, ExtensionValidation
 from .model import (
@@ -92,6 +93,7 @@ __all__ = [
     "TickInput",
     "TransitionDefinition",
     "VectorRun",
+    "action_from_document",
     "canonical_dumps",
     "canonical_effects",
     "canonical_events",
@@ -114,6 +116,7 @@ __all__ = [
     "expire_freeze_tokens",
     "load_document",
     "is_frozen",
+    "interaction_rules_from_document",
     "ledger_is_eligible",
     "ledger_key",
     "progression_accrual",

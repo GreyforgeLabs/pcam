@@ -1,0 +1,30 @@
+{
+  "pcam_example_version": "1",
+  "kind": "example_scenario",
+  "actions": [
+    "examples/heavy-strike.action.yaml",
+    "examples/dodge.action.yaml"
+  ],
+  "interaction_profile": "examples/combat.interaction.yaml",
+  "effect_registry": {
+    "combat.damage": ["hp", -1],
+    "combat.stagger": ["stagger", 1],
+    "combat.parry_success": ["parry", 1]
+  },
+  "tick_count": 60,
+  "contact_tick": 24,
+  "expected": {
+    "heavy_strike_document_hash": "5a75c693e7075f877253633d4c4fd50152ea4c6667976d190d3a3de05abb8771",
+    "heavy_strike_runtime_hash": "2c7f20d040ce6e0196caf5f5a6d35d9451adc5dc2bbfa9ef683b1a828f2e0364",
+    "interaction_document_hash": "7675dab973b71d447cdb55b622c73d86da03e05577dbc4676beb2a071639f5d9",
+    "definition_set_hash": "8944187c97470985ea452a5706392643c8a44e126a05b0570dd021713e401b83",
+    "trace_digest": "d0af0a5be56850f200d42f638d231956f1a961189fa968d563ff90eca174f1a4",
+    "final_state_digest": "e7d98511d21821e1e57b42cb1fbe3bf002496efa867b729a4c0561137e50f286",
+    "node_change_ticks": [24, 34, 59],
+    "candidate_order": ["a-to-b", "a-to-b-dup", "b-to-a"],
+    "resource_banks": {
+      "1": {"STAMINA": 100, "hp": 70, "stagger": 0},
+      "2": {"STAMINA": 100, "hp": 70, "stagger": 0}
+    }
+  }
+}

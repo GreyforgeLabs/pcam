@@ -5,7 +5,7 @@
   "type": "object",
   "required": [
     "pcam_version", "kind", "id", "revision", "metadata", "limits", "rate",
-    "parameters", "registers", "imports", "nodes", "predicates", "semantic_facts",
+    "parameters", "registers", "imports", "initial_node", "nodes", "predicates", "semantic_facts",
     "transitions", "slot_claims", "profiles", "extensions"
   ],
   "properties": {
@@ -86,6 +86,7 @@
         "additionalProperties": false
       }
     },
+    "initial_node": {"$ref": "common.schema.json#/$defs/identifier"},
     "nodes": {
       "type": "object",
       "minProperties": 1,

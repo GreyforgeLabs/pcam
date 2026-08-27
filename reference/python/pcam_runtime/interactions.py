@@ -196,7 +196,12 @@ def resolve_candidate(
                         template = data["template"]
                         if not isinstance(template, EffectTemplate):
                             raise _fault("appended template must be an EffectTemplate")
-                        templates.append(template)
+                        templates.append(
+                            replace(
+                                template,
+                                payload=_resolve_payload(template.payload, context),
+                            )
+                        )
                     elif operation.op == "ADD_DECISION_TAG":
                         tags.add(str(data["tag"]))
                     elif operation.op == "REQUEST_RECEIPT":
@@ -248,6 +253,7 @@ def _context(
     status: str,
     tags: set[str],
 ) -> dict[str, object]:
+    host_context = candidate.host_context or {}
     return {
         "candidate.candidate_id": candidate.candidate_id,
         "candidate.source_entity_id": candidate.source_entity_id,
@@ -260,9 +266,20 @@ def _context(
         "defense.channels": frozenset(defense.channels if defense else ()),
         "defense.tags": frozenset(defense.tags if defense else ()),
         "defense.fact_id": defense.fact_id if defense else None,
+        "target.lifecycle": host_context.get("target.lifecycle", "RUNNING"),
         "decision.status": status,
         "decision.tags": frozenset(tags),
     }
+
+
+def _resolve_payload(payload: object, context: dict[str, object]) -> object:
+    if isinstance(payload, dict):
+        if set(payload) in ({"literal"}, {"ref"}, {"op", "args"}):
+            return evaluate(payload, context)
+        return {key: _resolve_payload(value, context) for key, value in payload.items()}
+    if isinstance(payload, list):
+        return [_resolve_payload(value, context) for value in payload]
+    return payload
 
 
 def _materialize(

@@ -264,6 +264,8 @@ class PredicateDefinition:
     node_ids: tuple[str, ...] = ()
     min_node_step: int = 0
     max_node_step_exclusive: int | None = None
+    expression: dict[str, object] | None = None
+    track_edges: bool = True
 
 
 @dataclass(frozen=True)
@@ -281,6 +283,7 @@ class TransitionDefinition:
     event_type: str | None = None
     target_step: int = 0
     guard_predicate: str | None = None
+    guard_expression: dict[str, object] | None = None
     input_command: str | None = None
     consume_policy: Literal["ON_ACCEPT", "ON_ATTEMPT", "NEVER"] = "ON_ACCEPT"
     claims: tuple[Claim, ...] = ()
@@ -326,6 +329,9 @@ class ActionDefinition:
     default_buffer_lifetime: int = 1
     metadata: dict[str, object] = field(default_factory=dict)
     extensions: dict[str, object] = field(default_factory=dict)
+    parameter_defaults: dict[str, object] = field(default_factory=dict)
+    register_initials: dict[str, int] = field(default_factory=dict)
+    initial_node_id: str | None = None
 
     @property
     def definition_hash(self) -> str:
@@ -336,6 +342,9 @@ class ActionDefinition:
             "id": self.id,
             "metadata": self.metadata,
             "extensions": self.extensions,
+            "parameter_defaults": self.parameter_defaults,
+            "register_initials": self.register_initials,
+            "initial_node": self.initial_node_id or self.nodes[0].id,
             "nodes": [node.__dict__ for node in self.nodes],
             "predicates": [predicate.__dict__ for predicate in self.predicates],
             "semantic_facts": self.semantic_facts,
@@ -416,6 +425,8 @@ def validate_definition(definition: ActionDefinition) -> None:
     predicate_ids = {predicate.id for predicate in definition.predicates}
     if not definition.nodes:
         raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.STATE_INVARIANT_FAILURE, "action has no nodes")
+    if definition.initial_node_id is not None and definition.initial_node_id not in node_ids:
+        raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.MISSING_REFERENCE, definition.initial_node_id)
     for node in definition.nodes:
         if node.mode == "TIMED" and (node.duration_quanta is None or node.duration_quanta <= 0):
             raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.STATE_INVARIANT_FAILURE, node.id)

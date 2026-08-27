@@ -1,0 +1,198 @@
+pcam_version: "3.0"
+kind: action
+id: greyforge.example.heavy_strike
+revision: 1
+metadata:
+  display_name: Heavy Strike
+  nominal_host_tick_rate: 60
+  nominal_duration_ticks: 60
+limits:
+  max_internal_transitions_per_tick: 8
+  buffer_capacity: 4
+  buffer_overflow_policy: DROP_OLDEST
+rate:
+  scale: 5
+  units_per_tick: 2
+parameters:
+  damage:
+    type: I64
+    required: false
+    default: 30
+    minimum: 0
+    maximum: 10000
+    capture_policy: CAPTURE_ON_START
+registers:
+  charge_level:
+    type: U64
+    initial: 0
+    minimum: 0
+    maximum: 3
+    overflow: FAULT
+    serialization_policy: AUTHORITATIVE
+imports:
+  grounded:
+    type: BOOL
+    source_contract: greyforge.host.grounded.v1
+    default: true
+    failure_policy: USE_DEFAULT
+    authoritative: true
+    serialization_dependency: true
+initial_node: startup
+nodes:
+  startup:
+    id: startup
+    mode: TIMED
+    duration_quanta: 10
+    seekable: true
+    entry_assignments: []
+    entry_effects:
+      - effect_type: presentation.animation
+        authoritative: false
+        payload: {clip: heavy_strike}
+    exit_assignments: []
+    exit_effects: []
+    tags: []
+    extensions: {}
+  active:
+    id: active
+    mode: TIMED
+    duration_quanta: 4
+    seekable: true
+    entry_assignments: []
+    entry_effects: []
+    exit_assignments: []
+    exit_effects: []
+    tags: []
+    extensions: {}
+  recovery:
+    id: recovery
+    mode: TIMED
+    duration_quanta: 10
+    seekable: true
+    entry_assignments: []
+    entry_effects: []
+    exit_assignments: []
+    exit_effects: []
+    tags: []
+    extensions: {}
+predicates:
+  STARTUP:
+    track_edges: true
+    metadata: {}
+    expression:
+      op: eq
+      args: [{ref: action.node}, {literal: startup}]
+  ACTIVE:
+    track_edges: true
+    metadata: {}
+    expression:
+      op: eq
+      args: [{ref: action.node}, {literal: active}]
+  RECOVERY:
+    track_edges: true
+    metadata: {}
+    expression:
+      op: eq
+      args: [{ref: action.node}, {literal: recovery}]
+  ARMOR:
+    track_edges: true
+    metadata: {}
+    expression:
+      op: or
+      args:
+        - op: and
+          args:
+            - {op: eq, args: [{ref: action.node}, {literal: startup}]}
+            - {op: gte, args: [{ref: action.node_step}, {literal: 6}]}
+        - {op: eq, args: [{ref: action.node}, {literal: active}]}
+  LATE_CANCEL:
+    track_edges: true
+    metadata: {}
+    expression:
+      op: and
+      args:
+        - {op: eq, args: [{ref: action.node}, {literal: recovery}]}
+        - {op: gte, args: [{ref: action.node_step}, {literal: 7}]}
+semantic_facts:
+  - id: heavy_strike_hit
+    direction: OFFENSE
+    when: {ref: action.predicate.ACTIVE}
+    channels: [STRIKE]
+    tags: [HEAVY]
+    hit_policy:
+      kind: ONCE_PER_ACTION_INSTANCE
+      receipt_on: ON_IMPACT
+    effect_templates:
+      - effect_type: combat.damage
+        effect_class: DAMAGE
+        authoritative: true
+        reducer: SUM
+        payload: {amount: {ref: action.parameter.damage}}
+      - effect_type: combat.stagger
+        effect_class: STAGGER
+        authoritative: true
+        reducer: SUM
+        payload: {amount: 25}
+  - id: heavy_strike_armor
+    direction: DEFENSE
+    when: {ref: action.predicate.ARMOR}
+    channels: [STRIKE]
+    tags: [ARMOR, SUPER_ARMOR]
+    attributes: {armor_strength: 1}
+    hit_policy:
+      kind: UNBOUNDED
+      receipt_on: ON_CONTACT
+    effect_templates: []
+transitions:
+  - id: startup_to_active
+    source_node: startup
+    evaluation_point: AFTER_QUANTUM
+    priority: 100
+    guard: {op: gte, args: [{ref: action.node_step}, {literal: 10}]}
+    target: {kind: NODE, node: active}
+    claims: []
+    consume_policy: NEVER
+  - id: active_to_recovery
+    source_node: active
+    evaluation_point: AFTER_QUANTUM
+    priority: 100
+    guard: {op: gte, args: [{ref: action.node_step}, {literal: 4}]}
+    target: {kind: NODE, node: recovery}
+    claims: []
+    consume_policy: NEVER
+  - id: recovery_to_terminate
+    source_node: recovery
+    evaluation_point: AFTER_QUANTUM
+    priority: 100
+    guard: {op: gte, args: [{ref: action.node_step}, {literal: 10}]}
+    target: {kind: TERMINATE}
+    claims: []
+    consume_policy: NEVER
+  - id: recovery_cancel_to_dodge
+    source_node: recovery
+    evaluation_point: POST_ADVANCE
+    priority: 200
+    guard: {ref: action.predicate.LATE_CANCEL}
+    input_match: {command_id: DODGE}
+    claims:
+      - {kind: RESOURCE, resource: STAMINA, amount: 20}
+    consume_policy: ON_ACCEPT
+    target:
+      kind: ACTION
+      action: greyforge.example.dodge
+      source_disposition: TERMINATE_SOURCE
+slot_claims:
+  - {slot: FULL_BODY, amount: 1}
+profiles:
+  pcam24:
+    lifecycle: TERMINATE
+    projection:
+      - {node: startup, step_range: [0, 10], phase_range: [0, 10]}
+      - {node: active, step_range: [0, 4], phase_range: [10, 14]}
+      - {node: recovery, step_range: [0, 10], phase_range: [14, 24]}
+    tags:
+      STARTUP: [[0, 10]]
+      ARMOR: [[6, 14]]
+      ACTIVE: [[10, 14]]
+      RECOVERY: [[14, 24]]
+extensions: {}

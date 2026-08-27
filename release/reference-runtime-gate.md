@@ -6,4 +6,6 @@ Required: complete interpreter, save and restore, state hashing, deterministic t
 
 Current evidence: a narrow Python vertical slice exercises the twelve stage order, rational progression, transitions, predicate edges, directed contact ordering, once-per-action ledgers, effect commit, complete-state snapshot round-trip, state digests, rollback correction, and PCAM-24 compilation. This is not `PCAM-RUN-3` and leaves most normative breadth open.
 
+The schema-complete canonical Heavy Strike and combat interaction examples now compile into runtime records and execute for 60 ticks with pinned document, definition-set, trace, and final-state digests. The scenario covers rational progression, explicit initial-node selection, expression-backed predicates and guards, parameter capture, simultaneous trade, armor modification, and duplicate-contact suppression.
+
 All eleven §42 command paths now execute with stable JSON envelopes. A pinned typed-strike vector drives run, trace, snapshot, restore, state hashing, and rollback digest equivalence. Command availability does not establish complete command semantics or runtime conformance.

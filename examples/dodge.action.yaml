@@ -1,0 +1,41 @@
+pcam_version: "3.0"
+kind: action
+id: greyforge.example.dodge
+revision: 1
+metadata: {display_name: Dodge}
+limits:
+  max_internal_transitions_per_tick: 8
+  buffer_capacity: 2
+  buffer_overflow_policy: DROP_OLDEST
+rate: {scale: 1, units_per_tick: 1}
+parameters: {}
+registers: {}
+imports: {}
+initial_node: evade
+nodes:
+  evade:
+    id: evade
+    mode: TIMED
+    duration_quanta: 1
+    seekable: false
+    entry_assignments: []
+    entry_effects: []
+    exit_assignments: []
+    exit_effects: []
+    tags: []
+    extensions: {}
+predicates: {}
+semantic_facts: []
+transitions:
+  - id: evade_to_terminate
+    source_node: evade
+    evaluation_point: AFTER_QUANTUM
+    priority: 100
+    guard: {op: gte, args: [{ref: action.node_step}, {literal: 1}]}
+    target: {kind: TERMINATE}
+    claims: []
+    consume_policy: NEVER
+slot_claims:
+  - {slot: FULL_BODY, amount: 1}
+profiles: {}
+extensions: {}

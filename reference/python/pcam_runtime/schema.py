@@ -109,6 +109,16 @@ def _action_diagnostics(document: dict[str, Any]) -> list[Diagnostic]:
     nodes = document.get("nodes", {})
     predicates = document.get("predicates", {})
     transitions = document.get("transitions", [])
+    initial_node = document.get("initial_node")
+    if initial_node not in nodes:
+        diagnostics.append(
+            Diagnostic(
+                ResultCode.DEFINITION_REJECTED.value,
+                "$.initial_node",
+                f"unknown initial node: {initial_node!r}",
+                PCAMFault.MISSING_REFERENCE.value,
+            )
+        )
     for node_name, node in nodes.items():
         if node.get("id") != node_name:
             diagnostics.append(

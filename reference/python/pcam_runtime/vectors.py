@@ -175,6 +175,9 @@ def _definition(value: dict[str, Any]) -> ActionDefinition:
         default_buffer_lifetime=int(value.get("default_buffer_lifetime", 1)),
         metadata=dict(value.get("metadata", {})),
         extensions=dict(value.get("extensions", {})),
+        parameter_defaults=dict(value.get("parameter_defaults", {})),
+        register_initials={str(key): int(item) for key, item in value.get("register_initials", {}).items()},
+        initial_node_id=value.get("initial_node_id"),
     )
 
 

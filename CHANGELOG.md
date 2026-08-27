@@ -24,3 +24,4 @@
 - Added machine-readable networking topology declarations, required latency and correction fields, duplicate-ID rejection, and canonical runtime-profile hashes that bind all §31 limits; executable network services remain open.
 - Adopted CC BY 4.0 for the specification and documentation, MIT for implementation code and schemas, and CC0 1.0 for reusable conformance vectors, with separate trademark and patent statements.
 - Added bounded declarative extension registration, safe optional omission, unknown-required rejection, authoritative contract and payload validation, registry identity hashing, and snapshot extension-state limits; end-to-end authoritative extension semantics remain open.
+- Required explicit action `initial_node` selection, added full-schema document-to-runtime compilation, expression-backed predicates and guards, parameter/register capture, and schema-complete canonical Heavy Strike and combat examples with pinned 60-tick trace and state evidence.

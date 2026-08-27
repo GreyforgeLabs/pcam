@@ -16,6 +16,7 @@ This repository is under active implementation. It does not claim Stable, Normat
 - `tests/` - positive, negative, deterministic, rollback, generated, and cross-platform vectors
 - `experiments/` - comparative methodology, baselines, and results
 - `release/` - requirement traceability and release-gate evidence
+- `examples/` - schema-complete canonical action, interaction, and pinned scenario artifacts
 
 ## Current execution target
 

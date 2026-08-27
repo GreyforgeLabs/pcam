@@ -1,0 +1,59 @@
+pcam_version: "3.0"
+kind: interaction_profile
+id: greyforge.example.combat
+revision: 1
+rules:
+  - id: reject_invalid_target
+    stage: ADMISSION
+    order: 10
+    condition: {op: eq, args: [{ref: target.lifecycle}, {literal: TERMINATED}]}
+    operations:
+      - {op: REJECT, reason: INVALID_TARGET}
+    stop_stage: false
+    stop_pipeline: true
+    extensions: {}
+  - id: parry_strike
+    stage: ROUTING
+    order: 100
+    condition:
+      op: and
+      args:
+        - {op: contains, args: [{ref: offense.channels}, {literal: STRIKE}]}
+        - {op: contains, args: [{ref: defense.tags}, {literal: PARRY}]}
+    operations:
+      - {op: REJECT, reason: PARRIED}
+      - op: APPEND_EFFECT_TEMPLATE
+        effect:
+          effect_type: combat.parry_success
+          effect_class: REACTION
+          authoritative: true
+          reducer: ORDERED
+          target: candidate.target_entity_id
+          payload: {attacker: {ref: candidate.source_entity_id}}
+      - {op: REQUEST_RECEIPT, condition: ON_ACCEPT}
+    stop_stage: false
+    stop_pipeline: true
+    extensions: {}
+  - id: armor_reduces_stagger
+    stage: MODIFICATION
+    order: 200
+    condition:
+      op: and
+      args:
+        - {op: contains, args: [{ref: offense.channels}, {literal: STRIKE}]}
+        - {op: contains, args: [{ref: defense.tags}, {literal: ARMOR}]}
+    operations:
+      - {op: SCALE_EFFECT_CLASS, effect_class: STAGGER, numerator: 0, denominator: 1}
+    stop_stage: false
+    stop_pipeline: false
+    extensions: {}
+  - id: materialize_remaining_effects
+    stage: MATERIALIZATION
+    order: 1000
+    condition: {literal: true}
+    operations:
+      - {op: MATERIALIZE}
+    stop_stage: false
+    stop_pipeline: false
+    extensions: {}
+extensions: {}

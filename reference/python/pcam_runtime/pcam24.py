@@ -102,6 +102,7 @@ def compile_pcam24(source: dict[str, Any]) -> dict[str, Any]:
         "parameters": {},
         "registers": {},
         "imports": {},
+        "initial_node": "timeline",
         "nodes": nodes,
         "predicates": predicates,
         "semantic_facts": [],

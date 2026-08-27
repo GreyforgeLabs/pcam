@@ -9,6 +9,7 @@ from .canonical import canonical_dumps, canonical_hash
 from .effects import EffectEnvelope, reduce_effects
 from .errors import PCAMError, PCAMFault, ResultCode
 from .events import EventEnvelope, deliver_due, event_from_snapshot, event_snapshot
+from .expressions import evaluate
 from .extensions import ExtensionRegistry
 from .freezes import FreezeToken, add_token, end_tick as expire_freezes, is_frozen, progression_accrual
 from .interactions import InteractionCandidate, InteractionRule, SemanticFact, resolve_candidate, validate_rules
@@ -443,7 +444,8 @@ class TickExecutor:
         parent_slot_id: str | None = None,
     ) -> SimulationState:
         definition = self.definitions_by_id[definition_id]
-        node = definition.nodes[0]
+        initial_node_id = definition.initial_node_id or definition.nodes[0].id
+        node = next(item for item in definition.nodes if item.id == initial_node_id)
         if parent_instance_id is not None:
             depth = 1
             cursor = state.action_instances[str(parent_instance_id)]
@@ -460,6 +462,8 @@ class TickExecutor:
             lifecycle_state="TERMINATED" if node.mode == "TERMINAL" else "RUNNING",
             current_node_id=node.id,
             current_rate_units=definition.units_per_tick,
+            captured_parameters=dict(definition.parameter_defaults),
+            registers=dict(definition.register_initials),
             parent_instance_id=parent_instance_id,
             parent_slot_id=parent_slot_id,
             slot_claims=tuple(
@@ -601,6 +605,10 @@ class TickExecutor:
                 continue
             if transition.guard_predicate and not action.predicate_truth_state.get(transition.guard_predicate, False):
                 continue
+            if transition.guard_expression is not None:
+                guard = self._evaluate_action_expression(action, definition, transition.guard_expression)
+                if guard is not True:
+                    continue
             eligible.append(transition)
         return max(eligible, key=lambda item: item.priority) if eligible else None
 
@@ -774,10 +782,9 @@ class TickExecutor:
             truth = dict(action.predicate_truth_state)
             entries = dict(action.predicate_entry_serials)
             exits = dict(action.predicate_exit_serials)
-            for predicate in definition.predicates:
-                now = action.current_node_id in predicate.node_ids and action.node_step >= predicate.min_node_step
-                if predicate.max_node_step_exclusive is not None:
-                    now = now and action.node_step < predicate.max_node_step_exclusive
+            current_values = self._predicate_values(action, definition)
+            for predicate in sorted(definition.predicates, key=lambda item: item.id.encode("utf-8")):
+                now = current_values[predicate.id]
                 before = truth.get(predicate.id, False)
                 if now:
                     facts.append(f"{action.instance_id}:{predicate.id}")
@@ -793,6 +800,125 @@ class TickExecutor:
                     facts.append(f"{action.instance_id}:{binding.fact.fact_id}")
             state = _put_action(state, replace(action, predicate_truth_state=truth, predicate_entry_serials=entries, predicate_exit_serials=exits))
         return state, changes, sorted(set(facts)), active_bindings
+
+    def _predicate_values(self, action: ActionInstance, definition: ActionDefinition) -> dict[str, bool]:
+        definitions = {item.id: item for item in definition.predicates}
+        values: dict[str, bool] = {}
+        visiting: set[str] = set()
+
+        def predicate_value(predicate_id: str) -> bool:
+            if predicate_id in values:
+                return values[predicate_id]
+            if predicate_id in visiting or predicate_id not in definitions:
+                raise PCAMError(
+                    ResultCode.RUNTIME_FAULT,
+                    PCAMFault.STATE_INVARIANT_FAILURE,
+                    f"predicate dependency cycle or missing reference: {predicate_id}",
+                )
+            visiting.add(predicate_id)
+            predicate = definitions[predicate_id]
+            if predicate.expression is None:
+                result = action.current_node_id in predicate.node_ids and action.node_step >= predicate.min_node_step
+                if predicate.max_node_step_exclusive is not None:
+                    result = result and action.node_step < predicate.max_node_step_exclusive
+            else:
+                result = evaluate(
+                    predicate.expression,
+                    lambda reference: self._resolve_action_reference(
+                        action,
+                        reference,
+                        predicate_value,
+                    ),
+                )
+                if type(result) is not bool:
+                    raise PCAMError(
+                        ResultCode.RUNTIME_FAULT,
+                        PCAMFault.STATE_INVARIANT_FAILURE,
+                        f"predicate did not evaluate to Boolean: {predicate_id}",
+                    )
+            visiting.remove(predicate_id)
+            values[predicate_id] = result
+            return result
+
+        for predicate_id in sorted(definitions, key=lambda item: item.encode("utf-8")):
+            predicate_value(predicate_id)
+        return values
+
+    def _evaluate_action_expression(
+        self,
+        action: ActionInstance,
+        definition: ActionDefinition,
+        expression: dict[str, object],
+    ) -> object:
+        predicates = self._predicate_values(action, definition)
+        return evaluate(
+            expression,
+            lambda reference: self._resolve_action_reference(
+                action,
+                reference,
+                predicates.__getitem__,
+            ),
+        )
+
+    @staticmethod
+    def _resolve_action_reference(
+        action: ActionInstance,
+        reference: str,
+        predicate_value: object,
+    ) -> object:
+        fixed: dict[str, object] = {
+            "action.cycle": action.cycle,
+            "action.lifecycle": action.lifecycle_state,
+            "action.local_step": action.local_step,
+            "action.node": action.current_node_id,
+            "action.node_step": action.node_step,
+        }
+        if reference in fixed:
+            return fixed[reference]
+        if reference.startswith("action.parameter."):
+            return action.captured_parameters[reference.removeprefix("action.parameter.")]
+        if reference.startswith("action.register."):
+            return action.registers[reference.removeprefix("action.register.")]
+        if reference.startswith("action.predicate."):
+            name = reference.removeprefix("action.predicate.")
+            return predicate_value(name)  # type: ignore[operator]
+        raise KeyError(reference)
+
+    def _bound_fact(
+        self,
+        fact: SemanticFact,
+        action: ActionInstance,
+        definition: ActionDefinition,
+    ) -> SemanticFact:
+        return replace(
+            fact,
+            effect_templates=tuple(
+                replace(
+                    template,
+                    payload=self._resolve_effect_payload(template.payload, action, definition),
+                )
+                for template in fact.effect_templates
+            ),
+        )
+
+    def _resolve_effect_payload(
+        self,
+        payload: object,
+        action: ActionInstance,
+        definition: ActionDefinition,
+    ) -> object:
+        if isinstance(payload, dict):
+            if set(payload) in ({"literal"}, {"ref"}, {"op", "args"}):
+                return self._evaluate_action_expression(action, definition, payload)
+            if set(payload) == {"amount"}:
+                return self._resolve_effect_payload(payload["amount"], action, definition)
+            return {
+                key: self._resolve_effect_payload(value, action, definition)
+                for key, value in payload.items()
+            }
+        if isinstance(payload, list):
+            return [self._resolve_effect_payload(value, action, definition) for value in payload]
+        return payload
 
     def _resolve_interactions(
         self,
@@ -852,9 +978,11 @@ class TickExecutor:
                 host_context=candidate.host_context,
             )
             defenses = self._defense_map(state, active_bindings, candidate.defense_fact_id)
+            definition = self.definitions_by_hash[action.definition_hash]
+            offense = self._bound_fact(binding.fact, action, definition)
             decision = resolve_candidate(
                 interaction_candidate,
-                binding.fact,
+                offense,
                 defenses,
                 self.interaction_rules,
                 max_redirects=self.profile.max_redirects_per_candidate,
