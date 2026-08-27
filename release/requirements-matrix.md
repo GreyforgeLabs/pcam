@@ -11,7 +11,7 @@ This matrix preserves the complete target. A row is complete only when its named
 | §1-6 language, scope, invariants, determinism boundary, formal model | contradiction-free specification audit | missing |
 | §7 authoritative state | snapshot schema plus complete-state round-trip vectors | partial: initial schema and slice round-trip |
 | §8 definitions | action schema, immutable hash binding, positive and negative vectors | missing |
-| §9 numeric semantics | arithmetic unit/property vectors including Euclidean division and overflow | partial: checked I64/U64 policies, Euclidean division, exact ratio vectors |
+| §9 numeric semantics | arithmetic unit/property vectors including Euclidean division and overflow | partial: Python and independent Rust agree on shared checked I64/U64 overflow, Euclidean division, exact ratio, negative-floor, and checked-intermediate vectors; broader generated cross-language arithmetic remains open |
 | §10 progression | rational accumulator and bounded quantum vectors | partial: targeted rational-rate, HOLD/ACCRUE deferred-state, and limit slice |
 | §11-12 expressions and predicates | pure evaluator, cycle validator, edge serial vectors | partial: bounded core evaluator, cycle validation, slice edge serials |
 | §13 inputs | canonical ordering, buffering, TTL, overflow, and consumption vectors | partial: runtime capture/consume/expiry plus pure capacity and policy vectors |
@@ -23,7 +23,7 @@ This matrix preserves the complete target. A row is complete only when its named
 | §23 effects | identifiers, canonical order, reducers, exclusive/custom vectors | partial: runtime-integrated authoritative registry commits plus all core reducer primitives and rejection traces |
 | §24 tick pipeline | deterministic twelve-stage trace vectors | partial: ordered vertical-slice trace |
 | §25 events | delivery order, modes, and lifetime vectors | partial: canonical next-tick scheduling, snapshot round trip, duplicate rejection, and provisional freeze deferral |
-| §26 RNG | PCG32 vectors, snapshot state, restore vectors | partial: canonical PCG32 vector and snapshot restore |
+| §26 RNG | PCG32 vectors, snapshot state, restore vectors | partial: Python and independent Rust agree on canonical PCG32 outputs, snapshot state, profile validation, restore continuation, and draw-count overflow policy; runtime stream integration breadth remains open |
 | §27 canonicalization and hashes | PCAM-CJ1 corpus and exact digest vectors | partial: Python and independent Rust serializers agree on shared exact-byte and SHA-256 vectors, including a real definition; wider hostile and cross-architecture corpora remain open |
 | §28 save and restore | schema, round-trip, continuation equivalence | partial: slice round-trip and correction equivalence |
 | §29 networking | declared local, lockstep, rollback, and server prediction profile artifacts | partial: machine-readable topology declarations, required mechanism/limit fields, canonical profile hashing, and rejection vectors; executable network services remain open |

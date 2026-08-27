@@ -36,7 +36,7 @@ class PCG32Stream:
         xor_shifted = (((old_state >> 18) ^ old_state) >> 27) & 0xFFFFFFFF
         rotation = (old_state >> 59) & 31
         value = ((xor_shifted >> rotation) | (xor_shifted << ((-rotation) & 31))) & 0xFFFFFFFF
-        return replace(self, state=new_state, draw_count=self.draw_count + int(count_draw)), value
+        return replace(self, state=new_state, draw_count=apply_u64(self.draw_count + int(count_draw))), value
 
     def to_snapshot(self) -> dict[str, int | str]:
         return {

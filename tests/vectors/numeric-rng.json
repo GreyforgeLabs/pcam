@@ -1,0 +1,71 @@
+{
+  "profile": "pcam.numeric-rng.v1",
+  "overflow_cases": [
+    {
+      "id": "i64-positive-fault",
+      "domain": "I64",
+      "input": "9223372036854775808",
+      "policy": "FAULT",
+      "fault": "INTEGER_OVERFLOW"
+    },
+    {
+      "id": "i64-positive-saturate",
+      "domain": "I64",
+      "input": "9223372036854775808",
+      "policy": "SATURATE",
+      "result": 9223372036854775807
+    },
+    {
+      "id": "i64-positive-wrap",
+      "domain": "I64",
+      "input": "9223372036854775808",
+      "policy": "WRAP",
+      "result": -9223372036854775808
+    },
+    {
+      "id": "i64-negative-wrap",
+      "domain": "I64",
+      "input": "-9223372036854775809",
+      "policy": "WRAP",
+      "result": 9223372036854775807
+    },
+    {
+      "id": "u64-positive-wrap",
+      "domain": "U64",
+      "input": "18446744073709551616",
+      "policy": "WRAP",
+      "result": 0
+    },
+    {
+      "id": "u64-negative-saturate",
+      "domain": "U64",
+      "input": "-1",
+      "policy": "SATURATE",
+      "result": 0
+    }
+  ],
+  "division_cases": [
+    {"id": "negative-dividend", "dividend": -7, "divisor": 3, "quotient": -3, "remainder": 2},
+    {"id": "positive-dividend", "dividend": 7, "divisor": 3, "quotient": 2, "remainder": 1},
+    {"id": "zero-divisor", "dividend": 7, "divisor": 0, "fault": "DIVISION_BY_ZERO"}
+  ],
+  "ratio_cases": [
+    {"id": "positive-floor", "value": 25, "numerator": 1, "denominator": 2, "result": 12},
+    {"id": "negative-floor", "value": -25, "numerator": 1, "denominator": 2, "result": -13},
+    {"id": "checked-intermediate", "value": 9223372036854775807, "numerator": 2, "denominator": 2, "fault": "INTEGER_OVERFLOW"}
+  ],
+  "pcg32": {
+    "algorithm_id": "pcam.pcg32.v1",
+    "seed": 42,
+    "stream_selector": 54,
+    "values": [2707161783, 2068313097, 3122475824, 2211639955, 3215226955],
+    "snapshot": {
+      "algorithm_id": "pcam.pcg32.v1",
+      "draw_count": 5,
+      "state": 9440484487994590321,
+      "stream_selector": 54
+    },
+    "next_value": 3421331566,
+    "next_state": 13742400798436595530
+  }
+}
