@@ -1,0 +1,83 @@
+{
+  "pcam_vector_version": "1",
+  "kind": "runtime_vector",
+  "id": "fault-trigger-runtime",
+  "runtime_profile": {
+    "pcam_version": "3.0",
+    "kind": "runtime_profile",
+    "id": "pcam.reference.fault-trigger.v1",
+    "revision": 1,
+    "fault_policy": "FAULT_ACTION",
+    "limits": {
+      "max_actions_per_entity": 8,
+      "max_action_nesting_depth": 4,
+      "max_children_per_action": 4,
+      "max_quanta_per_action_per_tick": 1,
+      "max_internal_transitions_per_action_per_tick": 8,
+      "max_buffer_entries_per_action": 8,
+      "max_pending_events_per_entity": 8,
+      "max_candidates_per_tick": 32,
+      "max_effects_per_tick": 32,
+      "max_redirects_per_candidate": 4,
+      "max_definition_size_bytes": 65536,
+      "max_snapshot_size_bytes": 262144,
+      "max_extension_state_bytes": 4096,
+      "max_expression_depth": 64,
+      "max_expression_nodes": 4096
+    },
+    "rng_profiles": ["pcam.pcg32.v1"],
+    "network_profiles": [{"id": "pcam.local.v1", "topology": "LOCAL_DETERMINISTIC"}],
+    "extensions": {}
+  },
+  "definitions": [
+    {
+      "id": "EMITTER",
+      "rate_scale": 1,
+      "units_per_tick": 0,
+      "nodes": [{"id": "RUN", "mode": "EVENT_DRIVEN"}]
+    },
+    {
+      "id": "FAULTABLE",
+      "rate_scale": 1,
+      "units_per_tick": 0,
+      "nodes": [{"id": "RUN", "mode": "EVENT_DRIVEN"}]
+    }
+  ],
+  "interaction_rules": [],
+  "effect_registry": {
+    "combat.damage": ["hp", -1],
+    "combat.stagger": ["stagger", 1]
+  },
+  "initial_state": {"resource_banks": {}, "slot_capacities": {}},
+  "ticks": [
+    {
+      "inputs": [
+        {"input_id": "start-emitter", "source_entity_id": 1, "sequence": 0, "command_id": "START", "assigned_tick": 0, "action_definition_id": "EMITTER"},
+        {"input_id": "start-faultable-a", "source_entity_id": 2, "sequence": 0, "command_id": "START", "assigned_tick": 0, "action_definition_id": "FAULTABLE"},
+        {"input_id": "start-faultable-b", "source_entity_id": 2, "sequence": 1, "command_id": "START", "assigned_tick": 0, "action_definition_id": "FAULTABLE"}
+      ],
+      "contacts": []
+    }
+  ],
+  "fault_tick": {"inputs": [], "contacts": []},
+  "rate_overrides": {"1": 1, "2": 2, "3": 0},
+  "cases": [
+    {
+      "policy": "FAULT_ACTION",
+      "pre_fault_digest": "ab60f05c4c1eb4cd7098b370b3cbedcc24f6b55eb4feb4fc42cfc50d37655798",
+      "final_state_digest": "f002a7212a2a0c7aa6dccadaa4d7ffbb0952e57ad90a48a639e4b5a1b5925929",
+      "expected": {"tick": 2, "lifecycle": {"1": "RUNNING", "2": "FAULTED", "3": "RUNNING"}, "local_steps": {"1": 0, "2": 0, "3": 0}, "fault_records": {"1": null, "2": "QUANTUM_LIMIT_EXCEEDED", "3": null}, "entity_fault_owners": [], "trace_faults": [{"action_instance_id": 2, "code": "RUNTIME_FAULT", "contained": true, "fault": "QUANTUM_LIMIT_EXCEEDED", "message": "2", "owner_entity_id": 2, "policy": "FAULT_ACTION", "tick": 1}], "trace_effects": []}
+    },
+    {
+      "policy": "FAULT_ENTITY",
+      "pre_fault_digest": "46ef2ed03702a54bff269afed6dc91dc0de83187f5f4a17ca564b2b44ced4a28",
+      "final_state_digest": "3cd8b85c857cd775d4c250b66b497ad6e7bfcea932ac363812ff4d3957004bba",
+      "expected": {"tick": 2, "lifecycle": {"1": "RUNNING", "2": "FAULTED", "3": "FAULTED"}, "local_steps": {"1": 0, "2": 0, "3": 0}, "fault_records": {"1": null, "2": "QUANTUM_LIMIT_EXCEEDED", "3": "QUANTUM_LIMIT_EXCEEDED"}, "entity_fault_owners": [2], "trace_faults": [{"action_instance_id": 2, "code": "RUNTIME_FAULT", "contained": true, "fault": "QUANTUM_LIMIT_EXCEEDED", "message": "2", "owner_entity_id": 2, "policy": "FAULT_ENTITY", "tick": 1}], "trace_effects": []}
+    },
+    {
+      "policy": "ABORT_SIMULATION",
+      "pre_fault_digest": "caf63fbfde17baa207cbf2e08a09db3364ab19dfc1f1e4a505068d74c2e7e141",
+      "fault": "QUANTUM_LIMIT_EXCEEDED"
+    }
+  ]
+}

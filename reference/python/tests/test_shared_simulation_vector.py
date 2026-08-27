@@ -1,7 +1,10 @@
 import json
+from dataclasses import replace
 from pathlib import Path
 
-from pcam_runtime import RetainedRollbackHistory
+import pytest
+
+from pcam_runtime import PCAMError, RetainedRollbackHistory
 from pcam_runtime.vectors import rollback_vector, run_vector
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -21,6 +24,10 @@ def _contended_starts_document():
 
 def _presentation_document():
     return json.loads((ROOT / "tests/vectors/presentation-rollback.json").read_text(encoding="utf-8"))
+
+
+def _fault_trigger_document():
+    return json.loads((ROOT / "tests/vectors/fault-trigger-runtime.json").read_text(encoding="utf-8"))
 
 
 def test_python_typed_strike_matches_shared_full_state_identity_and_tick_digests():
@@ -128,3 +135,43 @@ def test_python_presentation_reconciliation_matches_shared_emit_suppress_and_inv
     assert correction.presentation_emit == (expected_id,)
     assert correction.presentation_invalidated == ()
     assert correction.presentation_suppressed == ()
+
+
+def test_python_fault_trigger_discards_tick_work_and_applies_shared_policy():
+    vector = _fault_trigger_document()
+    for case in vector["cases"]:
+        document = json.loads(json.dumps(vector))
+        document["runtime_profile"]["fault_policy"] = case["policy"]
+        run = run_vector(document)
+        actions = {
+            key: replace(action, current_rate_units=document["rate_overrides"][key])
+            for key, action in run.final_state.action_instances.items()
+        }
+        before = replace(run.final_state, action_instances=actions)
+        assert before.state_hash() == case["pre_fault_digest"], case["policy"]
+
+        if case["policy"] == "ABORT_SIMULATION":
+            with pytest.raises(PCAMError) as raised:
+                run.executor.tick(before)
+            assert raised.value.fault.value == case["fault"]
+            assert before.state_hash() == case["pre_fault_digest"]
+            continue
+
+        state, trace = run.executor.tick(before)
+        summary = {
+            "tick": state.tick,
+            "lifecycle": {
+                key: action.lifecycle_state for key, action in state.action_instances.items()
+            },
+            "local_steps": {key: action.local_step for key, action in state.action_instances.items()},
+            "fault_records": {
+                key: action.fault_record for key, action in state.action_instances.items()
+            },
+            "entity_fault_owners": sorted(
+                int(key) for key, record in state.entity_records.items() if "fault_record" in record
+            ),
+            "trace_faults": trace["faults"],
+            "trace_effects": trace["typed_effects_emitted"],
+        }
+        assert summary == case["expected"], case["policy"]
+        assert state.state_hash() == case["final_state_digest"], case["policy"]

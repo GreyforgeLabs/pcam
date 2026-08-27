@@ -4,6 +4,7 @@ use crate::arbitration::{
 };
 use crate::effects::{EffectEnvelope, ReducedEffect, RejectedEffect, reduce_effects};
 use crate::events::{EventEnvelope, deliver_due};
+use crate::faults::{FaultContext, contain_fault};
 use crate::{CanonicalError, canonical_hash};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
@@ -12,6 +13,7 @@ use std::collections::{BTreeMap, BTreeSet};
 #[derive(Debug)]
 pub enum SimulationError {
     Canonical(CanonicalError),
+    Fault(FaultContext),
     InvalidVector,
     RuntimeFault,
 }
@@ -160,6 +162,7 @@ pub struct SimulationTrace {
     pub input_order: Vec<String>,
     pub candidate_order: Vec<String>,
     pub effects: Vec<EffectEnvelope>,
+    pub faults: Vec<Value>,
     pub reduced: Vec<ReducedEffect>,
     pub rejected: Vec<RejectedEffect>,
     pub receipts: Vec<Value>,
@@ -171,7 +174,9 @@ pub struct SimulationRuntime {
     definitions: BTreeMap<String, Definition>,
     effect_registry: BTreeMap<String, (String, i64)>,
     definition_set_hash: String,
+    fault_policy: String,
     max_actions_per_entity: u64,
+    max_quanta_per_action_per_tick: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -351,6 +356,13 @@ impl SimulationRuntime {
         let max_actions_per_entity = profile["limits"]["max_actions_per_entity"]
             .as_u64()
             .ok_or(SimulationError::InvalidVector)?;
+        let max_quanta_per_action_per_tick = profile["limits"]["max_quanta_per_action_per_tick"]
+            .as_u64()
+            .ok_or(SimulationError::InvalidVector)?;
+        let fault_policy = profile["fault_policy"]
+            .as_str()
+            .ok_or(SimulationError::InvalidVector)?
+            .to_owned();
         let interaction_profile_hash = canonical_hash(&canonical_rules(rules)?)?;
         let effect_registry_hash = canonical_hash(registry)?;
         let extension_registry_hash = canonical_hash(&Value::Array(Vec::new()))?;
@@ -402,7 +414,9 @@ impl SimulationRuntime {
             definitions,
             effect_registry,
             definition_set_hash,
+            fault_policy,
             max_actions_per_entity,
+            max_quanta_per_action_per_tick,
         })
     }
 
@@ -463,6 +477,40 @@ impl SimulationRuntime {
     }
 
     pub fn tick(
+        &self,
+        state: &SimulationState,
+        tick: &Value,
+    ) -> Result<(SimulationState, SimulationTrace), SimulationError> {
+        match self.tick_once(state, tick) {
+            Ok(result) => Ok(result),
+            Err(SimulationError::Fault(context)) => {
+                let contained = contain_fault(state, &self.fault_policy, &context)
+                    .ok_or_else(|| SimulationError::Fault(context.clone()))?;
+                let fault = contained
+                    .fault_state
+                    .get("last_fault")
+                    .cloned()
+                    .ok_or(SimulationError::RuntimeFault)?;
+                let state_digest = contained.digest()?;
+                Ok((
+                    contained,
+                    SimulationTrace {
+                        input_order: Vec::new(),
+                        candidate_order: Vec::new(),
+                        effects: Vec::new(),
+                        faults: vec![fault],
+                        reduced: Vec::new(),
+                        rejected: Vec::new(),
+                        receipts: Vec::new(),
+                        state_digest,
+                    },
+                ))
+            }
+            Err(error) => Err(error),
+        }
+    }
+
+    fn tick_once(
         &self,
         state: &SimulationState,
         tick: &Value,
@@ -694,6 +742,7 @@ impl SimulationRuntime {
                 input_order,
                 candidate_order,
                 effects,
+                faults: Vec::new(),
                 reduced,
                 rejected,
                 receipts,
@@ -1009,9 +1058,18 @@ impl SimulationRuntime {
                 .ok_or(SimulationError::RuntimeFault)?;
             let accumulated = state.action_instances[index]
                 .quantum_accumulator
-                .checked_add(definition.units_per_tick)
+                .checked_add(state.action_instances[index].current_rate_units)
                 .ok_or(SimulationError::RuntimeFault)?;
             let quanta = accumulated / definition.rate_scale;
+            if quanta > self.max_quanta_per_action_per_tick {
+                return Err(SimulationError::Fault(FaultContext {
+                    code: "RUNTIME_FAULT".to_owned(),
+                    fault: "QUANTUM_LIMIT_EXCEEDED".to_owned(),
+                    message: action_id.to_string(),
+                    action_instance_id: Some(action_id),
+                    owner_entity_id: Some(state.action_instances[index].owner_entity_id),
+                }));
+            }
             state.action_instances[index].quantum_accumulator = accumulated % definition.rate_scale;
             for _ in 0..quanta {
                 let action = &mut state.action_instances[index];
