@@ -1,4 +1,5 @@
 use crate::effects::{EffectEnvelope, ReducedEffect, RejectedEffect, reduce_effects};
+use crate::events::{EventEnvelope, deliver_due};
 use crate::{CanonicalError, canonical_hash};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -50,9 +51,28 @@ struct Definition {
     id: String,
     hash: String,
     initial_node: String,
+    rate_scale: u64,
     units_per_tick: u64,
+    nodes: BTreeMap<String, String>,
     predicates: Vec<Predicate>,
     facts: Vec<FactBinding>,
+    transitions: Vec<SimulationTransition>,
+    child_slot_capacities: BTreeMap<String, u64>,
+}
+
+#[derive(Debug, Clone)]
+struct SimulationTransition {
+    id: String,
+    source_node: String,
+    evaluation_point: String,
+    priority: i64,
+    target_kind: String,
+    target_node: Option<String>,
+    target_action: Option<String>,
+    child_slot_id: Option<String>,
+    parent_policy: Option<String>,
+    event_type: Option<String>,
+    input_command: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -413,6 +433,36 @@ impl SimulationRuntime {
             return Err(SimulationError::RuntimeFault);
         }
         let mut work = state.clone();
+        let pending_events = work
+            .pending_events
+            .iter()
+            .map(|event| {
+                serde_json::from_value::<EventEnvelope>(event.clone())
+                    .map_err(|_| SimulationError::RuntimeFault)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let (delivered_events, pending_events) =
+            deliver_due(&pending_events, state.tick, &BTreeSet::new())
+                .map_err(|_| SimulationError::RuntimeFault)?;
+        work.pending_events = pending_events
+            .iter()
+            .map(|event| serde_json::to_value(event).map_err(|_| SimulationError::RuntimeFault))
+            .collect::<Result<Vec<_>, _>>()?;
+        for event in delivered_events {
+            if matches!(
+                event.delivery_mode.as_str(),
+                "TARGET_ACTION" | "PARENT" | "CHILD"
+            ) {
+                let action = work
+                    .action_instances
+                    .iter_mut()
+                    .find(|action| action.instance_id == event.target_id)
+                    .ok_or(SimulationError::RuntimeFault)?;
+                action
+                    .event_inbox
+                    .push(serde_json::to_value(event).map_err(|_| SimulationError::RuntimeFault)?);
+            }
+        }
         let contacts = canonical_contacts(array(tick, "contacts")?)?;
         work.host_state = json!({"contacts": contacts, "imports": {}});
 
@@ -421,7 +471,7 @@ impl SimulationRuntime {
             .iter()
             .map(|input| string_field(input, "input_id").map(str::to_owned))
             .collect::<Result<Vec<_>, _>>()?;
-        for input in inputs {
+        for input in &inputs {
             if string_field(&input, "command_id")? != "START" {
                 continue;
             }
@@ -454,7 +504,7 @@ impl SimulationRuntime {
                 lifecycle_state: "RUNNING".to_owned(),
                 local_step: 0,
                 node_step: 0,
-                owner_entity_id: u64_field(&input, "source_entity_id")?,
+                owner_entity_id: u64_field(input, "source_entity_id")?,
                 parent_instance_id: None,
                 parent_slot_id: None,
                 predicate_entry_serials: BTreeMap::new(),
@@ -469,6 +519,8 @@ impl SimulationRuntime {
         }
         work.action_instances
             .sort_by_key(|action| action.instance_id);
+        self.apply_pre_transitions(&mut work, &inputs)?;
+        self.progress_actions(&mut work)?;
 
         for action in &mut work.action_instances {
             let definition = self
@@ -631,6 +683,7 @@ impl SimulationRuntime {
                 );
             }
         }
+        self.finalize_children(&mut work)?;
         for action in &mut work.action_instances {
             action.event_inbox.clear();
         }
@@ -651,6 +704,390 @@ impl SimulationRuntime {
                 state_digest,
             },
         ))
+    }
+
+    fn apply_pre_transitions(
+        &self,
+        state: &mut SimulationState,
+        inputs: &[Value],
+    ) -> Result<(), SimulationError> {
+        let action_ids = state
+            .action_instances
+            .iter()
+            .map(|action| action.instance_id)
+            .collect::<Vec<_>>();
+        for action_id in action_ids {
+            let action = state
+                .action_instances
+                .iter()
+                .find(|action| action.instance_id == action_id)
+                .cloned()
+                .ok_or(SimulationError::RuntimeFault)?;
+            if action.lifecycle_state != "RUNNING" {
+                continue;
+            }
+            let definition = self
+                .definitions
+                .values()
+                .find(|definition| definition.hash == action.definition_hash)
+                .ok_or(SimulationError::RuntimeFault)?;
+            let mut eligible = definition
+                .transitions
+                .iter()
+                .filter(|transition| {
+                    transition.source_node == action.current_node_id
+                        && transition.evaluation_point == "PRE_ADVANCE"
+                })
+                .filter(|transition| {
+                    transition.input_command.as_ref().is_none_or(|command| {
+                        inputs.iter().any(|input| {
+                            input
+                                .get("command_id")
+                                .and_then(Value::as_str)
+                                .is_some_and(|value| value == command)
+                                && input.get("source_entity_id").and_then(Value::as_u64)
+                                    == Some(action.owner_entity_id)
+                        })
+                    })
+                })
+                .filter(|transition| {
+                    transition.event_type.as_ref().is_none_or(|event_type| {
+                        action.event_inbox.iter().any(|event| {
+                            event.get("event_type").and_then(Value::as_str)
+                                == Some(event_type.as_str())
+                        })
+                    })
+                })
+                .cloned()
+                .collect::<Vec<_>>();
+            eligible.sort_by(|left, right| {
+                right
+                    .priority
+                    .cmp(&left.priority)
+                    .then_with(|| left.id.as_bytes().cmp(right.id.as_bytes()))
+            });
+            let Some(transition) = eligible.into_iter().next() else {
+                continue;
+            };
+            self.apply_simulation_transition(state, action_id, &transition)?;
+        }
+        Ok(())
+    }
+
+    fn progress_actions(&self, state: &mut SimulationState) -> Result<(), SimulationError> {
+        let action_ids = state
+            .action_instances
+            .iter()
+            .map(|action| action.instance_id)
+            .collect::<Vec<_>>();
+        for action_id in action_ids {
+            let index = state
+                .action_instances
+                .iter()
+                .position(|action| action.instance_id == action_id)
+                .ok_or(SimulationError::RuntimeFault)?;
+            if state.action_instances[index].lifecycle_state != "RUNNING" {
+                continue;
+            }
+            let definition = self
+                .definitions
+                .values()
+                .find(|definition| definition.hash == state.action_instances[index].definition_hash)
+                .ok_or(SimulationError::RuntimeFault)?;
+            let accumulated = state.action_instances[index]
+                .quantum_accumulator
+                .checked_add(definition.units_per_tick)
+                .ok_or(SimulationError::RuntimeFault)?;
+            let quanta = accumulated / definition.rate_scale;
+            state.action_instances[index].quantum_accumulator = accumulated % definition.rate_scale;
+            for _ in 0..quanta {
+                let action = &mut state.action_instances[index];
+                action.local_step = action
+                    .local_step
+                    .checked_add(1)
+                    .ok_or(SimulationError::RuntimeFault)?;
+                action.node_step = action
+                    .node_step
+                    .checked_add(1)
+                    .ok_or(SimulationError::RuntimeFault)?;
+                let mut eligible = definition
+                    .transitions
+                    .iter()
+                    .filter(|transition| {
+                        transition.source_node == action.current_node_id
+                            && transition.evaluation_point == "AFTER_QUANTUM"
+                    })
+                    .cloned()
+                    .collect::<Vec<_>>();
+                eligible.sort_by(|left, right| {
+                    right
+                        .priority
+                        .cmp(&left.priority)
+                        .then_with(|| left.id.as_bytes().cmp(right.id.as_bytes()))
+                });
+                if let Some(transition) = eligible.into_iter().next() {
+                    self.apply_simulation_transition(state, action_id, &transition)?;
+                }
+                if state.action_instances[index].lifecycle_state != "RUNNING" {
+                    break;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn apply_simulation_transition(
+        &self,
+        state: &mut SimulationState,
+        action_id: u64,
+        transition: &SimulationTransition,
+    ) -> Result<(), SimulationError> {
+        let index = state
+            .action_instances
+            .iter()
+            .position(|action| action.instance_id == action_id)
+            .ok_or(SimulationError::RuntimeFault)?;
+        match transition.target_kind.as_str() {
+            "NODE" => {
+                let target = transition
+                    .target_node
+                    .as_ref()
+                    .ok_or(SimulationError::RuntimeFault)?;
+                let definition = self
+                    .definitions
+                    .values()
+                    .find(|definition| {
+                        definition.hash == state.action_instances[index].definition_hash
+                    })
+                    .ok_or(SimulationError::RuntimeFault)?;
+                state.action_instances[index].current_node_id = target.clone();
+                state.action_instances[index].node_step = 0;
+                state.action_instances[index].transition_serial = state.action_instances[index]
+                    .transition_serial
+                    .checked_add(1)
+                    .ok_or(SimulationError::RuntimeFault)?;
+                if definition
+                    .nodes
+                    .get(target)
+                    .is_some_and(|mode| mode == "TERMINAL")
+                {
+                    state.action_instances[index].lifecycle_state = "TERMINATED".to_owned();
+                }
+            }
+            "TERMINATE" => {
+                state.action_instances[index].transition_serial = state.action_instances[index]
+                    .transition_serial
+                    .checked_add(1)
+                    .ok_or(SimulationError::RuntimeFault)?;
+                state.action_instances[index].lifecycle_state = "TERMINATED".to_owned();
+            }
+            "CHILD_ACTION" => {
+                let target_action = transition
+                    .target_action
+                    .as_ref()
+                    .ok_or(SimulationError::RuntimeFault)?;
+                let child_slot = transition
+                    .child_slot_id
+                    .as_ref()
+                    .ok_or(SimulationError::RuntimeFault)?;
+                let parent_definition = self
+                    .definitions
+                    .values()
+                    .find(|definition| {
+                        definition.hash == state.action_instances[index].definition_hash
+                    })
+                    .ok_or(SimulationError::RuntimeFault)?;
+                let capacity = parent_definition
+                    .child_slot_capacities
+                    .get(child_slot)
+                    .copied()
+                    .ok_or(SimulationError::RuntimeFault)?;
+                let active_children = state.action_instances[index]
+                    .child_instance_ids
+                    .iter()
+                    .filter(|child_id| {
+                        state.action_instances.iter().any(|child| {
+                            child.instance_id == **child_id
+                                && !matches!(
+                                    child.lifecycle_state.as_str(),
+                                    "TERMINATED" | "FAULTED"
+                                )
+                        })
+                    })
+                    .count() as u64;
+                if active_children >= capacity {
+                    return Err(SimulationError::RuntimeFault);
+                }
+                let definition = self
+                    .definitions
+                    .get(target_action)
+                    .ok_or(SimulationError::RuntimeFault)?;
+                let child_id = state.next_action_instance_id;
+                state.next_action_instance_id = child_id
+                    .checked_add(1)
+                    .ok_or(SimulationError::RuntimeFault)?;
+                let owner_entity_id = state.action_instances[index].owner_entity_id;
+                state.action_instances[index].transition_serial = state.action_instances[index]
+                    .transition_serial
+                    .checked_add(1)
+                    .ok_or(SimulationError::RuntimeFault)?;
+                state.action_instances[index]
+                    .child_instance_ids
+                    .push(child_id);
+                if transition.parent_policy.as_deref() == Some("FREEZE_PROGRESSION") {
+                    let token_id = state.next_freeze_token_id;
+                    state.next_freeze_token_id = token_id
+                        .checked_add(1)
+                        .ok_or(SimulationError::RuntimeFault)?;
+                    state.action_instances[index]
+                        .freeze_token_references
+                        .push(token_id);
+                    state.freeze_tokens.push(json!({
+                        "accrual_policy": "HOLD",
+                        "activation_tick": state.tick + 1,
+                        "domains": ["PROGRESSION"],
+                        "metadata": {"child_slot_id": child_slot, "relationship": "PARENT_CHILD"},
+                        "remaining_ticks": u64::MAX,
+                        "source_id": child_id,
+                        "stack_group": "default",
+                        "stack_policy": "INDEPENDENT",
+                        "target_id": action_id,
+                        "token_id": token_id,
+                    }));
+                }
+                state.action_instances.push(ActionSnapshot {
+                    captured_parameters: BTreeMap::new(),
+                    child_instance_ids: Vec::new(),
+                    current_node_id: definition.initial_node.clone(),
+                    current_rate_units: definition.units_per_tick,
+                    cycle: 0,
+                    deferred_quanta: 0,
+                    definition_hash: definition.hash.clone(),
+                    emission_serial: 0,
+                    event_inbox: Vec::new(),
+                    extension_state: BTreeMap::new(),
+                    fault_record: None,
+                    freeze_token_references: Vec::new(),
+                    input_buffer: Vec::new(),
+                    instance_id: child_id,
+                    interaction_ledger_partition: "default".to_owned(),
+                    lifecycle_state: "RUNNING".to_owned(),
+                    local_step: 0,
+                    node_step: 0,
+                    owner_entity_id,
+                    parent_instance_id: Some(action_id),
+                    parent_slot_id: Some(child_slot.clone()),
+                    predicate_entry_serials: BTreeMap::new(),
+                    predicate_exit_serials: BTreeMap::new(),
+                    predicate_truth_state: BTreeMap::new(),
+                    quantum_accumulator: 0,
+                    registers: BTreeMap::new(),
+                    rng_stream_ids: Vec::new(),
+                    slot_claims: Vec::new(),
+                    transition_serial: 0,
+                });
+                state
+                    .action_instances
+                    .sort_by_key(|action| action.instance_id);
+            }
+            _ => return Err(SimulationError::RuntimeFault),
+        }
+        Ok(())
+    }
+
+    fn finalize_children(&self, state: &mut SimulationState) -> Result<(), SimulationError> {
+        let child_ids = state
+            .action_instances
+            .iter()
+            .filter(|action| {
+                action.parent_instance_id.is_some()
+                    && matches!(action.lifecycle_state.as_str(), "TERMINATED" | "FAULTED")
+                    && action.extension_state.get("pcam.child_result_emitted") != Some(&json!(true))
+            })
+            .map(|action| action.instance_id)
+            .collect::<Vec<_>>();
+        for child_id in child_ids {
+            let child_index = state
+                .action_instances
+                .iter()
+                .position(|action| action.instance_id == child_id)
+                .ok_or(SimulationError::RuntimeFault)?;
+            let parent_id = state.action_instances[child_index]
+                .parent_instance_id
+                .ok_or(SimulationError::RuntimeFault)?;
+            let parent_index = state
+                .action_instances
+                .iter()
+                .position(|action| action.instance_id == parent_id)
+                .ok_or(SimulationError::RuntimeFault)?;
+            let child_slot_id = state.action_instances[child_index].parent_slot_id.clone();
+            let transition_serial = state.action_instances[child_index].transition_serial;
+            let event = EventEnvelope {
+                event_id: format!("child-result:{child_id}:{transition_serial}"),
+                event_type: "CHILD_RESULT".to_owned(),
+                source_id: child_id,
+                target_id: parent_id,
+                origin_tick: state.tick,
+                delivery_tick: state.tick + 1,
+                payload: json!({
+                    "child_instance_id": child_id,
+                    "child_slot_id": child_slot_id,
+                    "parent_instance_id": parent_id,
+                    "result_code": if state.action_instances[child_index].lifecycle_state == "FAULTED" {
+                        state.action_instances[child_index].fault_record.clone().unwrap_or_else(|| "FAULTED".to_owned())
+                    } else {
+                        "TERMINATED".to_owned()
+                    },
+                    "termination_tick": state.tick,
+                }),
+                delivery_mode: "PARENT".to_owned(),
+            };
+            state
+                .pending_events
+                .push(serde_json::to_value(event).map_err(|_| SimulationError::RuntimeFault)?);
+            state.action_instances[parent_index]
+                .child_instance_ids
+                .retain(|value| *value != child_id);
+            let removed_tokens = state
+                .freeze_tokens
+                .iter()
+                .filter(|token| {
+                    token.get("source_id").and_then(Value::as_u64) == Some(child_id)
+                        && token.get("target_id").and_then(Value::as_u64) == Some(parent_id)
+                        && token
+                            .get("metadata")
+                            .and_then(|metadata| metadata.get("relationship"))
+                            .and_then(Value::as_str)
+                            == Some("PARENT_CHILD")
+                })
+                .filter_map(|token| token.get("token_id").and_then(Value::as_u64))
+                .collect::<BTreeSet<_>>();
+            state.action_instances[parent_index]
+                .freeze_token_references
+                .retain(|token_id| !removed_tokens.contains(token_id));
+            state.freeze_tokens.retain(|token| {
+                token
+                    .get("token_id")
+                    .and_then(Value::as_u64)
+                    .is_none_or(|token_id| !removed_tokens.contains(&token_id))
+            });
+            state.action_instances[child_index]
+                .extension_state
+                .insert("pcam.child_result_emitted".to_owned(), json!(true));
+        }
+        state.pending_events.sort_by(|left, right| {
+            (
+                left["delivery_tick"].as_u64().unwrap_or_default(),
+                left["target_id"].as_u64().unwrap_or_default(),
+                left["event_id"].as_str().unwrap_or_default(),
+            )
+                .cmp(&(
+                    right["delivery_tick"].as_u64().unwrap_or_default(),
+                    right["target_id"].as_u64().unwrap_or_default(),
+                    right["event_id"].as_str().unwrap_or_default(),
+                ))
+        });
+        Ok(())
     }
 }
 
@@ -699,6 +1136,14 @@ fn canonical_definition(raw: &Value) -> Result<Value, SimulationError> {
         .iter()
         .map(canonical_fact_binding)
         .collect::<Result<Vec<_>, _>>()?;
+    let transitions = raw
+        .get("transitions")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .iter()
+        .map(canonical_transition)
+        .collect::<Result<Vec<_>, _>>()?;
     Ok(json!({
         "buffer": {
             "capacity": raw.get("buffer_capacity").cloned().unwrap_or_else(|| json!(8)),
@@ -722,7 +1167,57 @@ fn canonical_definition(raw: &Value) -> Result<Value, SimulationError> {
         "semantic_facts": semantic_facts,
         "slot_claims": raw.get("slot_claims").cloned().unwrap_or_else(|| json!([])),
         "start_claims": raw.get("start_claims").cloned().unwrap_or_else(|| json!([])),
-        "transitions": raw.get("transitions").cloned().unwrap_or_else(|| json!([])),
+        "transitions": transitions,
+    }))
+}
+
+fn canonical_transition(raw: &Value) -> Result<Value, SimulationError> {
+    let effects = raw
+        .get("effects")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .iter()
+        .map(|effect| {
+            json!({
+                "amount": effect.get("amount").cloned().unwrap_or_else(|| json!(0)),
+                "effect_class": effect.get("effect_class").cloned().unwrap_or_else(|| json!("RESOURCE")),
+                "id": effect["id"].clone(),
+                "kind": effect.get("kind").cloned().unwrap_or_else(|| json!("RESOURCE_DELTA")),
+                "origin_tick": effect.get("origin_tick").cloned().unwrap_or_else(|| json!(0)),
+                "priority": effect.get("priority").cloned().unwrap_or_else(|| json!(0)),
+                "resource": effect.get("resource").cloned().unwrap_or_else(|| json!("hp")),
+                "source_action_instance_id": effect.get("source_action_instance_id").cloned().unwrap_or_else(|| json!(0)),
+                "source_entity_id": effect.get("source_entity_id").cloned().unwrap_or_else(|| json!(0)),
+                "target_entity_id": effect.get("target_entity_id").cloned().unwrap_or_else(|| json!(0)),
+            })
+        })
+        .collect::<Vec<_>>();
+    Ok(json!({
+        "assignments": raw.get("assignments").cloned().unwrap_or_else(|| json!([])),
+        "child_slot_id": raw.get("child_slot_id").cloned().unwrap_or(Value::Null),
+        "claims": raw.get("claims").cloned().unwrap_or_else(|| json!([])),
+        "consume_policy": raw.get("consume_policy").cloned().unwrap_or_else(|| json!("ON_ACCEPT")),
+        "cycle_delta": raw.get("cycle_delta").cloned().unwrap_or_else(|| json!(0)),
+        "definition_effects": raw.get("definition_effects").cloned().unwrap_or_else(|| json!([])),
+        "effects": effects,
+        "entry_assignments": raw.get("entry_assignments").cloned().unwrap_or_else(|| json!([])),
+        "evaluation_point": raw["evaluation_point"].clone(),
+        "event_type": raw.get("event_type").cloned().unwrap_or(Value::Null),
+        "exit_assignments": raw.get("exit_assignments").cloned().unwrap_or_else(|| json!([])),
+        "guard_expression": raw.get("guard_expression").cloned().unwrap_or(Value::Null),
+        "guard_predicate": raw.get("guard_predicate").cloned().unwrap_or(Value::Null),
+        "id": raw["id"].clone(),
+        "input_command": raw.get("input_command").cloned().unwrap_or(Value::Null),
+        "metadata": raw.get("metadata").cloned().unwrap_or_else(|| json!({})),
+        "parent_policy": raw.get("parent_policy").cloned().unwrap_or(Value::Null),
+        "priority": raw["priority"].clone(),
+        "source_disposition": raw.get("source_disposition").cloned().unwrap_or_else(|| json!("TERMINATE_SOURCE")),
+        "source_node": raw["source_node"].clone(),
+        "target_action": raw.get("target_action").cloned().unwrap_or(Value::Null),
+        "target_kind": raw.get("target_kind").cloned().unwrap_or_else(|| json!("NODE")),
+        "target_node": raw.get("target_node").cloned().unwrap_or(Value::Null),
+        "target_step": raw.get("target_step").cloned().unwrap_or_else(|| json!(0)),
     }))
 }
 
@@ -826,6 +1321,18 @@ fn canonical_rules(raw: &[Value]) -> Result<Value, SimulationError> {
 }
 
 fn parse_definition(raw: &Value, hash: String) -> Result<Definition, SimulationError> {
+    let nodes = array(raw, "nodes")?
+        .iter()
+        .map(|node| {
+            Ok((
+                string_field(node, "id")?.to_owned(),
+                node.get("mode")
+                    .and_then(Value::as_str)
+                    .unwrap_or("EVENT_DRIVEN")
+                    .to_owned(),
+            ))
+        })
+        .collect::<Result<BTreeMap<_, _>, SimulationError>>()?;
     let predicates = raw
         .get("predicates")
         .and_then(Value::as_array)
@@ -902,6 +1409,56 @@ fn parse_definition(raw: &Value, hash: String) -> Result<Definition, SimulationE
             })
         })
         .collect::<Result<Vec<_>, SimulationError>>()?;
+    let transitions = raw
+        .get("transitions")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .iter()
+        .map(|transition| {
+            Ok(SimulationTransition {
+                id: string_field(transition, "id")?.to_owned(),
+                source_node: string_field(transition, "source_node")?.to_owned(),
+                evaluation_point: string_field(transition, "evaluation_point")?.to_owned(),
+                priority: transition["priority"]
+                    .as_i64()
+                    .ok_or(SimulationError::InvalidVector)?,
+                target_kind: transition
+                    .get("target_kind")
+                    .and_then(Value::as_str)
+                    .unwrap_or("NODE")
+                    .to_owned(),
+                target_node: transition
+                    .get("target_node")
+                    .and_then(Value::as_str)
+                    .map(str::to_owned),
+                target_action: transition
+                    .get("target_action")
+                    .and_then(Value::as_str)
+                    .map(str::to_owned),
+                child_slot_id: transition
+                    .get("child_slot_id")
+                    .and_then(Value::as_str)
+                    .map(str::to_owned),
+                parent_policy: transition
+                    .get("parent_policy")
+                    .and_then(Value::as_str)
+                    .map(str::to_owned),
+                event_type: transition
+                    .get("event_type")
+                    .and_then(Value::as_str)
+                    .map(str::to_owned),
+                input_command: transition
+                    .get("input_command")
+                    .and_then(Value::as_str)
+                    .map(str::to_owned),
+            })
+        })
+        .collect::<Result<Vec<_>, SimulationError>>()?;
+    let child_slot_capacities = raw
+        .get("child_slot_capacities")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
     Ok(Definition {
         id: string_field(raw, "id")?.to_owned(),
         hash,
@@ -910,9 +1467,14 @@ fn parse_definition(raw: &Value, hash: String) -> Result<Definition, SimulationE
             .and_then(Value::as_str)
             .unwrap_or(string_field(&array(raw, "nodes")?[0], "id")?)
             .to_owned(),
+        rate_scale: u64_field(raw, "rate_scale")?,
         units_per_tick: u64_field(raw, "units_per_tick")?,
+        nodes,
         predicates,
         facts,
+        transitions,
+        child_slot_capacities: serde_json::from_value(child_slot_capacities)
+            .map_err(|_| SimulationError::InvalidVector)?,
     })
 }
 

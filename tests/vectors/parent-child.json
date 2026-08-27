@@ -1,0 +1,90 @@
+{
+  "pcam_vector_version": "1",
+  "kind": "runtime_vector",
+  "runtime_profile": {
+    "pcam_version": "3.0",
+    "kind": "runtime_profile",
+    "id": "pcam.reference.runtime.v1",
+    "revision": 1,
+    "fault_policy": "ABORT_SIMULATION",
+    "limits": {
+      "max_actions_per_entity": 8,
+      "max_action_nesting_depth": 4,
+      "max_children_per_action": 4,
+      "max_quanta_per_action_per_tick": 8,
+      "max_internal_transitions_per_action_per_tick": 8,
+      "max_buffer_entries_per_action": 8,
+      "max_pending_events_per_entity": 8,
+      "max_candidates_per_tick": 32,
+      "max_effects_per_tick": 32,
+      "max_redirects_per_candidate": 4,
+      "max_definition_size_bytes": 65536,
+      "max_snapshot_size_bytes": 262144,
+      "max_extension_state_bytes": 4096,
+      "max_expression_depth": 64,
+      "max_expression_nodes": 4096
+    },
+    "rng_profiles": ["pcam.pcg32.v1"],
+    "network_profiles": [{"id": "pcam.local.v1", "topology": "LOCAL_DETERMINISTIC"}],
+    "extensions": {}
+  },
+  "definitions": [
+    {
+      "id": "PARENT",
+      "rate_scale": 1,
+      "units_per_tick": 0,
+      "initial_node_id": "WAIT",
+      "nodes": [
+        {"id": "WAIT", "mode": "EVENT_DRIVEN"},
+        {"id": "DONE", "mode": "TERMINAL"}
+      ],
+      "child_slot_capacities": {"SUB": 1},
+      "child_termination_policies": {"SUB": "TERMINATE_CHILD"},
+      "transitions": [
+        {"id": "launch", "source_node": "WAIT", "evaluation_point": "PRE_ADVANCE", "priority": 10, "target_kind": "CHILD_ACTION", "target_action": "CHILD", "child_slot_id": "SUB", "parent_policy": "FREEZE_PROGRESSION", "input_command": "LAUNCH"},
+        {"id": "complete", "source_node": "WAIT", "evaluation_point": "PRE_ADVANCE", "priority": 5, "target_kind": "NODE", "target_node": "DONE", "event_type": "CHILD_RESULT"}
+      ]
+    },
+    {
+      "id": "CHILD",
+      "rate_scale": 1,
+      "units_per_tick": 1,
+      "initial_node_id": "RUN",
+      "nodes": [{"id": "RUN", "mode": "EVENT_DRIVEN"}],
+      "transitions": [
+        {"id": "finish", "source_node": "RUN", "evaluation_point": "AFTER_QUANTUM", "priority": 1, "target_kind": "TERMINATE"}
+      ]
+    }
+  ],
+  "interaction_rules": [],
+  "effect_registry": {"combat.damage": ["hp", -1]},
+  "initial_state": {"resource_banks": {}},
+  "ticks": [
+    {
+      "inputs": [
+        {"input_id": "parent", "source_entity_id": 1, "sequence": 0, "command_id": "START", "assigned_tick": 0, "action_definition_id": "PARENT"}
+      ],
+      "contacts": []
+    },
+    {
+      "inputs": [
+        {"input_id": "launch", "source_entity_id": 1, "sequence": 1, "command_id": "LAUNCH", "assigned_tick": 1}
+      ],
+      "contacts": []
+    },
+    {"inputs": [], "contacts": []}
+  ],
+  "expected": {
+    "definition_hashes": {
+      "CHILD": "2dc3effe291c0f49d70e75a5e0147941ab56c70e546e27225bb6870843b71a49",
+      "PARENT": "d406e2589eee0e447384b50136faa7950fb5db3864576130a37b257c7d889211"
+    },
+    "definition_set_hash": "fa2877c273fbad08f66a0b71a78a9f9210453eb5ec943352ad9de358d8486e6a",
+    "tick_state_digests": [
+      "f3682ad4cd3e582192cc2124dd584995632bcf36ef63d67d629594f69f29f2ee",
+      "fb285bb4bc43711867d91aebb10c27458233d89806d39295b1c0dd683b4fb793",
+      "27b4e9eaff4b67887dedf3d19174d88ffc8a25535e5809615fe4dd1be5c51472"
+    ],
+    "final_state_digest": "27b4e9eaff4b67887dedf3d19174d88ffc8a25535e5809615fe4dd1be5c51472"
+  }
+}

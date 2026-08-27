@@ -10,6 +10,13 @@ fn vector() -> Value {
     serde_json::from_slice(&source).expect("vector JSON")
 }
 
+fn parent_child_vector() -> Value {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let source =
+        fs::read(root.join("tests/vectors/parent-child.json")).expect("shared parent-child vector");
+    serde_json::from_slice(&source).expect("vector JSON")
+}
+
 #[test]
 fn independent_simulation_matches_typed_strike_full_state_digests() {
     let vector = vector();
@@ -127,5 +134,44 @@ fn independent_retained_history_corrects_atomically_and_enforces_window() {
         bounded
             .correct_and_resimulate(0, &vector["ticks"][0])
             .is_err()
+    );
+}
+
+#[test]
+fn independent_simulation_matches_parent_child_result_event_lifecycle() {
+    let vector = parent_child_vector();
+    let runtime = SimulationRuntime::from_vector(&vector).unwrap();
+    let mut state = runtime.initial_state(&vector).unwrap();
+    assert_eq!(
+        state.definition_set_hash,
+        vector["expected"]["definition_set_hash"].as_str().unwrap()
+    );
+    for (index, tick) in vector["ticks"].as_array().unwrap().iter().enumerate() {
+        (state, _) = runtime.tick(&state, tick).unwrap();
+        assert_eq!(
+            state.digest().unwrap(),
+            vector["expected"]["tick_state_digests"][index]
+                .as_str()
+                .unwrap(),
+            "tick {index}"
+        );
+    }
+    assert_eq!(state.action_instances.len(), 2);
+    assert_eq!(state.action_instances[0].current_node_id, "DONE");
+    assert_eq!(state.action_instances[0].lifecycle_state, "TERMINATED");
+    assert_eq!(state.action_instances[0].transition_serial, 2);
+    assert_eq!(state.action_instances[1].parent_instance_id, Some(1));
+    assert_eq!(state.action_instances[1].lifecycle_state, "TERMINATED");
+    assert_eq!(
+        state.action_instances[1].extension_state["pcam.child_result_emitted"],
+        true
+    );
+    assert!(state.pending_events.is_empty());
+    assert!(state.freeze_tokens.is_empty());
+    assert_eq!(state.next_action_instance_id, 3);
+    assert_eq!(state.next_freeze_token_id, 2);
+    assert_eq!(
+        SimulationState::restore(&state.snapshot().unwrap()).unwrap(),
+        state
     );
 }
