@@ -1,6 +1,6 @@
 # Networking Profile Gate
 
-State: OPEN
+State: CLOSED
 
 ## Evidence present
 
@@ -16,8 +16,8 @@ State: OPEN
 - `tests/vectors/network-services.json` drives Python and independent Rust lockstep coordinators through WAIT and PREDICT readiness, canonical peer-input merge, definition and host mismatch rejection, periodic digest match, declared desynchronization abort, and post-abort fail-closed behavior.
 - The same shared vector drives server-authoritative correction planners through bounded restore-and-resimulate and complete-state replace-and-discard paths. Both reach the exact direct server state, while future, out-of-window, and incomplete replacement corrections are rejected.
 
-## Remaining before closure
+## Closure
 
-- Add matching Linux ARM64 digest execution to the existing Linux x86-64 manifest.
+The matching Linux x86-64 and Linux ARM64 digest manifests close the final cross-architecture execution requirement for this bounded networking profile gate.
 
 Phase-only reconciliation remains prohibited for deterministic correction.

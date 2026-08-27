@@ -18,10 +18,14 @@ jobs:
         include:
           - name: Linux x86-64
             runner: ubuntu-24.04
+            python: "3.12.3"
+            rust: "1.93.0"
             manifest: tests/cross-platform/linux-x86_64.json
             mode: check
           - name: Linux ARM64
             runner: ubuntu-24.04-arm
+            python: "3.12"
+            rust: stable
             manifest: tests/cross-platform/linux-arm64.json
             mode: generate
     runs-on: ${{ matrix.runner }}
@@ -32,8 +36,11 @@ jobs:
       - name: Set up Python 3.12
         uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python }}
           cache: pip
+
+      - name: Select Rust toolchain
+        run: rustup default "${{ matrix.rust }}"
 
       - name: Install Python validation dependencies
         run: python -m pip install --upgrade pip && python -m pip install -e ".[test]" ruff==0.15.0

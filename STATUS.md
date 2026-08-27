@@ -13,8 +13,8 @@
 | Specification | closed | `release/specification-gate.md` |
 | Schemas | closed for draft.1 | `release/schema-gate.md` |
 | Reference runtime | open | `release/reference-runtime-gate.md` |
-| Independent implementation | open | `release/independent-implementation-gate.md` |
-| Cross-platform | open | `release/cross-platform-gate.md` |
+| Independent implementation | closed for current candidate | `release/independent-implementation-gate.md` |
+| Cross-platform | closed | `release/cross-platform-gate.md` |
 | Rollback | closed for normative candidate | `release/rollback-gate.md` |
 | Comparative experiments | closed for bounded draft experiment | `release/comparative-experiment-gate.md` |
 | Claims | closed for current documentation | `release/claims-gate.md` |

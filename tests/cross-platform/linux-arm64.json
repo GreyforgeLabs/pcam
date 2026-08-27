@@ -1,0 +1,56 @@
+{
+  "cases": [
+    {
+      "definition_set_hash": "244d47801abcc3b0fcb16d9e9920855b145fc5976e826621a81b709047d444d9",
+      "final_state_digest": "6980d6c2a8eb30e169048634fa7fcb037e731a70e49ce4707fb42ecccad0868b",
+      "id": "typed-strike",
+      "tick_state_digests": [
+        "4633b2290ba5b1cd49f86188ef66882ec39b5a95f42d5bd03900002238290864",
+        "d072fec3e06337f3fc0a00768c17148dfbb1948038202424c641de1e44b9d2e7",
+        "6980d6c2a8eb30e169048634fa7fcb037e731a70e49ce4707fb42ecccad0868b"
+      ]
+    },
+    {
+      "definition_set_hash": "71b0301920c4c8701056184cb48302c767c701729defd9378b114b0fbe2a9030",
+      "final_state_digest": "cb9967f522fd57059fbc3681299114c09151fbcd978e4cdb95eda1795758c3a5",
+      "id": "mixed-stage-runtime",
+      "tick_state_digests": [
+        "cd11bfbdcb5681dc694d299361bc86916a77251e6782d26ea1f8ac4da0eaad01",
+        "646081da37e1988f2c9cfdb01b4a8a0cfbe3550600408ada362aace025278c51",
+        "ae79ebe9e55abe531f6bd5db5f551ff96d79ac20a29dd1b5f960dcb6709313b2",
+        "cb9967f522fd57059fbc3681299114c09151fbcd978e4cdb95eda1795758c3a5"
+      ]
+    },
+    {
+      "definition_set_hash": "87428a1619c91e7ffd4fe6974e2a342c26eda2e2a2b4fdc8d7d07233d6d7cfd1",
+      "final_state_digest": "7f63d51c6d439305eaa46ef36b425b39b4e1f50ec1190d58d92ffdce92b1677d",
+      "id": "rng-call-order-runtime",
+      "tick_state_digests": [
+        "4e775a58f686b931acf38a48c81c410baecc25a54f2bda0c480542869ca55bae",
+        "16d96b531f73632902198d8d56be280f0df9cf93a57ecbbca41d13be3e85b5b6",
+        "7f63d51c6d439305eaa46ef36b425b39b4e1f50ec1190d58d92ffdce92b1677d"
+      ]
+    },
+    {
+      "definition_set_hash": "89675351a653ebce76dabdd1cee8261bd6d256a5c545ee10dd46455c4008f9d5",
+      "final_state_digest": "9e7866702c0751a3956e9c53b02f2e7633cb7cd03809715969d351cb4cf5539f",
+      "id": "parent-child",
+      "tick_state_digests": [
+        "3772053848b744465e09f298f9792f286283aac96bce6576dd0f1f169b61cdd3",
+        "270122c842f8a1a842e691e209d8cdfcc8431bfba77bee6b2e3a5c1d3d5964cf",
+        "bacacb9480ab8759353d7e8c839165f754ed4ea1854a94bfe420760f9b15ee78",
+        "9e7866702c0751a3956e9c53b02f2e7633cb7cd03809715969d351cb4cf5539f"
+      ]
+    }
+  ],
+  "environment": {
+    "architecture": "linux-arm64",
+    "byteorder": "little",
+    "machine": "aarch64",
+    "os": "Linux",
+    "python": "3.12.14",
+    "rustc": "rustc 1.98.0 (88d9e12ae 2026-08-18)"
+  },
+  "manifest_version": "1",
+  "suite_digest": "795bec98fc4e22d2127d64868af5ba1b806a42be62fd40f3fa8b90846b38046d"
+}

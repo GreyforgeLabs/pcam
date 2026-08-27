@@ -21,4 +21,4 @@ Direct starts now validate declared parameter bindings before allocation, deep-c
 ## Known remaining gate gaps
 
 - No bounded mixed-stage interpreter divergence is known after the shared vector, all 18 action-document fields have exact cross-language hash-binding evidence, the hostile PCAM-CJ1 corpus covers every serialization rule, and bounded lockstep plus server-authoritative services match independent Rust. Complete runtime conformance remains unclaimed until the remaining class requirements and cross-platform evidence in the requirements matrix are closed.
-- Linux ARM64 digest evidence is unavailable, so this gate cannot contribute to cross-platform closure.
+- Matching Linux x86-64 and Linux ARM64 digest evidence is now present. This removes the cross-platform blocker but does not close the remaining runtime class requirements.
