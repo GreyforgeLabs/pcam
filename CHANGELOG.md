@@ -15,3 +15,4 @@
 - Added all six core hit-policy key strategies, explicit receipt timing, same-tick provisional receipt behavior, cooldown eligibility, cycle distinction, and predicate-reactivation vectors.
 - Integrated typed semantic facts, interaction rules, ledger policies, canonical reducers, and effect registry commits into stages 7-10; canonicalized host contact snapshots so raw enumeration permutations produce identical state digests.
 - Integrated resource and action-slot intents into pre/post arbitration, deterministic competing starts, source-slot provisional release, and atomic action replacement that preserves the source when any target claim fails.
+- Added canonical next-tick event scheduling, delivery, duplicate rejection, snapshot round trips, and explicit tracking for the underspecified interaction between one-tick lifetime and delivery freezes.

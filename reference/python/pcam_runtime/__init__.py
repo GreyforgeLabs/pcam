@@ -25,6 +25,7 @@ from .expressions import evaluate
 from .buffers import BufferEntry, apply_consumption, capture_entry, end_tick as expire_buffer_entries, select_entry
 from .freezes import FreezeToken, add_token, end_tick as expire_freeze_tokens, is_frozen, progression_accrual
 from .effects import EffectEnvelope, ReducedEffect, RejectedEffect, canonical_effects, reduce_effects
+from .events import EventEnvelope, canonical_events, deliver_due, event_from_snapshot, event_snapshot
 from .intents import ArbitrationState, Claim, Intent, IntentDecision, allocate_action_instance_ids, arbitrate, canonical_intents
 from .interactions import (
     EffectTemplate,
@@ -54,6 +55,7 @@ __all__ = [
     "Effect",
     "EffectEnvelope",
     "EffectTemplate",
+    "EventEnvelope",
     "FactBinding",
     "FreezeToken",
     "HostSnapshot",
@@ -84,11 +86,15 @@ __all__ = [
     "TransitionDefinition",
     "canonical_dumps",
     "canonical_effects",
+    "canonical_events",
     "canonical_candidates",
     "canonical_hash",
     "canonical_intents",
     "compile_pcam24",
     "evaluate",
+    "deliver_due",
+    "event_from_snapshot",
+    "event_snapshot",
     "apply_i64",
     "apply_u64",
     "apply_consumption",

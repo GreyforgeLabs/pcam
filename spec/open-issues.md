@@ -33,3 +33,7 @@ The interaction expression vocabulary includes `defense.<field>`, but the candid
 ## Materialization operation registry
 
 Section 21.5 lists core rule operations but omits `MATERIALIZE`, while the canonical interaction example uses `op: MATERIALIZE` and §21.3 requires a materialization stage. The Python reference recognizes `MATERIALIZE` provisionally. The master operation registry must be corrected before the specification gate closes.
+
+## Event-delivery freeze lifetime
+
+Sections 18.2 and 25 define `EVENT_DELIVERY` freezes and one-tick event availability, but do not state whether an event frozen on its delivery tick expires, faults, or moves to a later delivery tick. The Python reference provisionally defers the event by one tick and serializes the changed `delivery_tick`.

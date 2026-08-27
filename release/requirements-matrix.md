@@ -22,7 +22,7 @@ This matrix preserves the complete target. A row is complete only when its named
 | §19-22 facts, candidates, interactions, ledgers | frozen snapshot, typed stages, redirection, receipt vectors | partial: runtime-integrated semantic facts, five-stage resolver, all ledger policies, provisional receipts, reducers, and defense ambiguity fault; defense-selection semantics remain open |
 | §23 effects | identifiers, canonical order, reducers, exclusive/custom vectors | partial: runtime-integrated authoritative registry commits plus all core reducer primitives and rejection traces |
 | §24 tick pipeline | deterministic twelve-stage trace vectors | partial: ordered vertical-slice trace |
-| §25 events | delivery order, modes, and lifetime vectors | missing |
+| §25 events | delivery order, modes, and lifetime vectors | partial: canonical next-tick scheduling, snapshot round trip, duplicate rejection, and provisional freeze deferral |
 | §26 RNG | PCG32 vectors, snapshot state, restore vectors | partial: canonical PCG32 vector and snapshot restore |
 | §27 canonicalization and hashes | PCAM-CJ1 corpus and exact digest vectors | partial: canonical serializer and unit vectors |
 | §28 save and restore | schema, round-trip, continuation equivalence | partial: slice round-trip and correction equivalence |
