@@ -1,4 +1,4 @@
-use pcam_independent::simulation::{SimulationRuntime, SimulationState};
+use pcam_independent::simulation::{RetainedRollbackHistory, SimulationRuntime, SimulationState};
 use serde_json::Value;
 use std::fs;
 use std::path::PathBuf;
@@ -82,4 +82,50 @@ fn independent_simulation_rollback_correction_matches_direct_execution() {
         vector["expected"]["final_state_digest"].as_str().unwrap()
     );
     assert_ne!(corrected, predicted);
+}
+
+#[test]
+fn independent_retained_history_corrects_atomically_and_enforces_window() {
+    let vector = vector();
+    let runtime = SimulationRuntime::from_vector(&vector).unwrap();
+    let initial = runtime.initial_state(&vector).unwrap();
+    let mut predicted_tick = vector["ticks"][0].clone();
+    predicted_tick["inputs"] = Value::Array(Vec::new());
+    let mut manager = RetainedRollbackHistory::new(runtime.clone(), 8).unwrap();
+    let (mut state, _, _) = manager.advance(&initial, &predicted_tick).unwrap();
+    for tick in &vector["ticks"].as_array().unwrap()[1..] {
+        (state, _, _) = manager.advance(&state, tick).unwrap();
+    }
+    assert_eq!(state.resource_banks["2"]["hp"], 100);
+
+    let before_frames = manager.frame_snapshots();
+    let before_head = manager.head_state().unwrap().clone();
+    let mut invalid = vector["ticks"][0].clone();
+    invalid["inputs"][0]["action_definition_id"] = Value::String("UNKNOWN".to_owned());
+    assert!(manager.correct_and_resimulate(0, &invalid).is_err());
+    assert_eq!(manager.frame_snapshots(), before_frames);
+    assert_eq!(manager.head_state(), Some(&before_head));
+
+    let correction = manager
+        .correct_and_resimulate(0, &vector["ticks"][0])
+        .unwrap();
+    assert_eq!(correction.rewind_ticks, 3);
+    assert_eq!(
+        correction.state.digest().unwrap(),
+        vector["expected"]["final_state_digest"].as_str().unwrap()
+    );
+    assert!(correction.presentation_emit.is_empty());
+    assert!(correction.presentation_invalidated.is_empty());
+    assert!(correction.presentation_suppressed.is_empty());
+
+    let mut bounded = RetainedRollbackHistory::new(runtime, 2).unwrap();
+    let (mut bounded_state, _, _) = bounded.advance(&initial, &predicted_tick).unwrap();
+    for tick in &vector["ticks"].as_array().unwrap()[1..] {
+        (bounded_state, _, _) = bounded.advance(&bounded_state, tick).unwrap();
+    }
+    assert!(
+        bounded
+            .correct_and_resimulate(0, &vector["ticks"][0])
+            .is_err()
+    );
 }

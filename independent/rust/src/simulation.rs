@@ -2,7 +2,7 @@ use crate::effects::{EffectEnvelope, ReducedEffect, RejectedEffect, reduce_effec
 use crate::{CanonicalError, canonical_hash};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Debug)]
 pub enum SimulationError {
@@ -145,6 +145,172 @@ pub struct SimulationRuntime {
     definitions: BTreeMap<String, Definition>,
     effect_registry: BTreeMap<String, (String, i64)>,
     definition_set_hash: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct RollbackFrame {
+    pub snapshot: Value,
+    pub tick_document: Value,
+    pub presentation_effect_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RollbackCorrection {
+    pub state: SimulationState,
+    pub traces: Vec<SimulationTrace>,
+    pub rewind_ticks: u64,
+    pub presentation_emit: Vec<String>,
+    pub presentation_invalidated: Vec<String>,
+    pub presentation_suppressed: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct RetainedRollbackHistory {
+    runtime: SimulationRuntime,
+    retained_history_ticks: u64,
+    frames: BTreeMap<u64, RollbackFrame>,
+    head_state: Option<SimulationState>,
+    presented_effect_ids: BTreeSet<String>,
+}
+
+impl RetainedRollbackHistory {
+    pub fn new(
+        runtime: SimulationRuntime,
+        retained_history_ticks: u64,
+    ) -> Result<Self, SimulationError> {
+        if retained_history_ticks == 0 {
+            return Err(SimulationError::InvalidVector);
+        }
+        Ok(Self {
+            runtime,
+            retained_history_ticks,
+            frames: BTreeMap::new(),
+            head_state: None,
+            presented_effect_ids: BTreeSet::new(),
+        })
+    }
+
+    pub fn head_state(&self) -> Option<&SimulationState> {
+        self.head_state.as_ref()
+    }
+
+    pub fn frame_snapshots(&self) -> BTreeMap<u64, Value> {
+        self.frames
+            .iter()
+            .map(|(tick, frame)| (*tick, frame.snapshot.clone()))
+            .collect()
+    }
+
+    pub fn advance(
+        &mut self,
+        state: &SimulationState,
+        tick_document: &Value,
+    ) -> Result<(SimulationState, SimulationTrace, Vec<String>), SimulationError> {
+        if self.head_state.as_ref().is_some_and(|head| head != state) {
+            return Err(SimulationError::RuntimeFault);
+        }
+        let snapshot = state.snapshot()?;
+        let (next, trace) = self.runtime.tick(state, tick_document)?;
+        let presentation_effect_ids = presentation_ids(&trace.effects);
+        self.frames.insert(
+            state.tick,
+            RollbackFrame {
+                snapshot,
+                tick_document: tick_document.clone(),
+                presentation_effect_ids: presentation_effect_ids.clone(),
+            },
+        );
+        self.presented_effect_ids
+            .extend(presentation_effect_ids.iter().cloned());
+        self.head_state = Some(next.clone());
+        self.prune(next.tick);
+        Ok((next, trace, presentation_effect_ids))
+    }
+
+    pub fn correct_and_resimulate(
+        &mut self,
+        corrected_tick: u64,
+        corrected_tick_document: &Value,
+    ) -> Result<RollbackCorrection, SimulationError> {
+        let head = self
+            .head_state
+            .as_ref()
+            .ok_or(SimulationError::RuntimeFault)?;
+        let until_tick = head.tick;
+        let frame = self
+            .frames
+            .get(&corrected_tick)
+            .ok_or(SimulationError::RuntimeFault)?;
+        let required = (corrected_tick..until_tick).collect::<Vec<_>>();
+        if required.iter().any(|tick| !self.frames.contains_key(tick)) {
+            return Err(SimulationError::RuntimeFault);
+        }
+        let old_frames = required
+            .iter()
+            .map(|tick| (*tick, self.frames[tick].clone()))
+            .collect::<BTreeMap<_, _>>();
+        let old_presentation = old_frames
+            .values()
+            .flat_map(|old| old.presentation_effect_ids.iter().cloned())
+            .collect::<BTreeSet<_>>();
+        let base_presented = self
+            .presented_effect_ids
+            .difference(&old_presentation)
+            .cloned()
+            .collect::<BTreeSet<_>>();
+        let mut state = SimulationState::restore(&frame.snapshot)?;
+        let mut traces = Vec::new();
+        let mut replacement_frames = BTreeMap::new();
+        let mut replayed_presentation = BTreeSet::new();
+        for tick in &required {
+            let old = &old_frames[tick];
+            let document = if *tick == corrected_tick {
+                corrected_tick_document
+            } else {
+                &old.tick_document
+            };
+            let snapshot = state.snapshot()?;
+            let (next, trace) = self.runtime.tick(&state, document)?;
+            let ids = presentation_ids(&trace.effects);
+            replayed_presentation.extend(ids.iter().cloned());
+            replacement_frames.insert(
+                *tick,
+                RollbackFrame {
+                    snapshot,
+                    tick_document: document.clone(),
+                    presentation_effect_ids: ids,
+                },
+            );
+            state = next;
+            traces.push(trace);
+        }
+        let invalidated = canonical_set(old_presentation.difference(&replayed_presentation));
+        let suppressed = canonical_set(old_presentation.intersection(&replayed_presentation));
+        let emitted = canonical_set(
+            replayed_presentation
+                .difference(&old_presentation)
+                .filter(|identifier| !base_presented.contains(*identifier)),
+        );
+        self.frames.extend(replacement_frames);
+        self.presented_effect_ids = base_presented
+            .union(&replayed_presentation)
+            .cloned()
+            .collect();
+        self.head_state = Some(state.clone());
+        Ok(RollbackCorrection {
+            state,
+            traces,
+            rewind_ticks: until_tick - corrected_tick,
+            presentation_emit: emitted,
+            presentation_invalidated: invalidated,
+            presentation_suppressed: suppressed,
+        })
+    }
+
+    fn prune(&mut self, head_tick: u64) {
+        let earliest = head_tick.saturating_sub(self.retained_history_ticks);
+        self.frames.retain(|tick, _| *tick >= earliest);
+    }
 }
 
 impl SimulationRuntime {
@@ -870,4 +1036,22 @@ fn u64_field(value: &Value, field: &str) -> Result<u64, SimulationError> {
         .get(field)
         .and_then(Value::as_u64)
         .ok_or(SimulationError::InvalidVector)
+}
+
+fn presentation_ids(effects: &[EffectEnvelope]) -> Vec<String> {
+    effects
+        .iter()
+        .filter(|effect| !effect.authoritative)
+        .map(|effect| effect.effect_id.clone())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect()
+}
+
+fn canonical_set<'a>(values: impl Iterator<Item = &'a String>) -> Vec<String> {
+    values
+        .cloned()
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect()
 }
