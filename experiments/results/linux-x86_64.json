@@ -44,7 +44,7 @@
     "clarity": "declared trace-field coverage is a proxy, not a subjective quality score",
     "timing_status": "host timing is descriptive and committed separately from the deterministic report digest"
   },
-  "report_digest": "6ba9f27f052d5f3d55a6a43d2bba9b26cd151b3eef0ca3f86759017a8600ff60",
+  "report_digest": "f13e41bece21bf4b1f45109b2146a027723d67b738d9850c1a6ad7e32012cf2c",
   "results": [
     {
       "ambiguous_interaction_cases": {
@@ -279,7 +279,7 @@
       "runtime_state_bytes": 2844,
       "snapshot_bytes": 2844,
       "subject_id": "pcam-core",
-      "trace_digest": "99c64f0b1eabe64084d7a0dadc259baf36529458939db41c699ce6cdfe86e5e6",
+      "trace_digest": "cc76ba851536ac832fdfc71735e036a880c652de47434af24bc4a6e065f11c1d",
       "validation_coverage": {
         "checks": [
           "schema version",
@@ -347,7 +347,7 @@
       "runtime_state_bytes": 2844,
       "snapshot_bytes": 2844,
       "subject_id": "pcam-core-pcam24",
-      "trace_digest": "819c9dfa3ac75244e3507f8ff650c0d6a05cd9bba23fc2c0c4909d3e6d06c728",
+      "trace_digest": "1b42c88edb6472ba245e89fbd4ff71d927a3f1358f3d6b72c319c43a63820b44",
       "validation_coverage": {
         "checks": [
           "schema version",

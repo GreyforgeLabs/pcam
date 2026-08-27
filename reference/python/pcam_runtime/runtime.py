@@ -15,7 +15,19 @@ from .freezes import FreezeToken, add_token, end_tick as expire_freezes, is_froz
 from .interactions import InteractionCandidate, InteractionRule, SemanticFact, resolve_candidate, validate_rules
 from .intents import ArbitrationState, Claim, Intent, IntentDecision, arbitrate
 from .ledgers import LedgerContext, is_eligible as ledger_is_eligible, receipt_required, write_receipt
-from .model import ActionDefinition, Contact, Effect, FactBinding, HostSnapshot, RuntimeProfile, TickInput, TransitionDefinition, validate_definition
+from .model import (
+    ActionDefinition,
+    Assignment,
+    Contact,
+    DefinitionEffect,
+    Effect,
+    FactBinding,
+    HostSnapshot,
+    RuntimeProfile,
+    TickInput,
+    TransitionDefinition,
+    validate_definition,
+)
 from .numeric import U64_MAX, apply_u64
 from .rng import PCG32Stream
 from .state import ActionInstance, SimulationState
@@ -158,8 +170,9 @@ class TickExecutor:
         trace["eligible_transitions"].extend(pre_eligible)  # type: ignore[union-attr]
 
         self._stage(trace, 4, "pre_advance_arbitration")
-        work, emitted, pre_decisions = self._arbitrate_stage(work, pre_intents, start_inputs)
+        work, emitted, emitted_typed, pre_decisions = self._arbitrate_stage(work, pre_intents, start_inputs)
         effects.extend(emitted)
+        typed_effects.extend(emitted_typed)
         trace["pre_advance_intents"] = pre_decisions
         self._extend_arbitration_trace(trace, pre_decisions)
 
@@ -169,8 +182,9 @@ class TickExecutor:
             if action.lifecycle_state != "RUNNING":
                 continue
             definition = self.definitions_by_hash[action.definition_hash]
-            work, emitted, quanta, node_changes = self._progress_action(work, action, definition, trace)
+            work, emitted, emitted_typed, quanta, node_changes = self._progress_action(work, action, definition, trace)
             effects.extend(emitted)
+            typed_effects.extend(emitted_typed)
             trace.setdefault("progression_quanta", {})[key] = quanta  # type: ignore[index]
             if node_changes:
                 trace.setdefault("node_changes", []).extend(node_changes)  # type: ignore[union-attr]
@@ -178,8 +192,9 @@ class TickExecutor:
         self._stage(trace, 6, "post_advance_intent_evaluation_and_arbitration")
         post_intents, post_eligible = self._evaluate_transitions(work, "POST_ADVANCE")
         trace["eligible_transitions"].extend(post_eligible)  # type: ignore[union-attr]
-        work, emitted, post_decisions = self._arbitrate_stage(work, post_intents, [])
+        work, emitted, emitted_typed, post_decisions = self._arbitrate_stage(work, post_intents, [])
         effects.extend(emitted)
+        typed_effects.extend(emitted_typed)
         trace["post_advance_intents"] = post_decisions
         self._extend_arbitration_trace(trace, post_decisions)
 
@@ -428,7 +443,7 @@ class TickExecutor:
         state: SimulationState,
         transitions: list[tuple[int, TransitionDefinition]],
         start_inputs: list[TickInput],
-    ) -> tuple[SimulationState, list[Effect], list[dict[str, object]]]:
+    ) -> tuple[SimulationState, list[Effect], list[EffectEnvelope], list[dict[str, object]]]:
         intents: list[Intent] = []
         for instance_id, transition in transitions:
             action = state.action_instances[str(instance_id)]
@@ -528,6 +543,7 @@ class TickExecutor:
             resource_banks={str(owner): dict(bank) for owner, bank in reserved.resource_banks.items()},
         )
         effects: list[Effect] = []
+        typed_effects: list[EffectEnvelope] = []
         decision_trace: list[dict[str, object]] = []
         for decision in decisions:
             decision_trace.append(
@@ -546,11 +562,12 @@ class TickExecutor:
                 continue
             for operation in decision.intent.operations:
                 if operation["kind"] == "START":
-                    state = self._start_action(
+                    state, emitted_typed = self._start_action(
                         state,
                         str(operation["definition_id"]),
                         int(operation["owner_entity_id"]),
                     )
+                    typed_effects.extend(emitted_typed)
                 elif operation["kind"] == "TRANSITION":
                     instance_id = int(operation["instance_id"])
                     action = state.action_instances[str(instance_id)]
@@ -558,9 +575,10 @@ class TickExecutor:
                     transition = next(
                         item for item in definition.transitions if item.id == operation["transition_id"]
                     )
-                    state, emitted = self._apply_transition(state, instance_id, transition)
+                    state, emitted, emitted_typed = self._apply_transition(state, instance_id, transition)
                     effects.extend(emitted)
-        return self._rebuild_action_slots(state), effects, decision_trace
+                    typed_effects.extend(emitted_typed)
+        return self._rebuild_action_slots(state), effects, typed_effects, decision_trace
 
     def _arbitration_state(self, state: SimulationState) -> ArbitrationState:
         capacities: dict[tuple[str, int, str], int] = {}
@@ -621,7 +639,7 @@ class TickExecutor:
         owner_entity_id: int,
         parent_instance_id: int | None = None,
         parent_slot_id: str | None = None,
-    ) -> SimulationState:
+    ) -> tuple[SimulationState, list[EffectEnvelope]]:
         definition = self.definitions_by_id[definition_id]
         initial_node_id = definition.initial_node_id or definition.nodes[0].id
         node = next(item for item in definition.nodes if item.id == initial_node_id)
@@ -638,7 +656,7 @@ class TickExecutor:
             instance_id=instance_id,
             owner_entity_id=owner_entity_id,
             definition_hash=definition.definition_hash,
-            lifecycle_state="TERMINATED" if node.mode == "TERMINAL" else "RUNNING",
+            lifecycle_state="RUNNING",
             current_node_id=node.id,
             current_rate_units=definition.units_per_tick,
             captured_parameters=dict(definition.parameter_defaults),
@@ -656,7 +674,12 @@ class TickExecutor:
         )
         actions = dict(state.action_instances)
         actions[str(instance_id)] = action
-        return replace(state, action_instances=actions, next_action_instance_id=instance_id + 1)
+        state = replace(state, action_instances=actions, next_action_instance_id=instance_id + 1)
+        action = self._apply_assignments(action, definition, node.entry_assignments)
+        action, effects = self._materialize_definition_effects(state, action, definition, node.entry_effects)
+        if node.mode == "TERMINAL":
+            state, action = self._terminate_action(state, action, "TERMINATED")
+        return _put_action(state, action), effects
 
     def _rebuild_action_slots(self, state: SimulationState) -> SimulationState:
         rebuilt = {
@@ -714,21 +737,22 @@ class TickExecutor:
         action: ActionInstance,
         definition: ActionDefinition,
         trace: dict[str, object],
-    ) -> tuple[SimulationState, list[Effect], int, list[dict[str, object]]]:
+    ) -> tuple[SimulationState, list[Effect], list[EffectEnvelope], int, list[dict[str, object]]]:
         freeze_policy = progression_accrual(state.freeze_tokens, state.tick, action.instance_id)
         if freeze_policy == "HOLD":
-            return state, [], 0, []
+            return state, [], [], 0, []
         accumulator = apply_u64(action.quantum_accumulator + action.current_rate_units)
         generated_quanta = accumulator // definition.rate_scale
         accumulator = accumulator % definition.rate_scale
         if freeze_policy == "ACCRUE":
             deferred = apply_u64(action.deferred_quanta + generated_quanta)
             frozen = replace(action, quantum_accumulator=accumulator, deferred_quanta=deferred)
-            return _put_action(state, frozen), [], 0, []
+            return _put_action(state, frozen), [], [], 0, []
         quanta = apply_u64(generated_quanta + action.deferred_quanta)
         if quanta > self.profile.max_quanta_per_action_per_tick:
             raise PCAMError(ResultCode.RUNTIME_FAULT, PCAMFault.QUANTUM_LIMIT_EXCEEDED, str(action.instance_id))
         effects: list[Effect] = []
+        typed_effects: list[EffectEnvelope] = []
         changes: list[dict[str, object]] = []
         current = replace(action, quantum_accumulator=accumulator, deferred_quanta=0)
         transition_count = 0
@@ -753,8 +777,9 @@ class TickExecutor:
                 if transition_count > self.profile.max_internal_transitions_per_action_per_tick:
                     raise PCAMError(ResultCode.RUNTIME_FAULT, PCAMFault.TRANSITION_LIMIT_EXCEEDED, str(action.instance_id))
                 before = current.current_node_id
-                state, emitted = self._apply_transition(state, action.instance_id, transition)
+                state, emitted, emitted_typed = self._apply_transition(state, action.instance_id, transition)
                 effects.extend(emitted)
+                typed_effects.extend(emitted_typed)
                 trace["selected_transitions"].append(  # type: ignore[union-attr]
                     {
                         "instance_id": action.instance_id,
@@ -763,7 +788,7 @@ class TickExecutor:
                 )
                 current = state.action_instances[str(action.instance_id)]
                 changes.append({"instance_id": action.instance_id, "from": before, "to": current.current_node_id})
-        return _put_action(state, current), effects, quanta, changes
+        return _put_action(state, current), effects, typed_effects, quanta, changes
 
     def _evaluate_transitions(
         self,
@@ -833,11 +858,36 @@ class TickExecutor:
         state: SimulationState,
         instance_id: int,
         transition: TransitionDefinition,
-    ) -> tuple[SimulationState, list[Effect]]:
+    ) -> tuple[SimulationState, list[Effect], list[EffectEnvelope]]:
         action = state.action_instances.get(str(instance_id))
         if action is None or action.current_node_id != transition.source_node or action.lifecycle_state != "RUNNING":
-            return state, []
+            return state, [], []
+        definition = self.definitions_by_hash[action.definition_hash]
+        source_node = next(node for node in definition.nodes if node.id == action.current_node_id)
         matched_input = select_entry(action.input_buffer, transition.input_command) if transition.input_command else None
+        typed_effects: list[EffectEnvelope] = []
+
+        action = self._apply_assignments(action, definition, source_node.exit_assignments)
+        action = self._apply_assignments(action, definition, transition.exit_assignments)
+        action, emitted = self._materialize_definition_effects(
+            state,
+            action,
+            definition,
+            source_node.exit_effects,
+        )
+        typed_effects.extend(emitted)
+        action = self._apply_assignments(action, definition, transition.assignments)
+        action = replace(action, cycle=apply_u64(action.cycle + transition.cycle_delta))
+        action, emitted = self._materialize_definition_effects(
+            state,
+            action,
+            definition,
+            transition.definition_effects,
+        )
+        typed_effects.extend(emitted)
+        action = self._apply_assignments(action, definition, transition.entry_assignments)
+        state = _put_action(state, action)
+
         if transition.target_kind == "TERMINATE":
             state, action = self._terminate_action(state, action, "TERMINATED")
             action = replace(action, transition_serial=action.transition_serial + 1)
@@ -865,19 +915,21 @@ class TickExecutor:
                 ),
             )
             state = _put_action(state, action)
-            state = self._start_action(state, transition.target_action, owner_entity_id)
-            return state, list(transition.effects)
+            state, emitted = self._start_action(state, transition.target_action, owner_entity_id)
+            typed_effects.extend(emitted)
+            return state, list(transition.effects), typed_effects
         elif transition.target_kind == "CHILD_ACTION":
             assert transition.target_action is not None
             assert transition.child_slot_id is not None
             child_id = state.next_action_instance_id
-            state = self._start_action(
+            state, emitted = self._start_action(
                 state,
                 transition.target_action,
                 action.owner_entity_id,
                 parent_instance_id=action.instance_id,
                 parent_slot_id=transition.child_slot_id,
             )
+            typed_effects.extend(emitted)
             action = replace(
                 action,
                 transition_serial=action.transition_serial + 1,
@@ -924,19 +976,26 @@ class TickExecutor:
                         next_freeze_token_id=apply_u64(token_id + 1),
                     )
                     action = replace(action, freeze_token_references=(*action.freeze_token_references, token_id))
-            return _put_action(state, action), list(transition.effects)
+            return _put_action(state, action), list(transition.effects), typed_effects
         else:
             assert transition.target_node is not None
-            definition = self.definitions_by_hash[action.definition_hash]
             target_definition = next(node for node in definition.nodes if node.id == transition.target_node)
-            if target_definition.mode == "TERMINAL":
-                state, action = self._terminate_action(state, action, "TERMINATED")
             action = replace(
                 action,
                 current_node_id=transition.target_node,
                 node_step=transition.target_step,
                 transition_serial=action.transition_serial + 1,
             )
+            action = self._apply_assignments(action, definition, target_definition.entry_assignments)
+            action, emitted = self._materialize_definition_effects(
+                state,
+                action,
+                definition,
+                target_definition.entry_effects,
+            )
+            typed_effects.extend(emitted)
+            if target_definition.mode == "TERMINAL":
+                state, action = self._terminate_action(state, action, "TERMINATED")
         action = replace(
             action,
             input_buffer=apply_consumption(
@@ -947,7 +1006,144 @@ class TickExecutor:
                 attempted=True,
             ),
         )
-        return _put_action(state, action), list(transition.effects)
+        return _put_action(state, action), list(transition.effects), typed_effects
+
+    def _apply_assignments(
+        self,
+        action: ActionInstance,
+        definition: ActionDefinition,
+        assignments: tuple[Assignment, ...],
+    ) -> ActionInstance:
+        current = action
+        for assignment in assignments:
+            prefix = "action.register."
+            if not assignment.target.startswith(prefix):
+                raise PCAMError(
+                    ResultCode.RUNTIME_FAULT,
+                    PCAMFault.MISSING_REFERENCE,
+                    assignment.target,
+                )
+            register_id = assignment.target.removeprefix(prefix)
+            if register_id not in current.registers:
+                raise PCAMError(
+                    ResultCode.RUNTIME_FAULT,
+                    PCAMFault.MISSING_REFERENCE,
+                    assignment.target,
+                )
+            value = self._evaluate_action_expression(current, definition, assignment.value)
+            declaration = definition.register_declarations.get(register_id)
+            normalized = self._normalize_register_value(register_id, value, declaration)
+            registers = dict(current.registers)
+            registers[register_id] = normalized
+            current = replace(current, registers=registers)
+        return current
+
+    @staticmethod
+    def _normalize_register_value(
+        register_id: str,
+        value: object,
+        declaration: dict[str, object] | None,
+    ) -> object:
+        if declaration is None:
+            return value
+        kind = str(declaration["type"])
+        if kind == "BOOL":
+            if type(value) is bool:
+                return value
+        elif kind in {"I64", "U64"}:
+            if type(value) is int:
+                minimum = int(declaration["minimum"])
+                maximum = int(declaration["maximum"])
+                if minimum <= value <= maximum:
+                    return value
+                policy = str(declaration["overflow"])
+                if policy == "SATURATE":
+                    return min(max(value, minimum), maximum)
+                if policy == "WRAP":
+                    return minimum + ((value - minimum) % (maximum - minimum + 1))
+                raise PCAMError(
+                    ResultCode.RUNTIME_FAULT,
+                    PCAMFault.INTEGER_OVERFLOW,
+                    f"{register_id}: {value}",
+                )
+        elif kind in {"SYMBOL", "BYTES"}:
+            if type(value) is str:
+                return value
+        elif kind in {"SET_SYMBOL", "FIXED_ARRAY", "BOUNDED_LIST"}:
+            if isinstance(value, (list, tuple)):
+                items = tuple(value)
+                if kind != "SET_SYMBOL" or (
+                    all(type(item) is str for item in items) and len(set(items)) == len(items)
+                ):
+                    capacity = int(declaration["capacity"])
+                    if kind == "FIXED_ARRAY" and len(items) != capacity:
+                        pass
+                    elif len(items) <= capacity:
+                        if kind == "SET_SYMBOL":
+                            return tuple(sorted(items, key=lambda item: item.encode("utf-8")))
+                        return items
+                    elif str(declaration["overflow"]) == "SATURATE":
+                        retained = items[:capacity]
+                        if kind == "SET_SYMBOL":
+                            return tuple(sorted(retained, key=lambda item: item.encode("utf-8")))
+                        return retained
+        raise PCAMError(
+            ResultCode.RUNTIME_FAULT,
+            PCAMFault.STATE_INVARIANT_FAILURE,
+            f"invalid {kind} assignment for register {register_id}",
+        )
+
+    def _materialize_definition_effects(
+        self,
+        state: SimulationState,
+        action: ActionInstance,
+        definition: ActionDefinition,
+        effects: tuple[DefinitionEffect, ...],
+    ) -> tuple[ActionInstance, list[EffectEnvelope]]:
+        current = action
+        emitted: list[EffectEnvelope] = []
+        for effect in effects:
+            target = effect.target
+            if target is None:
+                target_entity_id = current.owner_entity_id
+            elif type(target) is int:
+                target_entity_id = apply_u64(target)
+            elif isinstance(target, str):
+                try:
+                    resolved = self._resolve_action_reference(current, target, lambda _: False)
+                except KeyError as exc:
+                    raise PCAMError(
+                        ResultCode.RUNTIME_FAULT,
+                        PCAMFault.MISSING_REFERENCE,
+                        target,
+                    ) from exc
+                if type(resolved) is not int:
+                    raise PCAMError(
+                        ResultCode.RUNTIME_FAULT,
+                        PCAMFault.STATE_INVARIANT_FAILURE,
+                        f"effect target is not an entity identifier: {target}",
+                    )
+                target_entity_id = apply_u64(resolved)
+            else:  # pragma: no cover - schema validation prevents this path
+                raise PCAMError(ResultCode.RUNTIME_FAULT, PCAMFault.STATE_INVARIANT_FAILURE, effect.effect_type)
+            effect_id = f"{state.tick}:{current.instance_id}:{current.emission_serial}"
+            emitted.append(
+                EffectEnvelope(
+                    effect_id=effect_id,
+                    effect_type=effect.effect_type,
+                    effect_class=effect.effect_class or ("PRESENTATION" if not effect.authoritative else effect.effect_type),
+                    source_entity_id=current.owner_entity_id,
+                    target_entity_id=target_entity_id,
+                    source_action_instance_id=current.instance_id,
+                    origin_tick=state.tick,
+                    priority=effect.priority,
+                    payload=self._resolve_effect_payload(effect.payload, current, definition),
+                    reducer=effect.reducer or "ORDERED",  # type: ignore[arg-type]
+                    authoritative=effect.authoritative,
+                )
+            )
+            current = replace(current, emission_serial=apply_u64(current.emission_serial + 1))
+        return current, emitted
 
     def _terminate_action(
         self,
@@ -1089,10 +1285,14 @@ class TickExecutor:
     ) -> object:
         fixed: dict[str, object] = {
             "action.cycle": action.cycle,
+            "action.emission_serial": action.emission_serial,
+            "action.instance_id": action.instance_id,
             "action.lifecycle": action.lifecycle_state,
             "action.local_step": action.local_step,
             "action.node": action.current_node_id,
             "action.node_step": action.node_step,
+            "action.owner_entity_id": action.owner_entity_id,
+            "action.transition_serial": action.transition_serial,
         }
         if reference in fixed:
             return fixed[reference]

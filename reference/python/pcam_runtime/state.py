@@ -38,7 +38,7 @@ class ActionInstance:
     emission_serial: int = 0
     interaction_ledger_partition: str = "default"
     rng_stream_ids: tuple[str, ...] = ()
-    registers: dict[str, int] = field(default_factory=dict)
+    registers: dict[str, object] = field(default_factory=dict)
     fault_record: str | None = None
     extension_state: dict[str, object] = field(default_factory=dict)
 

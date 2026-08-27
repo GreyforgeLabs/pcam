@@ -26,6 +26,8 @@ def test_resolved_normative_contracts_remain_in_master_text():
         "max_expression_depth",
         "max_expression_nodes",
         "Canonical machine documents MUST encode an absent `input_match` or `event_match` as `null`",
+        "All three transition assignment arrays target the source action instance",
+        "Starting an action enters its declared initial node",
         "Phase is an optional projection, never the whole state",
     )
     assert all(contract in specification for contract in required_contracts)

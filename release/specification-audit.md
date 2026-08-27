@@ -27,6 +27,7 @@ The audit compared every normative issue against the master text and the executa
 | Canonical example used an undeclared reference family | §11.3 includes `target.<field>` |
 | Expression budgets were implementation defaults | §31 requires hashed depth and node limits |
 | Canonical transition list conflicted with omitted empty design fields | §14.1 requires explicit machine-document defaults while allowing labeled readable shorthand |
+| Required transition operations had no execution position | §8.5, §14.6, §14.7, and §23.1 define assignment targets, complete mutation order, initial entry, effect defaults, and payload timing |
 
 ## Gate conclusion
 

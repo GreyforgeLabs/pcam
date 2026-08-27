@@ -10,7 +10,9 @@ from .errors import PCAMError, PCAMFault, ResultCode
 from .extensions import ExtensionRegistration, ExtensionRegistry, ExtensionValidation
 from .model import (
     ActionDefinition,
+    Assignment,
     Contact,
+    DefinitionEffect,
     Effect,
     FactBinding,
     HostSnapshot,
@@ -52,11 +54,13 @@ from .vectors import VectorRun, rollback_vector, run_vector
 __all__ = [
     "ActionDefinition",
     "ActionInstance",
+    "Assignment",
     "ArbitrationState",
     "BufferEntry",
     "Claim",
     "Contact",
     "Diagnostic",
+    "DefinitionEffect",
     "Effect",
     "EffectEnvelope",
     "EffectTemplate",

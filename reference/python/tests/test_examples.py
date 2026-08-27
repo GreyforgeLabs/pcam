@@ -78,6 +78,11 @@ def test_canonical_examples_validate_execute_and_match_pinned_evidence():
     assert contact_trace["candidate_order"] == expected["candidate_order"]
     assert [item["accepted"] for item in contact_trace["decision_record_mutations"]] == [True, False, True]
     assert [item["value"] for item in contact_trace["effect_reduction"] if item["effect_type"] == "combat.stagger"] == [0, 0]
+    assert [item["effect_type"] for item in traces[0]["typed_effects_emitted"]] == [
+        "presentation.animation",
+        "presentation.animation",
+    ]
+    assert [item["effect_id"] for item in traces[0]["typed_effects_emitted"]] == ["0:1:0", "0:2:0"]
 
     rerun = _execute_scenario(scenario)
     assert canonical_dumps(rerun[-1]) == canonical_dumps(traces)

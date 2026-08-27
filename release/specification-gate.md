@@ -12,6 +12,8 @@ The complete audit resolved deferred progression state, atomic-group scope, free
 
 The schema-completeness audit later identified one additional conflict between the §14.1 canonical transition field list and omitted empty forms in the readable design example. §14.1 now requires explicit `null`, empty arrays, zero cycle delta, and empty metadata in machine documents while preserving the listing as labeled non-normative shorthand. The machine-valid examples contain every canonical field.
 
+Reference-runtime work then exposed that three required transition operation fields lacked an execution position. §8.5, §14.6, §14.7, and §23.1 now define assignment targets, the complete operation order, source versus target ownership, initial-node entry behavior, effect defaults, and payload materialization timing.
+
 ## Required evidence
 
 - no unresolved normative contradictions

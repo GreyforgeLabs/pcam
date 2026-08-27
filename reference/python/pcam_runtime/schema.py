@@ -235,6 +235,26 @@ def _action_diagnostics(document: dict[str, Any]) -> list[Diagnostic]:
     predicates = document.get("predicates", {})
     transitions = document.get("transitions", [])
     initial_node = document.get("initial_node")
+    register_ids = set(document.get("registers", {}))
+
+    def check_assignments(assignments: object, path: str) -> None:
+        if not isinstance(assignments, list):
+            return
+        prefix = "action.register."
+        for assignment_index, assignment in enumerate(assignments):
+            if not isinstance(assignment, dict):
+                continue
+            target = assignment.get("target")
+            register_id = target.removeprefix(prefix) if isinstance(target, str) else ""
+            if not isinstance(target, str) or not target.startswith(prefix) or register_id not in register_ids:
+                diagnostics.append(
+                    Diagnostic(
+                        ResultCode.DEFINITION_REJECTED.value,
+                        f"{path}[{assignment_index}].target",
+                        f"assignment target must name a declared action register: {target!r}",
+                        PCAMFault.MISSING_REFERENCE.value,
+                    )
+                )
     if initial_node not in nodes:
         diagnostics.append(
             Diagnostic(
@@ -254,6 +274,8 @@ def _action_diagnostics(document: dict[str, Any]) -> list[Diagnostic]:
                     PCAMFault.MISSING_REFERENCE.value,
                 )
             )
+        check_assignments(node.get("entry_assignments"), f"$.nodes.{node_name}.entry_assignments")
+        check_assignments(node.get("exit_assignments"), f"$.nodes.{node_name}.exit_assignments")
         if node.get("mode") == "TIMED":
             duration = node.get("duration_quanta")
             if not isinstance(duration, int) or duration <= 0:
@@ -394,6 +416,8 @@ def _action_diagnostics(document: dict[str, Any]) -> list[Diagnostic]:
                         PCAMFault.STATE_INVARIANT_FAILURE.value,
                     )
                 )
+        for field in ("exit_assignments", "assignments", "entry_assignments"):
+            check_assignments(transition.get(field), f"$.transitions[{index}].{field}")
     for node_name, node in nodes.items():
         if node.get("mode") == "TIMED" and node_name not in completion_sources:
             diagnostics.append(

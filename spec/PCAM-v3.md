@@ -598,6 +598,8 @@ BOUNDED_LIST
 
 Dynamic collections MUST declare a maximum capacity and overflow policy.
 
+Core assignment targets use the exact form `action.register.<id>`. Parameters are immutable and MUST NOT be assignment targets. Assignments execute in document array order, and each assignment expression observes all preceding authoritative mutations. The assigned value MUST match the declared register type. Numeric values apply the register's declared minimum, maximum, and overflow policy before mutation. An invalid target, type, or bounded value produces a deterministic fault before that assignment mutates the register.
+
 ## 8.6 Host Imports
 
 A host import is a named immutable value supplied from the host snapshot for the current tick.
@@ -1253,13 +1255,19 @@ Moves the current action to `FAULTED` with a declared fault code.
 An accepted transition applies local operations in this order:
 
 1. Source-node exit assignments
-2. Source-node exit effects
-3. Transition assignments
-4. Transition effects
-5. Target-node entry assignments
-6. Target-node entry effects
+2. Transition `exit_assignments`
+3. Source-node exit effects
+4. Transition `assignments`
+5. Apply `cycle_delta`
+6. Transition effects
+7. Transition `entry_assignments`
+8. Apply target and node-entry state mutation
+9. Target-node entry assignments
+10. Target-node entry effects
 
 Assignments in each step observe results from preceding steps.
+
+All three transition assignment arrays target the source action instance, including when an `ACTION` or `CHILD_ACTION` target starts another instance. A `NODE` target applies step 8 by setting the target node, target step, and transition serial before target-node entry operations. `ACTION`, `CHILD_ACTION`, `TERMINATE`, and `FAULT` targets do not execute target-node entry operations on the source. A newly started action independently executes its initial-node entry operations as defined in §14.7.
 
 External effects remain deferred until the effect-commit stage.
 
@@ -1274,6 +1282,8 @@ transition_serial += 1
 ```
 
 Entering a terminal node terminates the action after entry operations are emitted.
+
+Starting an action enters its declared initial node and executes that node's entry assignments and effects before terminal-node termination is applied.
 
 ## 14.8 Explicit Skipping
 
@@ -2011,6 +2021,8 @@ payload
 reducer
 authoritative
 ```
+
+For node and transition effect declarations, an omitted target means the source action owner's entity identifier. A string target MUST be a Core action reference that resolves to an unsigned entity identifier. An omitted reducer is `ORDERED`. An omitted effect class is `PRESENTATION` for a non-authoritative effect and the effect type for an authoritative effect. Effect payload expressions are materialized at their emission position in the mutation order, and later state changes do not alter the materialized payload.
 
 ## 23.2 Effect Identifier
 

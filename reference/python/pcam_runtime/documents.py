@@ -8,7 +8,15 @@ from .errors import PCAMError, PCAMFault, ResultCode
 from .interactions import EffectTemplate, InteractionRule, RuleOperation, SemanticFact
 from .intents import Claim
 from .ledgers import HitPolicy
-from .model import ActionDefinition, FactBinding, NodeDefinition, PredicateDefinition, TransitionDefinition
+from .model import (
+    ActionDefinition,
+    Assignment,
+    DefinitionEffect,
+    FactBinding,
+    NodeDefinition,
+    PredicateDefinition,
+    TransitionDefinition,
+)
 from .schema import validate_document
 
 
@@ -20,6 +28,12 @@ def action_from_document(document: dict[str, Any]) -> ActionDefinition:
             mode=str(value["mode"]),  # type: ignore[arg-type]
             duration_quanta=value.get("duration_quanta"),
             seekable=bool(value["seekable"]),
+            entry_assignments=tuple(_assignment(item) for item in value["entry_assignments"]),
+            entry_effects=tuple(_definition_effect(item) for item in value["entry_effects"]),
+            exit_assignments=tuple(_assignment(item) for item in value["exit_assignments"]),
+            exit_effects=tuple(_definition_effect(item) for item in value["exit_effects"]),
+            tags=tuple(str(item) for item in value["tags"]),
+            extensions=dict(value["extensions"]),
         )
         for _, value in sorted(document["nodes"].items(), key=lambda item: item[0].encode("utf-8"))
     )
@@ -39,16 +53,10 @@ def action_from_document(document: dict[str, Any]) -> ActionDefinition:
         for parameter_id, value in document["parameters"].items()
         if "default" in value
     }
-    registers: dict[str, int] = {}
-    for register_id, value in document["registers"].items():
-        initial = value["initial"]
-        if type(initial) is not int:
-            raise PCAMError(
-                ResultCode.DEFINITION_REJECTED,
-                PCAMFault.STATE_INVARIANT_FAILURE,
-                f"reference slice supports integer register initials only: {register_id}",
-            )
-        registers[str(register_id)] = initial
+    registers = {
+        str(register_id): value["initial"]
+        for register_id, value in document["registers"].items()
+    }
     limits = document["limits"]
     return ActionDefinition(
         id=str(document["id"]),
@@ -65,6 +73,8 @@ def action_from_document(document: dict[str, Any]) -> ActionDefinition:
         extensions=dict(document["extensions"]),
         parameter_defaults=parameters,
         register_initials=registers,
+        parameter_declarations={str(key): dict(value) for key, value in document["parameters"].items()},
+        register_declarations={str(key): dict(value) for key, value in document["registers"].items()},
         initial_node_id=str(document["initial_node"]),
     )
 
@@ -150,6 +160,28 @@ def _transition(value: dict[str, Any]) -> TransitionDefinition:
         event_type=event_match.get("event_type") if isinstance(event_match, dict) else None,
         consume_policy=str(value.get("consume_policy", "ON_ACCEPT")),  # type: ignore[arg-type]
         claims=tuple(_claim(item) for item in value.get("claims", ())),
+        exit_assignments=tuple(_assignment(item) for item in value["exit_assignments"]),
+        assignments=tuple(_assignment(item) for item in value["assignments"]),
+        entry_assignments=tuple(_assignment(item) for item in value["entry_assignments"]),
+        definition_effects=tuple(_definition_effect(item) for item in value["effects"]),
+        cycle_delta=int(value["cycle_delta"]),
+        metadata=dict(value["metadata"]),
+    )
+
+
+def _assignment(value: dict[str, Any]) -> Assignment:
+    return Assignment(target=str(value["target"]), value=dict(value["value"]))
+
+
+def _definition_effect(value: dict[str, Any]) -> DefinitionEffect:
+    return DefinitionEffect(
+        effect_type=str(value["effect_type"]),
+        effect_class=value.get("effect_class"),
+        authoritative=bool(value["authoritative"]),
+        reducer=value.get("reducer"),
+        target=value.get("target"),
+        priority=int(value.get("priority", 0)),
+        payload=value["payload"],
     )
 
 

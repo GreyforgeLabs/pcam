@@ -262,12 +262,35 @@ class RuntimeProfile:
 
 
 @dataclass(frozen=True)
+class Assignment:
+    target: str
+    value: dict[str, object]
+
+
+@dataclass(frozen=True)
+class DefinitionEffect:
+    effect_type: str
+    authoritative: bool
+    payload: object
+    effect_class: str | None = None
+    reducer: str | None = None
+    target: str | int | None = None
+    priority: int = 0
+
+
+@dataclass(frozen=True)
 class NodeDefinition:
     id: str
     mode: Literal["TIMED", "EVENT_DRIVEN", "TERMINAL"] = "EVENT_DRIVEN"
     duration_quanta: int | None = None
     seekable: bool = False
     predicates: tuple[str, ...] = ()
+    entry_assignments: tuple[Assignment, ...] = ()
+    entry_effects: tuple[DefinitionEffect, ...] = ()
+    exit_assignments: tuple[Assignment, ...] = ()
+    exit_effects: tuple[DefinitionEffect, ...] = ()
+    tags: tuple[str, ...] = ()
+    extensions: dict[str, object] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -300,6 +323,12 @@ class TransitionDefinition:
     consume_policy: Literal["ON_ACCEPT", "ON_ATTEMPT", "NEVER"] = "ON_ACCEPT"
     claims: tuple[Claim, ...] = ()
     effects: tuple["Effect", ...] = ()
+    exit_assignments: tuple[Assignment, ...] = ()
+    assignments: tuple[Assignment, ...] = ()
+    entry_assignments: tuple[Assignment, ...] = ()
+    definition_effects: tuple[DefinitionEffect, ...] = ()
+    cycle_delta: int = 0
+    metadata: dict[str, object] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -342,7 +371,9 @@ class ActionDefinition:
     metadata: dict[str, object] = field(default_factory=dict)
     extensions: dict[str, object] = field(default_factory=dict)
     parameter_defaults: dict[str, object] = field(default_factory=dict)
-    register_initials: dict[str, int] = field(default_factory=dict)
+    register_initials: dict[str, object] = field(default_factory=dict)
+    parameter_declarations: dict[str, dict[str, object]] = field(default_factory=dict)
+    register_declarations: dict[str, dict[str, object]] = field(default_factory=dict)
     initial_node_id: str | None = None
 
     @property
@@ -356,6 +387,8 @@ class ActionDefinition:
             "extensions": self.extensions,
             "parameter_defaults": self.parameter_defaults,
             "register_initials": self.register_initials,
+            "parameter_declarations": self.parameter_declarations,
+            "register_declarations": self.register_declarations,
             "initial_node": self.initial_node_id or self.nodes[0].id,
             "nodes": [node.__dict__ for node in self.nodes],
             "predicates": [predicate.__dict__ for predicate in self.predicates],
@@ -374,6 +407,7 @@ class ActionDefinition:
                 {
                     **transition.__dict__,
                     "effects": [effect.__dict__ for effect in transition.effects],
+                    "definition_effects": [effect.__dict__ for effect in transition.definition_effects],
                 }
                 for transition in self.transitions
             ],
@@ -435,6 +469,18 @@ def validate_definition(definition: ActionDefinition) -> None:
         raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.STATE_INVARIANT_FAILURE, definition.id)
     node_ids = {node.id for node in definition.nodes}
     predicate_ids = {predicate.id for predicate in definition.predicates}
+    register_ids = set(definition.register_initials)
+
+    def validate_assignments(assignments: tuple[Assignment, ...]) -> None:
+        prefix = "action.register."
+        for assignment in assignments:
+            register_id = assignment.target.removeprefix(prefix)
+            if not assignment.target.startswith(prefix) or register_id not in register_ids:
+                raise PCAMError(
+                    ResultCode.DEFINITION_REJECTED,
+                    PCAMFault.MISSING_REFERENCE,
+                    assignment.target,
+                )
     if not definition.nodes:
         raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.STATE_INVARIANT_FAILURE, "action has no nodes")
     if definition.initial_node_id is not None and definition.initial_node_id not in node_ids:
@@ -444,6 +490,8 @@ def validate_definition(definition: ActionDefinition) -> None:
             raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.STATE_INVARIANT_FAILURE, node.id)
         if node.mode != "TIMED" and node.duration_quanta is not None:
             raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.STATE_INVARIANT_FAILURE, node.id)
+        validate_assignments(node.entry_assignments)
+        validate_assignments(node.exit_assignments)
     fact_ids: set[str] = set()
     for binding in definition.semantic_facts:
         if binding.fact.fact_id in fact_ids:
@@ -453,6 +501,11 @@ def validate_definition(definition: ActionDefinition) -> None:
             raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.MISSING_REFERENCE, binding.when_predicate)
     seen_priorities: set[tuple[str, str, int]] = set()
     for transition in definition.transitions:
+        if transition.cycle_delta < 0:
+            raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.INTEGER_OVERFLOW, transition.id)
+        validate_assignments(transition.exit_assignments)
+        validate_assignments(transition.assignments)
+        validate_assignments(transition.entry_assignments)
         if transition.evaluation_point == "AFTER_QUANTUM" and transition.claims:
             raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.STATE_INVARIANT_FAILURE, transition.id)
         if transition.source_node not in node_ids:
