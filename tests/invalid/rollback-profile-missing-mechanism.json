@@ -1,7 +1,7 @@
 {
   "pcam_version": "3.0",
   "kind": "runtime_profile",
-  "id": "greyforge.test.runtime",
+  "id": "greyforge.test.invalid.rollback",
   "revision": 1,
   "fault_policy": "ABORT_SIMULATION",
   "limits": {
@@ -22,8 +22,9 @@
   "rng_profiles": ["pcam.pcg32.v1"],
   "network_profiles": [
     {
-      "id": "pcam.local.v1",
-      "topology": "LOCAL_DETERMINISTIC"
+      "id": "pcam.rollback.incomplete",
+      "topology": "ROLLBACK",
+      "predictor_id": "pcam.predict.hold-last"
     }
   ],
   "extensions": {}

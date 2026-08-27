@@ -18,6 +18,9 @@ def test_negative_schema_vectors_are_rejected_with_stable_faults():
     wrapping = validate_document(load_document(ROOT / "tests" / "invalid" / "pcam24-wrapping-range.json"))
     assert wrapping[0].fault == "INVALID_PROFILE_RANGE"
 
+    rollback = validate_document(load_document(ROOT / "tests" / "invalid" / "rollback-profile-missing-mechanism.json"))
+    assert rollback[0].code == "SCHEMA_VALIDATION_FAILED"
+
 
 def test_runtime_snapshot_matches_snapshot_schema():
     executor = TickExecutor((ActionDefinition("SNAPSHOT", 1, 0, (NodeDefinition("RUN"),)),))

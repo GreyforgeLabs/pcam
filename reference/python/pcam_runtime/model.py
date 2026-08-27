@@ -6,13 +6,124 @@ import re
 from dataclasses import dataclass, field
 from typing import Literal
 
-from .canonical import canonical_hash
+from .canonical import canonical_dumps, canonical_hash
 from .errors import PCAMError, PCAMFault, ResultCode
 from .interactions import SemanticFact
 from .intents import Claim
 from .ledgers import HitPolicy
 
 CANONICAL_ID = re.compile(r"^[A-Za-z][A-Za-z0-9_.:-]{0,127}$")
+
+
+@dataclass(frozen=True)
+class NetworkProfile:
+    id: str = "pcam.local.v1"
+    topology: Literal[
+        "LOCAL_DETERMINISTIC",
+        "LOCKSTEP",
+        "ROLLBACK",
+        "SERVER_AUTHORITATIVE_PREDICTION",
+    ] = "LOCAL_DETERMINISTIC"
+    input_availability_policy: Literal["WAIT", "PREDICT"] | None = None
+    predictor_id: str | None = None
+    digest_interval_ticks: int | None = None
+    desynchronization_policy: str | None = None
+    snapshot_interval_ticks: int | None = None
+    retained_history_ticks: int | None = None
+    effect_reconciliation_policy: str | None = None
+    correction_policy: str | None = None
+    latency_mechanism: str | None = None
+    max_latency_compensation_ticks: int | None = None
+
+    def __post_init__(self) -> None:
+        if not CANONICAL_ID.fullmatch(self.id):
+            raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.INVALID_CANONICAL_IDENTIFIER, self.id)
+        if self.topology not in {
+            "LOCAL_DETERMINISTIC",
+            "LOCKSTEP",
+            "ROLLBACK",
+            "SERVER_AUTHORITATIVE_PREDICTION",
+        }:
+            raise PCAMError(
+                ResultCode.DEFINITION_REJECTED,
+                PCAMFault.STATE_INVARIANT_FAILURE,
+                f"unknown networking topology: {self.topology}",
+            )
+        if self.input_availability_policy not in {None, "WAIT", "PREDICT"}:
+            raise PCAMError(
+                ResultCode.DEFINITION_REJECTED,
+                PCAMFault.STATE_INVARIANT_FAILURE,
+                f"unknown input availability policy: {self.input_availability_policy}",
+            )
+        identifiers = (
+            self.predictor_id,
+            self.desynchronization_policy,
+            self.effect_reconciliation_policy,
+            self.correction_policy,
+            self.latency_mechanism,
+        )
+        for identifier in identifiers:
+            if identifier is not None and not CANONICAL_ID.fullmatch(identifier):
+                raise PCAMError(
+                    ResultCode.DEFINITION_REJECTED,
+                    PCAMFault.INVALID_CANONICAL_IDENTIFIER,
+                    identifier,
+                )
+        positive_fields = (
+            self.digest_interval_ticks,
+            self.snapshot_interval_ticks,
+            self.retained_history_ticks,
+        )
+        if any(value is not None and value <= 0 for value in positive_fields):
+            raise PCAMError(
+                ResultCode.DEFINITION_REJECTED,
+                PCAMFault.STATE_INVARIANT_FAILURE,
+                self.id,
+            )
+        if self.max_latency_compensation_ticks is not None and self.max_latency_compensation_ticks < 0:
+            raise PCAMError(
+                ResultCode.DEFINITION_REJECTED,
+                PCAMFault.STATE_INVARIANT_FAILURE,
+                self.id,
+            )
+        if self.topology == "LOCAL_DETERMINISTIC":
+            return
+        if self.latency_mechanism is None or self.max_latency_compensation_ticks is None:
+            raise PCAMError(
+                ResultCode.DEFINITION_REJECTED,
+                PCAMFault.STATE_INVARIANT_FAILURE,
+                f"{self.id}: network latency mechanism and limit are required",
+            )
+        if self.topology == "LOCKSTEP":
+            if (
+                self.input_availability_policy is None
+                or self.digest_interval_ticks is None
+                or self.desynchronization_policy is None
+                or (self.input_availability_policy == "PREDICT" and self.predictor_id is None)
+            ):
+                raise PCAMError(
+                    ResultCode.DEFINITION_REJECTED,
+                    PCAMFault.STATE_INVARIANT_FAILURE,
+                    f"{self.id}: incomplete lockstep declaration",
+                )
+        elif self.topology == "ROLLBACK":
+            if (
+                self.predictor_id is None
+                or self.snapshot_interval_ticks is None
+                or self.retained_history_ticks is None
+                or self.effect_reconciliation_policy is None
+            ):
+                raise PCAMError(
+                    ResultCode.DEFINITION_REJECTED,
+                    PCAMFault.STATE_INVARIANT_FAILURE,
+                    f"{self.id}: incomplete rollback declaration",
+                )
+        elif self.topology == "SERVER_AUTHORITATIVE_PREDICTION" and self.correction_policy is None:
+            raise PCAMError(
+                ResultCode.DEFINITION_REJECTED,
+                PCAMFault.STATE_INVARIANT_FAILURE,
+                f"{self.id}: correction policy is required",
+            )
 
 
 @dataclass(frozen=True)
@@ -31,6 +142,111 @@ class RuntimeProfile:
     max_snapshot_size_bytes: int = 262144
     max_extension_state_bytes: int = 4096
     fault_policy: str = "ABORT_SIMULATION"
+    network_profiles: tuple[NetworkProfile, ...] = (NetworkProfile(),)
+    id: str = "pcam.reference.runtime.v1"
+    revision: int = 1
+    rng_profiles: tuple[str, ...] = ("pcam.pcg32.v1",)
+    extensions: dict[str, object] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if self.fault_policy not in {"ABORT_SIMULATION", "FAULT_ACTION", "FAULT_ENTITY"}:
+            raise PCAMError(
+                ResultCode.DEFINITION_REJECTED,
+                PCAMFault.STATE_INVARIANT_FAILURE,
+                f"unknown fault policy: {self.fault_policy}",
+            )
+        if not CANONICAL_ID.fullmatch(self.id):
+            raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.INVALID_CANONICAL_IDENTIFIER, self.id)
+        if self.revision < 0:
+            raise PCAMError(
+                ResultCode.DEFINITION_REJECTED,
+                PCAMFault.STATE_INVARIANT_FAILURE,
+                "runtime profile revision must be non-negative",
+            )
+        limit_values = (
+            self.max_actions_per_entity,
+            self.max_action_nesting_depth,
+            self.max_children_per_action,
+            self.max_quanta_per_action_per_tick,
+            self.max_internal_transitions_per_action_per_tick,
+            self.max_buffer_entries_per_action,
+            self.max_pending_events_per_entity,
+            self.max_candidates_per_tick,
+            self.max_effects_per_tick,
+            self.max_redirects_per_candidate,
+            self.max_definition_size_bytes,
+            self.max_snapshot_size_bytes,
+            self.max_extension_state_bytes,
+        )
+        if any(value < 0 for value in limit_values):
+            raise PCAMError(
+                ResultCode.DEFINITION_REJECTED,
+                PCAMFault.STATE_INVARIANT_FAILURE,
+                "runtime limits must be non-negative",
+            )
+        if not self.network_profiles:
+            raise PCAMError(
+                ResultCode.DEFINITION_REJECTED,
+                PCAMFault.STATE_INVARIANT_FAILURE,
+                "at least one networking profile is required",
+            )
+        if not self.rng_profiles or len(self.rng_profiles) != len(set(self.rng_profiles)):
+            raise PCAMError(
+                ResultCode.DEFINITION_REJECTED,
+                PCAMFault.STATE_INVARIANT_FAILURE,
+                "RNG profile identifiers must be non-empty and unique",
+            )
+        for rng_profile in self.rng_profiles:
+            if not CANONICAL_ID.fullmatch(rng_profile):
+                raise PCAMError(
+                    ResultCode.DEFINITION_REJECTED,
+                    PCAMFault.INVALID_CANONICAL_IDENTIFIER,
+                    rng_profile,
+                )
+        profile_ids = [profile.id for profile in self.network_profiles]
+        if len(profile_ids) != len(set(profile_ids)):
+            raise PCAMError(
+                ResultCode.DEFINITION_REJECTED,
+                PCAMFault.STATE_INVARIANT_FAILURE,
+                "network profile identifiers must be unique",
+            )
+        if self.extensions and len(canonical_dumps(self.extensions)) > self.max_extension_state_bytes:
+            raise PCAMError(
+                ResultCode.DEFINITION_REJECTED,
+                PCAMFault.STATE_INVARIANT_FAILURE,
+                "runtime profile extension state exceeds its declared limit",
+            )
+
+    def to_canonical(self) -> dict[str, object]:
+        return {
+            "pcam_version": "3.0",
+            "kind": "runtime_profile",
+            "id": self.id,
+            "revision": self.revision,
+            "fault_policy": self.fault_policy,
+            "limits": {
+                "max_actions_per_entity": self.max_actions_per_entity,
+                "max_action_nesting_depth": self.max_action_nesting_depth,
+                "max_children_per_action": self.max_children_per_action,
+                "max_quanta_per_action_per_tick": self.max_quanta_per_action_per_tick,
+                "max_internal_transitions_per_action_per_tick": self.max_internal_transitions_per_action_per_tick,
+                "max_buffer_entries_per_action": self.max_buffer_entries_per_action,
+                "max_pending_events_per_entity": self.max_pending_events_per_entity,
+                "max_candidates_per_tick": self.max_candidates_per_tick,
+                "max_effects_per_tick": self.max_effects_per_tick,
+                "max_redirects_per_candidate": self.max_redirects_per_candidate,
+                "max_definition_size_bytes": self.max_definition_size_bytes,
+                "max_snapshot_size_bytes": self.max_snapshot_size_bytes,
+                "max_extension_state_bytes": self.max_extension_state_bytes,
+            },
+            "rng_profiles": sorted(self.rng_profiles),
+            "network_profiles": sorted(self.network_profiles, key=lambda profile: profile.id),
+            "extensions": self.extensions,
+        }
+
+    @property
+    def profile_hash(self) -> str:
+        return canonical_hash(self.to_canonical())
 
 
 @dataclass(frozen=True)

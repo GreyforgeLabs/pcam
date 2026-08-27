@@ -3,7 +3,7 @@
   "$id": "https://schemas.greyforge.tech/pcam/v3/runtime-profile.schema.json",
   "title": "PCAM v3 runtime profile",
   "type": "object",
-  "required": ["pcam_version", "kind", "id", "revision", "fault_policy", "limits", "rng_profiles", "extensions"],
+  "required": ["pcam_version", "kind", "id", "revision", "fault_policy", "limits", "rng_profiles", "network_profiles", "extensions"],
   "properties": {
     "pcam_version": {"const": "3.0"},
     "kind": {"const": "runtime_profile"},
@@ -35,6 +35,11 @@
       "items": {"$ref": "common.schema.json#/$defs/identifier"},
       "minItems": 1,
       "uniqueItems": true
+    },
+    "network_profiles": {
+      "type": "array",
+      "items": {"$ref": "network-profile.schema.json"},
+      "minItems": 1
     },
     "extensions": {"$ref": "common.schema.json#/$defs/extensionMap"}
   },

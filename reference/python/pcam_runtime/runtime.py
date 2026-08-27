@@ -54,7 +54,7 @@ class TickExecutor:
                     "effect_registry_hash": canonical_hash(self.effect_registry),
                     "extension_registry_hash": canonical_hash([]),
                     "interaction_profile_hash": canonical_hash(self.interaction_rules),
-                    "runtime_profile_hash": canonical_hash(self.profile),
+                    "runtime_profile_hash": self.profile.profile_hash,
                 }
                 for definition in sorted(definitions, key=lambda item: item.id)
             ]

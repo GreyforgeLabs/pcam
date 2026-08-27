@@ -26,8 +26,8 @@ This matrix preserves the complete target. A row is complete only when its named
 | §26 RNG | PCG32 vectors, snapshot state, restore vectors | partial: canonical PCG32 vector and snapshot restore |
 | §27 canonicalization and hashes | PCAM-CJ1 corpus and exact digest vectors | partial: Python and independent Rust serializers agree on shared exact-byte and SHA-256 vectors, including a real definition; wider hostile and cross-architecture corpora remain open |
 | §28 save and restore | schema, round-trip, continuation equivalence | partial: slice round-trip and correction equivalence |
-| §29 networking | declared local, lockstep, rollback, and server prediction profile artifacts | missing |
-| §30-31 faults and limits | stable fault codes and every declared bound tested | partial: full core runtime fault enum and several bounds including per-entity actions; exhaustive bound enforcement pending |
+| §29 networking | declared local, lockstep, rollback, and server prediction profile artifacts | partial: machine-readable topology declarations, required mechanism/limit fields, canonical profile hashing, and rejection vectors; executable network services remain open |
+| §30-31 faults and limits | stable fault codes and every declared bound tested | partial: full core runtime fault enum, validated fault-policy declaration, canonically hashed required limits, extension-state bound, and several runtime bounds; policy execution and exhaustive bound enforcement remain open |
 | §32 PCAM-24 | schema, compiler, lifecycle, projection, migration warnings | partial: schema and explicit TERMINATE/LOOP/CLAMP compiler |
 | §33-34 examples | examples validate and execute with expected trace/digests | missing |
 | §35 tracing | complete deterministic trace contract and canonicalized vectors | missing |

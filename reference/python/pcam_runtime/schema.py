@@ -97,6 +97,8 @@ def _semantic_diagnostics(kind: str, document: dict[str, Any]) -> list[Diagnosti
         return _action_diagnostics(document)
     if kind == "interaction_profile":
         return _interaction_diagnostics(document)
+    if kind == "runtime_profile":
+        return _runtime_profile_diagnostics(document)
     if kind == "pcam24":
         return _pcam24_diagnostics(document)
     return []
@@ -208,6 +210,24 @@ def _interaction_diagnostics(document: dict[str, Any]) -> list[Diagnostic]:
                 )
             )
         seen.add(key)
+    return diagnostics
+
+
+def _runtime_profile_diagnostics(document: dict[str, Any]) -> list[Diagnostic]:
+    diagnostics: list[Diagnostic] = []
+    seen: set[str] = set()
+    for index, profile in enumerate(document.get("network_profiles", [])):
+        profile_id = str(profile.get("id"))
+        if profile_id in seen:
+            diagnostics.append(
+                Diagnostic(
+                    ResultCode.DEFINITION_REJECTED.value,
+                    f"$.network_profiles[{index}].id",
+                    "network profile identifier must be unique",
+                    PCAMFault.DUPLICATE_IDENTIFIER.value,
+                )
+            )
+        seen.add(profile_id)
     return diagnostics
 
 

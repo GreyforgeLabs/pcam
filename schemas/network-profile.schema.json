@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.greyforge.tech/pcam/v3/network-profile.schema.json",
+  "title": "PCAM v3 network profile declaration",
+  "type": "object",
+  "required": ["id", "topology"],
+  "properties": {
+    "id": {"$ref": "common.schema.json#/$defs/identifier"},
+    "topology": {
+      "enum": [
+        "LOCAL_DETERMINISTIC",
+        "LOCKSTEP",
+        "ROLLBACK",
+        "SERVER_AUTHORITATIVE_PREDICTION"
+      ]
+    },
+    "input_availability_policy": {"enum": ["WAIT", "PREDICT"]},
+    "predictor_id": {"$ref": "common.schema.json#/$defs/identifier"},
+    "digest_interval_ticks": {"type": "integer", "minimum": 1, "maximum": 18446744073709551615},
+    "desynchronization_policy": {"$ref": "common.schema.json#/$defs/identifier"},
+    "snapshot_interval_ticks": {"type": "integer", "minimum": 1, "maximum": 18446744073709551615},
+    "retained_history_ticks": {"type": "integer", "minimum": 1, "maximum": 18446744073709551615},
+    "effect_reconciliation_policy": {"$ref": "common.schema.json#/$defs/identifier"},
+    "correction_policy": {"$ref": "common.schema.json#/$defs/identifier"},
+    "latency_mechanism": {"$ref": "common.schema.json#/$defs/identifier"},
+    "max_latency_compensation_ticks": {"type": "integer", "minimum": 0, "maximum": 18446744073709551615}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"topology": {"const": "LOCKSTEP"}}, "required": ["topology"]},
+      "then": {
+        "required": [
+          "input_availability_policy",
+          "digest_interval_ticks",
+          "desynchronization_policy",
+          "latency_mechanism",
+          "max_latency_compensation_ticks"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "topology": {"const": "LOCKSTEP"},
+          "input_availability_policy": {"const": "PREDICT"}
+        },
+        "required": ["topology", "input_availability_policy"]
+      },
+      "then": {"required": ["predictor_id"]}
+    },
+    {
+      "if": {"properties": {"topology": {"const": "ROLLBACK"}}, "required": ["topology"]},
+      "then": {
+        "required": [
+          "predictor_id",
+          "snapshot_interval_ticks",
+          "retained_history_ticks",
+          "effect_reconciliation_policy",
+          "latency_mechanism",
+          "max_latency_compensation_ticks"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {"topology": {"const": "SERVER_AUTHORITATIVE_PREDICTION"}},
+        "required": ["topology"]
+      },
+      "then": {
+        "required": [
+          "correction_policy",
+          "latency_mechanism",
+          "max_latency_compensation_ticks"
+        ]
+      }
+    }
+  ],
+  "additionalProperties": false
+}

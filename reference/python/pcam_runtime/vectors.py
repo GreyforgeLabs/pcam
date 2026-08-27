@@ -13,8 +13,10 @@ from .model import (
     Contact,
     FactBinding,
     HostSnapshot,
+    NetworkProfile,
     NodeDefinition,
     PredicateDefinition,
+    RuntimeProfile,
     TickInput,
     TransitionDefinition,
 )
@@ -41,11 +43,15 @@ def run_vector(document: dict[str, Any], max_ticks: int = 10_000) -> VectorRun:
         raise ValueError("runtime vector tick count exceeds limit")
     definitions = tuple(_definition(item) for item in document.get("definitions", []))
     rules = tuple(_rule(item) for item in document.get("interaction_rules", []))
+    profile_document = document.get("runtime_profile")
+    if not isinstance(profile_document, dict):
+        raise ValueError("runtime vector requires an explicit runtime_profile")
+    profile = _runtime_profile(profile_document)
     registry = {
         str(effect_type): (str(value[0]), int(value[1]))
         for effect_type, value in document.get("effect_registry", {}).items()
     }
-    executor = TickExecutor(definitions, interaction_rules=rules, effect_registry=registry or None)
+    executor = TickExecutor(definitions, profile, interaction_rules=rules, effect_registry=registry or None)
     initial = document.get("initial_state", {})
     state = executor.initial_state(
         resource_banks={str(key): dict(value) for key, value in initial.get("resource_banks", {}).items()},
@@ -91,6 +97,48 @@ def rollback_vector(document: dict[str, Any]) -> tuple[SimulationState, Simulati
         until_tick=int(rollback.get("until_tick", len(document.get("ticks", [])))),
     )
     return direct.final_state, corrected, tuple(traces)
+
+
+def _runtime_profile(value: dict[str, Any]) -> RuntimeProfile:
+    limits = value["limits"]
+    return RuntimeProfile(
+        max_actions_per_entity=int(limits["max_actions_per_entity"]),
+        max_action_nesting_depth=int(limits["max_action_nesting_depth"]),
+        max_children_per_action=int(limits["max_children_per_action"]),
+        max_quanta_per_action_per_tick=int(limits["max_quanta_per_action_per_tick"]),
+        max_internal_transitions_per_action_per_tick=int(limits["max_internal_transitions_per_action_per_tick"]),
+        max_buffer_entries_per_action=int(limits["max_buffer_entries_per_action"]),
+        max_pending_events_per_entity=int(limits["max_pending_events_per_entity"]),
+        max_candidates_per_tick=int(limits["max_candidates_per_tick"]),
+        max_effects_per_tick=int(limits["max_effects_per_tick"]),
+        max_redirects_per_candidate=int(limits["max_redirects_per_candidate"]),
+        max_definition_size_bytes=int(limits["max_definition_size_bytes"]),
+        max_snapshot_size_bytes=int(limits["max_snapshot_size_bytes"]),
+        max_extension_state_bytes=int(limits["max_extension_state_bytes"]),
+        fault_policy=str(value["fault_policy"]),
+        network_profiles=tuple(_network_profile(item) for item in value["network_profiles"]),
+        id=str(value["id"]),
+        revision=int(value["revision"]),
+        rng_profiles=tuple(str(item) for item in value["rng_profiles"]),
+        extensions=dict(value.get("extensions", {})),
+    )
+
+
+def _network_profile(value: dict[str, Any]) -> NetworkProfile:
+    return NetworkProfile(
+        id=str(value["id"]),
+        topology=str(value["topology"]),  # type: ignore[arg-type]
+        input_availability_policy=value.get("input_availability_policy"),
+        predictor_id=value.get("predictor_id"),
+        digest_interval_ticks=value.get("digest_interval_ticks"),
+        desynchronization_policy=value.get("desynchronization_policy"),
+        snapshot_interval_ticks=value.get("snapshot_interval_ticks"),
+        retained_history_ticks=value.get("retained_history_ticks"),
+        effect_reconciliation_policy=value.get("effect_reconciliation_policy"),
+        correction_policy=value.get("correction_policy"),
+        latency_mechanism=value.get("latency_mechanism"),
+        max_latency_compensation_ticks=value.get("max_latency_compensation_ticks"),
+    )
 
 
 def _definition(value: dict[str, Any]) -> ActionDefinition:

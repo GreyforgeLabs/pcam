@@ -1,6 +1,36 @@
 {
   "pcam_vector_version": "1",
   "kind": "runtime_vector",
+  "runtime_profile": {
+    "pcam_version": "3.0",
+    "kind": "runtime_profile",
+    "id": "pcam.reference.runtime.v1",
+    "revision": 1,
+    "fault_policy": "ABORT_SIMULATION",
+    "limits": {
+      "max_actions_per_entity": 8,
+      "max_action_nesting_depth": 4,
+      "max_children_per_action": 4,
+      "max_quanta_per_action_per_tick": 8,
+      "max_internal_transitions_per_action_per_tick": 8,
+      "max_buffer_entries_per_action": 8,
+      "max_pending_events_per_entity": 8,
+      "max_candidates_per_tick": 32,
+      "max_effects_per_tick": 32,
+      "max_redirects_per_candidate": 4,
+      "max_definition_size_bytes": 65536,
+      "max_snapshot_size_bytes": 262144,
+      "max_extension_state_bytes": 4096
+    },
+    "rng_profiles": ["pcam.pcg32.v1"],
+    "network_profiles": [
+      {
+        "id": "pcam.local.v1",
+        "topology": "LOCAL_DETERMINISTIC"
+      }
+    ],
+    "extensions": {}
+  },
   "definitions": [
     {
       "id": "TYPED_STRIKE",
@@ -90,7 +120,7 @@
     {"inputs": [], "contacts": []}
   ],
   "expected": {
-    "final_state_digest": "88815ed150f4bb8ed38bf3f15556851ef17fae01a263243e11541b0e3d12e044"
+    "final_state_digest": "314e19752970554960ea8e1d38c41fe421e97851a2532a05ecbc49b919c783ac"
   },
   "rollback": {
     "corrected_tick": 0,
