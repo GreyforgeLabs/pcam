@@ -19,8 +19,8 @@ This matrix preserves the complete target. A row is complete only when its named
 | §15-16 intents, claims, slots | atomic arbitration and replacement vectors | partial: permutation-invariant atomic claim arbitration and ID allocation; replacement integration and group semantics open |
 | §17 parent-child | lifecycle, freeze, result event, nesting, restore vectors | missing |
 | §18 freezes | domains, timing, expiry, stacking, accrual vectors | partial: runtime progression, transition, capture, and expiry domains plus provisional stacking; normative gap open |
-| §19-22 facts, candidates, interactions, ledgers | frozen snapshot, typed stages, redirection, receipt vectors | partial: pure five-stage resolver plus all six ledger-key policies, receipt timing, cooldown, and provisional visibility primitives; runtime integration and defense selection remain open |
-| §23 effects | identifiers, canonical order, reducers, exclusive/custom vectors | partial: all core reducer primitives, canonical order, and exclusive rejection traces |
+| §19-22 facts, candidates, interactions, ledgers | frozen snapshot, typed stages, redirection, receipt vectors | partial: runtime-integrated semantic facts, five-stage resolver, all ledger policies, provisional receipts, reducers, and defense ambiguity fault; defense-selection semantics remain open |
+| §23 effects | identifiers, canonical order, reducers, exclusive/custom vectors | partial: runtime-integrated authoritative registry commits plus all core reducer primitives and rejection traces |
 | §24 tick pipeline | deterministic twelve-stage trace vectors | partial: ordered vertical-slice trace |
 | §25 events | delivery order, modes, and lifetime vectors | missing |
 | §26 RNG | PCG32 vectors, snapshot state, restore vectors | partial: canonical PCG32 vector and snapshot restore |

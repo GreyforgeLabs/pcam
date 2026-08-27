@@ -6,16 +6,31 @@ from dataclasses import replace
 
 from .buffers import BufferEntry, apply_consumption, capture_entry, end_tick as expire_buffers, select_entry
 from .canonical import canonical_hash
+from .effects import EffectEnvelope, reduce_effects
 from .errors import PCAMError, PCAMFault, ResultCode
 from .freezes import end_tick as expire_freezes, is_frozen, progression_accrual
-from .model import ActionDefinition, Contact, Effect, HostSnapshot, RuntimeProfile, TickInput, TransitionDefinition, validate_definition
+from .interactions import InteractionCandidate, InteractionRule, SemanticFact, resolve_candidate, validate_rules
+from .ledgers import LedgerContext, is_eligible as ledger_is_eligible, receipt_required, write_receipt
+from .model import ActionDefinition, Contact, Effect, FactBinding, HostSnapshot, RuntimeProfile, TickInput, TransitionDefinition, validate_definition
 from .numeric import apply_u64
 from .state import ActionInstance, SimulationState
 
 
 class TickExecutor:
-    def __init__(self, definitions: tuple[ActionDefinition, ...], profile: RuntimeProfile | None = None):
+    def __init__(
+        self,
+        definitions: tuple[ActionDefinition, ...],
+        profile: RuntimeProfile | None = None,
+        interaction_rules: tuple[InteractionRule, ...] = (),
+        effect_registry: dict[str, tuple[str, int]] | None = None,
+    ):
         self.profile = profile or RuntimeProfile()
+        validate_rules(interaction_rules)
+        self.interaction_rules = interaction_rules
+        self.effect_registry = effect_registry or {
+            "combat.damage": ("hp", -1),
+            "combat.stagger": ("stagger", 1),
+        }
         for definition in definitions:
             validate_definition(definition)
         self.definitions_by_id = {definition.id: definition for definition in definitions}
@@ -25,9 +40,9 @@ class TickExecutor:
                 {
                     "definition_hash": definition.definition_hash,
                     "definition_id": definition.id,
-                    "effect_registry_hash": canonical_hash(["RESOURCE_DELTA", "EVENT"]),
+                    "effect_registry_hash": canonical_hash(self.effect_registry),
                     "extension_registry_hash": canonical_hash([]),
-                    "interaction_profile_hash": canonical_hash({"ledger": "ONCE_PER_ACTION_INSTANCE"}),
+                    "interaction_profile_hash": canonical_hash(self.interaction_rules),
                     "runtime_profile_hash": canonical_hash(self.profile),
                 }
                 for definition in sorted(definitions, key=lambda item: item.id)
@@ -57,9 +72,11 @@ class TickExecutor:
         trace: dict[str, object] = {"tick": state.tick, "stages": []}
         work = state
         effects: list[Effect] = []
+        typed_effects: list[EffectEnvelope] = []
+        canonical_contacts = self._canonical_contacts(host.contacts)
 
         self._stage(trace, 1, "tick_start_snapshot")
-        work = replace(work, host_state={"contacts": [contact.__dict__ for contact in host.contacts], "imports": host.imports})
+        work = replace(work, host_state={"contacts": [contact.__dict__ for contact in canonical_contacts], "imports": host.imports})
 
         self._stage(trace, 2, "input_ingestion")
         start_inputs = self._eligible_inputs(work.tick, inputs)
@@ -95,13 +112,45 @@ class TickExecutor:
             effects.extend(emitted)
 
         self._stage(trace, 7, "semantic_snapshot")
-        work, predicate_changes, facts = self._semantic_snapshot(work)
+        work, predicate_changes, facts, active_bindings = self._semantic_snapshot(work)
         trace["predicate_changes"] = predicate_changes
         trace["active_semantic_facts"] = facts
 
         self._stage(trace, 8, "contact_and_candidate_generation")
-        candidates = sorted(
-            host.contacts,
+        candidates = list(canonical_contacts)
+        trace["candidate_order"] = [candidate.candidate_id for candidate in candidates]
+
+        self._stage(trace, 9, "interaction_resolution")
+        work, interaction_effects, resolved_typed_effects, receipts = self._resolve_interactions(
+            work,
+            candidates,
+            active_bindings,
+        )
+        effects.extend(interaction_effects)
+        typed_effects.extend(resolved_typed_effects)
+        trace["decision_record_mutations"] = receipts
+
+        self._stage(trace, 10, "effect_reduction_and_commit")
+        work, reduction_trace = self._commit_effects(work, effects, typed_effects)
+        trace["effects_emitted"] = [effect.__dict__ for effect in effects]
+        trace["typed_effects_emitted"] = [effect.__dict__ for effect in typed_effects]
+        trace["effect_reduction"] = reduction_trace
+
+        self._stage(trace, 11, "maintenance")
+        work = self._maintenance(work)
+        self._validate_limits(work, len(candidates), len(effects) + len(typed_effects))
+
+        self._stage(trace, 12, "snapshot_and_digest")
+        work = replace(work, tick=work.tick + 1)
+        digest = work.state_hash()
+        trace["state_digest"] = digest
+        trace["state_changes"] = work.to_snapshot()
+        return work, trace
+
+    @staticmethod
+    def _canonical_contacts(contacts: tuple[Contact, ...]) -> tuple[Contact, ...]:
+        return tuple(sorted(
+            contacts,
             key=lambda item: (
                 item.source_entity_id,
                 item.target_entity_id,
@@ -111,28 +160,7 @@ class TickExecutor:
                 item.contact_id.encode("utf-8"),
                 item.candidate_id.encode("utf-8"),
             ),
-        )
-        trace["candidate_order"] = [candidate.candidate_id for candidate in candidates]
-
-        self._stage(trace, 9, "interaction_resolution")
-        work, interaction_effects, receipts = self._resolve_interactions(work, candidates)
-        effects.extend(interaction_effects)
-        trace["decision_record_mutations"] = receipts
-
-        self._stage(trace, 10, "effect_reduction_and_commit")
-        work = self._commit_effects(work, effects)
-        trace["effects_emitted"] = [effect.__dict__ for effect in effects]
-
-        self._stage(trace, 11, "maintenance")
-        work = self._maintenance(work)
-        self._validate_limits(work, len(candidates), len(effects))
-
-        self._stage(trace, 12, "snapshot_and_digest")
-        work = replace(work, tick=work.tick + 1)
-        digest = work.state_hash()
-        trace["state_digest"] = digest
-        trace["state_changes"] = work.to_snapshot()
-        return work, trace
+        ))
 
     def save(self, state: SimulationState) -> dict[str, object]:
         return state.to_snapshot()
@@ -308,9 +336,13 @@ class TickExecutor:
         )
         return _put_action(state, action), list(transition.effects)
 
-    def _semantic_snapshot(self, state: SimulationState) -> tuple[SimulationState, list[dict[str, object]], list[str]]:
+    def _semantic_snapshot(
+        self,
+        state: SimulationState,
+    ) -> tuple[SimulationState, list[dict[str, object]], list[str], dict[tuple[int, str], FactBinding]]:
         changes: list[dict[str, object]] = []
         facts: list[str] = []
+        active_bindings: dict[tuple[int, str], FactBinding] = {}
         for key in sorted(state.action_instances, key=lambda item: int(item)):
             action = state.action_instances[key]
             if action.lifecycle_state != "RUNNING":
@@ -331,27 +363,130 @@ class TickExecutor:
                     serials = entries if now else exits
                     serials[predicate.id] = serials.get(predicate.id, 0) + 1
                     changes.append({"instance_id": action.instance_id, "predicate": predicate.id, "value": now})
+            for binding in definition.semantic_facts:
+                if truth.get(binding.when_predicate, False):
+                    fact_key = (action.instance_id, binding.fact.fact_id)
+                    active_bindings[fact_key] = binding
+                    facts.append(f"{action.instance_id}:{binding.fact.fact_id}")
             state = _put_action(state, replace(action, predicate_truth_state=truth, predicate_entry_serials=entries, predicate_exit_serials=exits))
-        return state, changes, sorted(facts)
+        return state, changes, sorted(set(facts)), active_bindings
 
-    def _resolve_interactions(self, state: SimulationState, candidates: list[Contact]) -> tuple[SimulationState, list[Effect], list[dict[str, object]]]:
-        effects: list[Effect] = []
+    def _resolve_interactions(
+        self,
+        state: SimulationState,
+        candidates: list[Contact],
+        active_bindings: dict[tuple[int, str], FactBinding],
+    ) -> tuple[SimulationState, list[Effect], list[EffectEnvelope], list[dict[str, object]]]:
+        legacy_effects: list[Effect] = []
+        typed_effects: list[EffectEnvelope] = []
         receipts: list[dict[str, object]] = []
         ledgers = {key: dict(value) for key, value in state.interaction_ledgers.items()}
         for candidate in candidates:
             action = state.action_instances.get(str(candidate.source_instance_id))
             if not action or action.lifecycle_state != "RUNNING":
                 continue
-            ledger_key = f"{candidate.source_instance_id}:{candidate.target_entity_id}:{candidate.fact_id}"
-            if ledger_key in ledgers:
-                receipts.append({"candidate_id": candidate.candidate_id, "accepted": False, "reason": "ONCE_PER_ACTION_INSTANCE"})
+            if is_frozen(state.freeze_tokens, state.tick, action.instance_id, "INTERACTION_EMISSION"):
                 continue
-            ledgers[ledger_key] = {"origin_tick": state.tick, "candidate_id": candidate.candidate_id}
-            effects.append(candidate.effect)
-            receipts.append({"candidate_id": candidate.candidate_id, "accepted": True, "ledger_key": ledger_key})
-        return replace(state, interaction_ledgers=ledgers), effects, receipts
+            binding = active_bindings.get((candidate.source_instance_id, candidate.fact_id))
+            if binding is None:
+                if candidate.effect is None:
+                    raise PCAMError(ResultCode.RUNTIME_FAULT, PCAMFault.INVALID_CONTACT, candidate.candidate_id)
+                legacy_key = f"{candidate.source_instance_id}:{candidate.target_entity_id}:{candidate.fact_id}"
+                if legacy_key in ledgers:
+                    receipts.append({"candidate_id": candidate.candidate_id, "accepted": False, "reason": "ONCE_PER_ACTION_INSTANCE"})
+                    continue
+                ledgers[legacy_key] = {"origin_tick": state.tick, "candidate_id": candidate.candidate_id}
+                legacy_effects.append(candidate.effect)
+                receipts.append({"candidate_id": candidate.candidate_id, "accepted": True, "ledger_key": legacy_key})
+                continue
+            if binding.fact.direction != "OFFENSE":
+                raise PCAMError(ResultCode.RUNTIME_FAULT, PCAMFault.INVALID_CONTACT, candidate.candidate_id)
+            context = LedgerContext(
+                tick=state.tick,
+                source_action_instance_id=action.instance_id,
+                offense_fact_id=binding.fact.fact_id,
+                target_entity_id=candidate.target_entity_id,
+                cycle=action.cycle,
+                predicate_entry_serials=action.predicate_entry_serials,
+                contact_partition=candidate.contact_partition,
+            )
+            if not ledger_is_eligible(ledgers, binding.hit_policy, context):
+                receipts.append({"candidate_id": candidate.candidate_id, "accepted": False, "reason": binding.hit_policy.kind})
+                continue
+            receipt_written = False
+            if binding.hit_policy.receipt_on == "ON_CONTACT":
+                ledgers, receipt = write_receipt(ledgers, binding.hit_policy, context, candidate.candidate_id)
+                receipt_written = receipt is not None
+            interaction_candidate = InteractionCandidate(
+                tick=state.tick,
+                candidate_id=candidate.candidate_id,
+                source_entity_id=action.owner_entity_id,
+                target_entity_id=candidate.target_entity_id,
+                source_action_instance_id=action.instance_id,
+                offense_fact_id=binding.fact.fact_id,
+                contact_id=candidate.contact_id,
+                contact_partition=candidate.contact_partition,
+                host_context=candidate.host_context,
+            )
+            defenses = self._defense_map(state, active_bindings, candidate.defense_fact_id)
+            decision = resolve_candidate(
+                interaction_candidate,
+                binding.fact,
+                defenses,
+                self.interaction_rules,
+                max_redirects=self.profile.max_redirects_per_candidate,
+            )
+            typed_effects.extend(decision.generated_effects)
+            accepted = decision.status == "ACCEPTED"
+            impact = any(item.authoritative for item in decision.generated_effects)
+            if not receipt_written and receipt_required(binding.hit_policy.receipt_on, accepted, impact):
+                ledgers, receipt = write_receipt(ledgers, binding.hit_policy, context, candidate.candidate_id)
+                receipt_written = receipt is not None
+            receipts.append(
+                {
+                    "accepted": accepted,
+                    "candidate_id": candidate.candidate_id,
+                    "decision_tags": list(decision.decision_tags),
+                    "receipt_written": receipt_written,
+                    "redirect_count": decision.redirect_count,
+                }
+            )
+        return replace(state, interaction_ledgers=ledgers), legacy_effects, typed_effects, receipts
 
-    def _commit_effects(self, state: SimulationState, effects: list[Effect]) -> SimulationState:
+    def _defense_map(
+        self,
+        state: SimulationState,
+        active_bindings: dict[tuple[int, str], FactBinding],
+        required_fact_id: str | None,
+    ) -> dict[int, SemanticFact | None]:
+        by_target: dict[int, list[tuple[int, SemanticFact]]] = {}
+        for (instance_id, _), binding in active_bindings.items():
+            if binding.fact.direction != "DEFENSE":
+                continue
+            action = state.action_instances[str(instance_id)]
+            if is_frozen(state.freeze_tokens, state.tick, action.instance_id, "INTERACTION_RECEPTION"):
+                continue
+            by_target.setdefault(action.owner_entity_id, []).append((instance_id, binding.fact))
+        result: dict[int, SemanticFact | None] = {}
+        for target, options in by_target.items():
+            ordered = sorted(options, key=lambda item: (item[0], item[1].fact_id.encode("utf-8")))
+            if required_fact_id is not None:
+                ordered = [item for item in ordered if item[1].fact_id == required_fact_id]
+            if len(ordered) > 1:
+                raise PCAMError(
+                    ResultCode.RUNTIME_FAULT,
+                    PCAMFault.INVALID_CONTACT,
+                    f"target {target} has ambiguous defense facts",
+                )
+            result[target] = ordered[0][1] if ordered else None
+        return result
+
+    def _commit_effects(
+        self,
+        state: SimulationState,
+        effects: list[Effect],
+        typed_effects: list[EffectEnvelope],
+    ) -> tuple[SimulationState, list[dict[str, object]]]:
         banks = {entity: dict(values) for entity, values in state.resource_banks.items()}
         for effect in sorted(
             effects,
@@ -369,7 +504,28 @@ class TickExecutor:
             entity = str(effect.target_entity_id)
             banks.setdefault(entity, {})
             banks[entity][effect.resource] = banks[entity].get(effect.resource, 0) + effect.amount
-        return replace(state, resource_banks=banks)
+        authoritative = tuple(item for item in typed_effects if item.authoritative)
+        reduced, rejected = reduce_effects(authoritative)
+        reduction_trace: list[dict[str, object]] = []
+        for item in reduced:
+            registration = self.effect_registry.get(item.effect_type)
+            if registration is None or type(item.value) is not int:
+                raise PCAMError(ResultCode.RUNTIME_FAULT, PCAMFault.UNKNOWN_EFFECT, item.effect_type)
+            resource, sign = registration
+            entity = str(item.target_entity_id)
+            banks.setdefault(entity, {})
+            banks[entity][resource] = banks[entity].get(resource, 0) + item.value * sign
+            reduction_trace.append(
+                {
+                    "effect_type": item.effect_type,
+                    "reducer": item.reducer,
+                    "source_effect_ids": list(item.source_effect_ids),
+                    "target_entity_id": item.target_entity_id,
+                    "value": item.value,
+                }
+            )
+        reduction_trace.extend({"effect_id": item.effect_id, "reason": item.reason} for item in rejected)
+        return replace(state, resource_banks=banks), reduction_trace
 
     def _validate_limits(self, state: SimulationState, candidate_count: int, effect_count: int) -> None:
         if candidate_count > self.profile.max_candidates_per_tick or effect_count > self.profile.max_effects_per_tick:

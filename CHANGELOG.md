@@ -13,3 +13,4 @@
 - Added permutation-invariant atomic intent arbitration, deterministic instance-ID allocation, all core effect reducer primitives, exclusive-effect rejection traces, and open-issue tracking for undefined cross-intent atomic groups.
 - Added a directed five-stage typed interaction resolver with canonical candidate order, parry, armor modification, independent outgoing attacks, simultaneous trade, deterministic redirection limits, materialization, and interaction-spec gap tracking.
 - Added all six core hit-policy key strategies, explicit receipt timing, same-tick provisional receipt behavior, cooldown eligibility, cycle distinction, and predicate-reactivation vectors.
+- Integrated typed semantic facts, interaction rules, ledger policies, canonical reducers, and effect registry commits into stages 7-10; canonicalized host contact snapshots so raw enumeration permutations produce identical state digests.

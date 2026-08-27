@@ -4,11 +4,17 @@ from pcam_runtime import (
     ActionDefinition,
     Contact,
     Effect,
+    EffectTemplate,
+    FactBinding,
     FreezeToken,
     HostSnapshot,
+    HitPolicy,
+    InteractionRule,
     NodeDefinition,
     PredicateDefinition,
     RollbackManager,
+    RuleOperation,
+    SemanticFact,
     TickExecutor,
     TickInput,
     TransitionDefinition,
@@ -201,3 +207,61 @@ def test_progression_freeze_hold_and_accrue_are_authoritative():
     state, _ = executor.tick(state)
     assert state.action_instances["1"].local_step == 3
     assert state.action_instances["1"].deferred_quanta == 0
+
+
+def _typed_definition() -> ActionDefinition:
+    return ActionDefinition(
+        id="TYPED_STRIKE",
+        rate_scale=1,
+        units_per_tick=0,
+        nodes=(NodeDefinition(id="ACTIVE"),),
+        predicates=(PredicateDefinition(id="ACTIVE_WINDOW", node_ids=("ACTIVE",)),),
+        semantic_facts=(
+            FactBinding(
+                fact=SemanticFact(
+                    "strike",
+                    "OFFENSE",
+                    channels=("STRIKE",),
+                    effect_templates=(EffectTemplate("combat.damage", "DAMAGE", 30, "SUM"),),
+                ),
+                when_predicate="ACTIVE_WINDOW",
+                hit_policy=HitPolicy("ONCE_PER_ACTION_INSTANCE", "ON_IMPACT"),
+            ),
+        ),
+    )
+
+
+def _materialize_rule() -> InteractionRule:
+    return InteractionRule(
+        "materialize",
+        "MATERIALIZATION",
+        100,
+        {"literal": True},
+        (RuleOperation("MATERIALIZE"),),
+    )
+
+
+def test_typed_interaction_pipeline_reduces_commits_and_receipts_once():
+    executor = TickExecutor((_typed_definition(),), interaction_rules=(_materialize_rule(),))
+    initial = executor.initial_state(resource_banks={"2": {"hp": 100}})
+    start = TickInput("start", 1, 0, "START", 0, action_definition_id="TYPED_STRIKE")
+    first = Contact("c1", 1, 2, "strike", source_entity_id=1, contact_id="a")
+    duplicate = Contact("c2", 1, 2, "strike", source_entity_id=1, contact_id="b")
+    state, trace = executor.tick(initial, (start,), HostSnapshot(contacts=(duplicate, first)))
+    assert state.resource_banks["2"]["hp"] == 70
+    assert len(state.interaction_ledgers) == 1
+    assert trace["active_semantic_facts"] == ["1:ACTIVE_WINDOW", "1:strike"]
+    assert [item["accepted"] for item in trace["decision_record_mutations"]] == [True, False]
+    assert trace["effect_reduction"][0]["value"] == 30
+
+
+def test_contact_enumeration_permutation_produces_identical_state_digest():
+    executor = TickExecutor((_typed_definition(),), interaction_rules=(_materialize_rule(),))
+    initial = executor.initial_state(resource_banks={"2": {"hp": 100}})
+    start = TickInput("start", 1, 0, "START", 0, action_definition_id="TYPED_STRIKE")
+    first = Contact("c1", 1, 2, "strike", source_entity_id=1, contact_id="a")
+    duplicate = Contact("c2", 1, 2, "strike", source_entity_id=1, contact_id="b")
+    left, left_trace = executor.tick(initial, (start,), HostSnapshot(contacts=(first, duplicate)))
+    right, right_trace = executor.tick(initial, (start,), HostSnapshot(contacts=(duplicate, first)))
+    assert left.to_snapshot() == right.to_snapshot()
+    assert left_trace["state_digest"] == right_trace["state_digest"]

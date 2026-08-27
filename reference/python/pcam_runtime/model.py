@@ -8,6 +8,8 @@ from typing import Literal
 
 from .canonical import canonical_hash
 from .errors import PCAMError, PCAMFault, ResultCode
+from .interactions import SemanticFact
+from .ledgers import HitPolicy
 
 CANONICAL_ID = re.compile(r"^[A-Za-z][A-Za-z0-9_.:-]{0,127}$")
 
@@ -77,12 +79,20 @@ class Effect:
 
 
 @dataclass(frozen=True)
+class FactBinding:
+    fact: SemanticFact
+    when_predicate: str
+    hit_policy: HitPolicy
+
+
+@dataclass(frozen=True)
 class ActionDefinition:
     id: str
     rate_scale: int
     units_per_tick: int
     nodes: tuple[NodeDefinition, ...]
     predicates: tuple[PredicateDefinition, ...] = ()
+    semantic_facts: tuple[FactBinding, ...] = ()
     transitions: tuple[TransitionDefinition, ...] = ()
     buffer_capacity: int = 8
     buffer_overflow_policy: Literal["DROP_OLDEST", "DROP_NEWEST", "FAULT"] = "DROP_OLDEST"
@@ -99,6 +109,7 @@ class ActionDefinition:
             "metadata": self.metadata,
             "nodes": [node.__dict__ for node in self.nodes],
             "predicates": [predicate.__dict__ for predicate in self.predicates],
+            "semantic_facts": self.semantic_facts,
             "rate": {"scale": self.rate_scale, "units_per_tick": self.units_per_tick},
             "buffer": {
                 "capacity": self.buffer_capacity,
@@ -132,11 +143,12 @@ class Contact:
     source_instance_id: int
     target_entity_id: int
     fact_id: str
-    effect: Effect
+    effect: Effect | None = None
     source_entity_id: int = 0
     contact_partition: str = "default"
     contact_id: str = "contact"
     host_context: dict[str, object] = field(default_factory=dict)
+    defense_fact_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -170,6 +182,13 @@ def validate_definition(definition: ActionDefinition) -> None:
     for node in definition.nodes:
         if node.mode == "TIMED" and (node.duration_quanta is None or node.duration_quanta <= 0):
             raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.STATE_INVARIANT_FAILURE, node.id)
+    fact_ids: set[str] = set()
+    for binding in definition.semantic_facts:
+        if binding.fact.fact_id in fact_ids:
+            raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.STATE_INVARIANT_FAILURE, binding.fact.fact_id)
+        fact_ids.add(binding.fact.fact_id)
+        if binding.when_predicate not in predicate_ids:
+            raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.MISSING_REFERENCE, binding.when_predicate)
         if node.mode != "TIMED" and node.duration_quanta is not None:
             raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.STATE_INVARIANT_FAILURE, node.id)
     seen_priorities: set[tuple[str, str, int]] = set()
