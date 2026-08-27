@@ -1,0 +1,68 @@
+{
+  "pcam_vector_version": "1",
+  "kind": "runtime_vector",
+  "id": "interaction-runtime",
+  "runtime_profile": {
+    "pcam_version": "3.0", "kind": "runtime_profile", "id": "pcam.reference.interaction-runtime.v1", "revision": 1,
+    "fault_policy": "ABORT_SIMULATION",
+    "limits": {"max_actions_per_entity": 8, "max_action_nesting_depth": 4, "max_children_per_action": 4, "max_quanta_per_action_per_tick": 8, "max_internal_transitions_per_action_per_tick": 8, "max_buffer_entries_per_action": 8, "max_pending_events_per_entity": 8, "max_candidates_per_tick": 32, "max_effects_per_tick": 32, "max_redirects_per_candidate": 4, "max_definition_size_bytes": 65536, "max_snapshot_size_bytes": 262144, "max_extension_state_bytes": 4096, "max_expression_depth": 64, "max_expression_nodes": 4096},
+    "rng_profiles": ["pcam.pcg32.v1"], "network_profiles": [{"id": "pcam.local.v1", "topology": "LOCAL_DETERMINISTIC"}], "extensions": {}
+  },
+  "definitions": [
+    {
+      "id": "STRIKER", "rate_scale": 1, "units_per_tick": 0,
+      "nodes": [{"id": "ACTIVE", "mode": "EVENT_DRIVEN"}],
+      "predicates": [{"id": "ACTIVE", "node_ids": ["ACTIVE"]}],
+      "semantic_facts": [{
+        "fact": {"fact_id": "strike", "direction": "OFFENSE", "channels": ["STRIKE"], "effect_templates": [
+          {"effect_type": "combat.damage", "effect_class": "DAMAGE", "payload": 30, "reducer": "SUM"},
+          {"effect_type": "combat.stagger", "effect_class": "STAGGER", "payload": 25, "reducer": "SUM"}
+        ]},
+        "when_predicate": "ACTIVE",
+        "hit_policy": {"kind": "ONCE_PER_ACTION_INSTANCE", "receipt_on": "ON_IMPACT"}
+      }]
+    },
+    {
+      "id": "DEFENDER", "rate_scale": 1, "units_per_tick": 0,
+      "nodes": [{"id": "ACTIVE", "mode": "EVENT_DRIVEN"}],
+      "predicates": [{"id": "ACTIVE", "node_ids": ["ACTIVE"]}],
+      "semantic_facts": [{
+        "fact": {"fact_id": "guard", "direction": "DEFENSE", "tags": []},
+        "when_predicate": "ACTIVE",
+        "hit_policy": {"kind": "UNBOUNDED", "receipt_on": "ON_CONTACT"}
+      }]
+    }
+  ],
+  "interaction_rules": [
+    {"rule_id": "parry", "stage": "ROUTING", "order": 10, "condition": {"op": "contains", "args": [{"ref": "defense.tags"}, {"literal": "PARRY"}]}, "operations": [
+      {"op": "REJECT", "data": {"reason": "PARRIED"}},
+      {"op": "APPEND_EFFECT_TEMPLATE", "data": {"template": {"effect_type": "combat.parry_success", "effect_class": "REACTION", "payload": 1, "reducer": "SUM"}}},
+      {"op": "MATERIALIZE", "data": {"statuses": ["REJECTED"], "effect_classes": ["REACTION"]}}
+    ], "stop_pipeline": true},
+    {"rule_id": "armor", "stage": "MODIFICATION", "order": 10, "condition": {"op": "contains", "args": [{"ref": "defense.tags"}, {"literal": "ARMOR"}]}, "operations": [{"op": "SCALE_EFFECT_CLASS", "data": {"effect_class": "STAGGER", "numerator": 0, "denominator": 1}}]},
+    {"rule_id": "materialize", "stage": "MATERIALIZATION", "order": 10, "condition": {"literal": true}, "operations": [{"op": "MATERIALIZE"}]}
+  ],
+  "effect_registry": {"combat.damage": ["hp", -1], "combat.stagger": ["stagger", 1], "combat.parry_success": ["parries", 1]},
+  "initial_state": {"resource_banks": {"2": {"hp": 100, "stagger": 0, "parries": 0}}, "slot_capacities": {}},
+  "ticks": [{
+    "inputs": [
+      {"input_id": "start-striker", "source_entity_id": 1, "sequence": 0, "command_id": "START", "assigned_tick": 0, "action_definition_id": "STRIKER"},
+      {"input_id": "start-defender", "source_entity_id": 2, "sequence": 0, "command_id": "START", "assigned_tick": 0, "action_definition_id": "DEFENDER"}
+    ],
+    "contacts": [{"candidate_id": "strike-to-guard", "source_instance_id": 1, "source_entity_id": 1, "target_entity_id": 2, "fact_id": "strike", "defense_fact_id": "guard", "contact_id": "contact"}]
+  }],
+  "cases": [
+    {
+      "id": "armor-modification",
+      "defense_tags": ["ARMOR"],
+      "tick_state_digests": ["a95a8e435349e3d0592db76320cd4d87d31512596e9577cdcfd6771e0e985c6f"],
+      "expected": {"resources": {"hp": 70, "stagger": 0, "parries": 0}, "ledger_count": 1, "effects": [["DAMAGE", "0:1:strike-to-guard:materialize:0:0", 30], ["STAGGER", "0:1:strike-to-guard:materialize:0:1", 0]], "decision": [{"accepted": true, "candidate_id": "strike-to-guard", "decision_tags": [], "receipt_written": true, "redirect_count": 0, "rules_fired": [{"order": 10, "rule_id": "armor", "stage": "MODIFICATION"}, {"order": 10, "rule_id": "materialize", "stage": "MATERIALIZATION"}]}], "reduced": [{"effect_type": "combat.damage", "reducer": "SUM", "source_effect_ids": ["0:1:strike-to-guard:materialize:0:0"], "target_entity_id": 2, "value": 30}, {"effect_type": "combat.stagger", "reducer": "SUM", "source_effect_ids": ["0:1:strike-to-guard:materialize:0:1"], "target_entity_id": 2, "value": 0}]}
+    },
+    {
+      "id": "parry-rejected-reaction",
+      "defense_tags": ["PARRY"],
+      "tick_state_digests": ["d820e6faf87b31ca03c701057448767073bced882bd4f1ddc23c5dc61a421fce"],
+      "expected": {"resources": {"hp": 100, "stagger": 0, "parries": 1}, "ledger_count": 1, "effects": [["REACTION", "0:1:strike-to-guard:parry:2:0", 1]], "decision": [{"accepted": false, "candidate_id": "strike-to-guard", "decision_tags": ["PARRIED"], "receipt_written": true, "redirect_count": 0, "rules_fired": [{"order": 10, "rule_id": "parry", "stage": "ROUTING"}]}], "reduced": [{"effect_type": "combat.parry_success", "reducer": "SUM", "source_effect_ids": ["0:1:strike-to-guard:parry:2:0"], "target_entity_id": 2, "value": 1}]}
+    }
+  ]
+}

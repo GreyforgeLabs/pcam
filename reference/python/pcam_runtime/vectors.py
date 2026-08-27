@@ -269,13 +269,18 @@ def _rule(value: dict[str, Any]) -> InteractionRule:
         stage=str(value["stage"]),  # type: ignore[arg-type]
         order=int(value["order"]),
         condition=dict(value["condition"]),
-        operations=tuple(
-            RuleOperation(str(item["op"]), dict(item.get("data", {})))
-            for item in value.get("operations", [])
-        ),
+        operations=tuple(_rule_operation(item) for item in value.get("operations", [])),
         stop_stage=bool(value.get("stop_stage", False)),
         stop_pipeline=bool(value.get("stop_pipeline", False)),
     )
+
+
+def _rule_operation(value: dict[str, Any]) -> RuleOperation:
+    data = dict(value.get("data", {}))
+    for key in ("template", "replacement"):
+        if key in data:
+            data[key] = _effect_template(data[key])
+    return RuleOperation(str(value["op"]), data)
 
 
 def _input(value: dict[str, Any]) -> TickInput:

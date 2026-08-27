@@ -5,6 +5,10 @@ use crate::arbitration::{
 use crate::effects::{EffectEnvelope, ReducedEffect, RejectedEffect, reduce_effects};
 use crate::events::{EventEnvelope, deliver_due};
 use crate::faults::{FaultContext, contain_fault};
+use crate::interactions::{
+    EffectTemplate as InteractionEffectTemplate, InteractionCandidate, InteractionRule,
+    SemanticFact, resolve_candidate,
+};
 use crate::{CanonicalError, canonical_hash};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
@@ -36,20 +40,13 @@ struct Predicate {
 #[derive(Debug, Clone)]
 struct FactBinding {
     fact_id: String,
+    direction: String,
+    channels: Vec<String>,
+    tags: Vec<String>,
     when_predicate: String,
-    effect_templates: Vec<EffectTemplate>,
+    effect_templates: Vec<InteractionEffectTemplate>,
     hit_policy: String,
     receipt_on: String,
-}
-
-#[derive(Debug, Clone)]
-struct EffectTemplate {
-    effect_type: String,
-    effect_class: String,
-    payload: Value,
-    reducer: String,
-    priority: i64,
-    authoritative: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -177,8 +174,12 @@ pub struct SimulationRuntime {
     effect_registry: BTreeMap<String, (String, i64)>,
     definition_set_hash: String,
     fault_policy: String,
+    interaction_rules: Vec<InteractionRule>,
     max_actions_per_entity: u64,
+    max_expression_depth: usize,
+    max_expression_nodes: usize,
     max_quanta_per_action_per_tick: u64,
+    max_redirects_per_candidate: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -361,11 +362,29 @@ impl SimulationRuntime {
         let max_quanta_per_action_per_tick = profile["limits"]["max_quanta_per_action_per_tick"]
             .as_u64()
             .ok_or(SimulationError::InvalidVector)?;
+        let max_redirects_per_candidate = profile["limits"]["max_redirects_per_candidate"]
+            .as_u64()
+            .ok_or(SimulationError::InvalidVector)?;
+        let max_expression_depth = profile["limits"]["max_expression_depth"]
+            .as_u64()
+            .and_then(|value| usize::try_from(value).ok())
+            .ok_or(SimulationError::InvalidVector)?;
+        let max_expression_nodes = profile["limits"]["max_expression_nodes"]
+            .as_u64()
+            .and_then(|value| usize::try_from(value).ok())
+            .ok_or(SimulationError::InvalidVector)?;
         let fault_policy = profile["fault_policy"]
             .as_str()
             .ok_or(SimulationError::InvalidVector)?
             .to_owned();
         let interaction_profile_hash = canonical_hash(&canonical_rules(rules)?)?;
+        let interaction_rules = rules
+            .iter()
+            .map(|rule| {
+                serde_json::from_value::<InteractionRule>(rule.clone())
+                    .map_err(|_| SimulationError::InvalidVector)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
         let effect_registry_hash = canonical_hash(registry)?;
         let extension_registry_hash = canonical_hash(&Value::Array(Vec::new()))?;
         let mut definitions = BTreeMap::new();
@@ -417,8 +436,12 @@ impl SimulationRuntime {
             effect_registry,
             definition_set_hash,
             fault_policy,
+            interaction_rules,
             max_actions_per_entity,
+            max_expression_depth,
+            max_expression_nodes,
             max_quanta_per_action_per_tick,
+            max_redirects_per_candidate,
         })
     }
 
@@ -648,27 +671,57 @@ impl SimulationRuntime {
                 }));
                 continue;
             }
-            for (template_index, template) in binding.effect_templates.iter().enumerate() {
-                effects.push(EffectEnvelope {
-                    effect_id: format!(
-                        "{}:{instance_id}:{candidate_id}:materialize:0:{template_index}",
-                        state.tick
-                    ),
-                    effect_type: template.effect_type.clone(),
-                    effect_class: template.effect_class.clone(),
-                    source_entity_id: action.owner_entity_id,
-                    target_entity_id: u64_field(contact, "target_entity_id")?,
-                    source_action_instance_id: instance_id,
-                    origin_tick: state.tick,
-                    priority: template.priority,
-                    payload: template.payload.clone(),
-                    reducer: template.reducer.clone(),
-                    authoritative: template.authoritative,
-                });
+            if binding.direction != "OFFENSE" {
+                return Err(SimulationError::RuntimeFault);
             }
-            if binding.receipt_on == "ON_IMPACT"
-                && effects.iter().any(|effect| effect.authoritative)
-            {
+            let target_entity_id = u64_field(contact, "target_entity_id")?;
+            let offense = SemanticFact {
+                fact_id: binding.fact_id.clone(),
+                direction: binding.direction.clone(),
+                channels: binding.channels.clone(),
+                tags: binding.tags.clone(),
+                attributes: BTreeMap::new(),
+                effect_templates: binding.effect_templates.clone(),
+            };
+            let defense_fact_id = contact
+                .get("defense_fact_id")
+                .and_then(Value::as_str)
+                .map(str::to_owned);
+            let defenses = self.defense_map(&work, target_entity_id, defense_fact_id.as_deref())?;
+            let candidate = InteractionCandidate {
+                tick: state.tick,
+                candidate_id: candidate_id.to_owned(),
+                source_entity_id: action.owner_entity_id,
+                target_entity_id,
+                source_action_instance_id: instance_id,
+                offense_fact_id: binding.fact_id.clone(),
+                contact_id: string_field(contact, "contact_id")?.to_owned(),
+                contact_partition: string_field(contact, "contact_partition")?.to_owned(),
+                host_context: serde_json::from_value(contact["host_context"].clone())
+                    .map_err(|_| SimulationError::RuntimeFault)?,
+                defense_fact_id,
+            };
+            let decision = resolve_candidate(
+                &candidate,
+                &offense,
+                &defenses,
+                &self.interaction_rules,
+                self.max_redirects_per_candidate,
+                "FAULT",
+                self.max_expression_depth,
+                self.max_expression_nodes,
+            )
+            .map_err(|_| SimulationError::RuntimeFault)?;
+            let accepted = decision.status == "ACCEPTED";
+            let impact = decision
+                .generated_effects
+                .iter()
+                .any(|effect| effect.authoritative);
+            effects.extend(decision.generated_effects.clone());
+            let receipt_written = binding.receipt_on == "ON_CONTACT"
+                || (binding.receipt_on == "ON_ACCEPT" && accepted)
+                || (binding.receipt_on == "ON_IMPACT" && impact);
+            if receipt_written {
                 work.interaction_ledgers.insert(
                     ledger_key,
                     json!({
@@ -679,16 +732,12 @@ impl SimulationRuntime {
                 );
             }
             receipts.push(json!({
-                "accepted": true,
+                "accepted": accepted,
                 "candidate_id": candidate_id,
-                "decision_tags": [],
-                "receipt_written": true,
-                "redirect_count": 0,
-                "rules_fired": [{
-                    "order": 100,
-                    "rule_id": "materialize",
-                    "stage": "MATERIALIZATION",
-                }],
+                "decision_tags": decision.decision_tags,
+                "receipt_written": receipt_written,
+                "redirect_count": decision.redirect_count,
+                "rules_fired": decision.trace,
             }));
         }
 
@@ -984,6 +1033,60 @@ impl SimulationRuntime {
             )?;
         }
         self.rebuild_action_slots(state)
+    }
+
+    fn defense_map(
+        &self,
+        state: &SimulationState,
+        target_entity_id: u64,
+        required_fact_id: Option<&str>,
+    ) -> Result<BTreeMap<u64, Option<SemanticFact>>, SimulationError> {
+        let mut options = Vec::new();
+        for action in &state.action_instances {
+            if action.owner_entity_id != target_entity_id || action.lifecycle_state != "RUNNING" {
+                continue;
+            }
+            let definition = self
+                .definitions
+                .values()
+                .find(|definition| definition.hash == action.definition_hash)
+                .ok_or(SimulationError::RuntimeFault)?;
+            for binding in &definition.facts {
+                if binding.direction != "DEFENSE"
+                    || required_fact_id.is_some_and(|fact_id| binding.fact_id != fact_id)
+                    || !action
+                        .predicate_truth_state
+                        .get(&binding.when_predicate)
+                        .copied()
+                        .unwrap_or(false)
+                {
+                    continue;
+                }
+                options.push((
+                    action.instance_id,
+                    SemanticFact {
+                        fact_id: binding.fact_id.clone(),
+                        direction: binding.direction.clone(),
+                        channels: binding.channels.clone(),
+                        tags: binding.tags.clone(),
+                        attributes: BTreeMap::new(),
+                        effect_templates: binding.effect_templates.clone(),
+                    },
+                ));
+            }
+        }
+        options.sort_by(|left, right| {
+            left.0
+                .cmp(&right.0)
+                .then_with(|| left.1.fact_id.as_bytes().cmp(right.1.fact_id.as_bytes()))
+        });
+        if options.len() > 1 {
+            return Err(SimulationError::RuntimeFault);
+        }
+        Ok(BTreeMap::from([(
+            target_entity_id,
+            options.into_iter().next().map(|(_, fact)| fact),
+        )]))
     }
 
     fn arbitration_state(
@@ -1913,8 +2016,18 @@ fn canonical_rules(raw: &[Value]) -> Result<Value, SimulationError> {
                 let operations = array(rule, "operations")?
                     .iter()
                     .map(|operation| {
+                        let mut data = operation
+                            .get("data")
+                            .and_then(Value::as_object)
+                            .cloned()
+                            .unwrap_or_default();
+                        for key in ["template", "replacement"] {
+                            if let Some(template) = data.get(key).cloned() {
+                                data.insert(key.to_owned(), canonical_interaction_template(&template));
+                            }
+                        }
                         json!({
-                            "data": operation.get("data").cloned().unwrap_or_else(|| json!({})),
+                            "data": data,
                             "op": operation["op"].clone(),
                         })
                     })
@@ -1931,6 +2044,17 @@ fn canonical_rules(raw: &[Value]) -> Result<Value, SimulationError> {
             })
             .collect::<Result<Vec<_>, SimulationError>>()?,
     ))
+}
+
+fn canonical_interaction_template(template: &Value) -> Value {
+    json!({
+        "authoritative": template.get("authoritative").cloned().unwrap_or_else(|| json!(true)),
+        "effect_class": template["effect_class"].clone(),
+        "effect_type": template["effect_type"].clone(),
+        "payload": template["payload"].clone(),
+        "priority": template.get("priority").cloned().unwrap_or_else(|| json!(0)),
+        "reducer": template.get("reducer").cloned().unwrap_or_else(|| json!("ORDERED")),
+    })
 }
 
 fn parse_definition(raw: &Value, hash: String) -> Result<Definition, SimulationError> {
@@ -1993,7 +2117,7 @@ fn parse_definition(raw: &Value, hash: String) -> Result<Definition, SimulationE
                 .unwrap_or_default()
                 .iter()
                 .map(|template| {
-                    Ok(EffectTemplate {
+                    Ok(InteractionEffectTemplate {
                         effect_type: string_field(template, "effect_type")?.to_owned(),
                         effect_class: string_field(template, "effect_class")?.to_owned(),
                         payload: template["payload"].clone(),
@@ -2015,6 +2139,23 @@ fn parse_definition(raw: &Value, hash: String) -> Result<Definition, SimulationE
                 .collect::<Result<Vec<_>, SimulationError>>()?;
             Ok(FactBinding {
                 fact_id: string_field(fact, "fact_id")?.to_owned(),
+                direction: string_field(fact, "direction")?.to_owned(),
+                channels: fact
+                    .get("channels")
+                    .and_then(Value::as_array)
+                    .cloned()
+                    .unwrap_or_default()
+                    .iter()
+                    .map(|value| string(value).map(str::to_owned))
+                    .collect::<Result<Vec<_>, _>>()?,
+                tags: fact
+                    .get("tags")
+                    .and_then(Value::as_array)
+                    .cloned()
+                    .unwrap_or_default()
+                    .iter()
+                    .map(|value| string(value).map(str::to_owned))
+                    .collect::<Result<Vec<_>, _>>()?,
                 when_predicate: string_field(binding, "when_predicate")?.to_owned(),
                 effect_templates,
                 hit_policy: string_field(policy, "kind")?.to_owned(),

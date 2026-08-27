@@ -34,6 +34,10 @@ def _transition_replacement_document():
     return json.loads((ROOT / "tests/vectors/transition-replacement.json").read_text(encoding="utf-8"))
 
 
+def _interaction_runtime_document():
+    return json.loads((ROOT / "tests/vectors/interaction-runtime.json").read_text(encoding="utf-8"))
+
+
 def test_python_typed_strike_matches_shared_full_state_identity_and_tick_digests():
     document = _document()
     expected = document["expected"]
@@ -205,4 +209,27 @@ def test_python_transition_replacement_matches_shared_atomic_outcomes():
         }
         assert [trace["state_digest"] for trace in run.traces] == case["tick_state_digests"]
         assert state.state_hash() == case["final_state_digest"], case["id"]
+        assert summary == case["expected"], case["id"]
+
+
+def test_python_interaction_rules_match_shared_complete_tick_outcomes():
+    vector = _interaction_runtime_document()
+    for case in vector["cases"]:
+        document = json.loads(json.dumps(vector))
+        document["definitions"][1]["semantic_facts"][0]["fact"]["tags"] = case[
+            "defense_tags"
+        ]
+        run = run_vector(document)
+        trace = run.traces[0]
+        summary = {
+            "resources": run.final_state.resource_banks["2"],
+            "ledger_count": len(run.final_state.interaction_ledgers),
+            "effects": [
+                [effect["effect_class"], effect["effect_id"], effect["payload"]]
+                for effect in trace["typed_effects_emitted"]
+            ],
+            "decision": trace["decision_record_mutations"],
+            "reduced": trace["effect_reduction"],
+        }
+        assert [item["state_digest"] for item in run.traces] == case["tick_state_digests"]
         assert summary == case["expected"], case["id"]
