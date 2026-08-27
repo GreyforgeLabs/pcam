@@ -1,0 +1,46 @@
+{
+  "pcam_vector_version": "1",
+  "kind": "cli_result_code_vector",
+  "id": "all-reference-commands",
+  "commands": [
+    "validate",
+    "compile",
+    "canonicalize",
+    "definition-hash",
+    "run",
+    "trace",
+    "snapshot",
+    "restore",
+    "state-hash",
+    "rollback-test",
+    "migrate-v2"
+  ],
+  "success_cases": [
+    {"command": "validate", "file": "tests/valid/minimal-action.json", "exit_code": 0, "result_code": "OK"},
+    {"command": "compile", "file": "tests/valid/minimal-pcam24.json", "exit_code": 0, "result_code": "OK"},
+    {"command": "canonicalize", "file": "tests/valid/minimal-action.json", "exit_code": 0, "result_code": "OK"},
+    {"command": "definition-hash", "file": "tests/valid/minimal-action.json", "exit_code": 0, "result_code": "OK"},
+    {"command": "run", "file": "tests/vectors/typed-strike.json", "exit_code": 0, "result_code": "OK"},
+    {"command": "trace", "file": "tests/vectors/typed-strike.json", "exit_code": 0, "result_code": "OK"},
+    {"command": "snapshot", "file": "tests/vectors/typed-strike.json", "exit_code": 0, "result_code": "OK"},
+    {"command": "restore", "file": "$generated_snapshot", "exit_code": 0, "result_code": "OK"},
+    {"command": "state-hash", "file": "$generated_snapshot", "exit_code": 0, "result_code": "OK"},
+    {"command": "rollback-test", "file": "tests/vectors/typed-strike.json", "exit_code": 0, "result_code": "OK"},
+    {"command": "migrate-v2", "file": "tests/legacy/v1-basic.json", "exit_code": 0, "result_code": "OK"}
+  ],
+  "failure_cases": [
+    {"command": "validate", "file": "tests/invalid/action-wrong-version.json", "exit_code": 2, "result_code": "DEFINITION_REJECTED"},
+    {"command": "compile", "file": "tests/valid/minimal-action.json", "exit_code": 2, "result_code": "INVALID_INPUT"},
+    {"command": "canonicalize", "file": "tests/legacy/v2-overlap-floating.json", "exit_code": 2, "result_code": "CANONICALIZATION_FAILURE"},
+    {"command": "definition-hash", "file": "tests/invalid/action-wrong-version.json", "exit_code": 2, "result_code": "DEFINITION_REJECTED"},
+    {"command": "run", "file": "tests/valid/minimal-action.json", "exit_code": 2, "result_code": "INVALID_INPUT"},
+    {"command": "trace", "file": "tests/valid/minimal-action.json", "exit_code": 2, "result_code": "INVALID_INPUT"},
+    {"command": "snapshot", "file": "tests/valid/minimal-action.json", "exit_code": 2, "result_code": "INVALID_INPUT"},
+    {"command": "restore", "file": "tests/valid/minimal-action.json", "exit_code": 2, "result_code": "INVALID_INPUT"},
+    {"command": "state-hash", "file": "tests/valid/minimal-action.json", "exit_code": 2, "result_code": "INVALID_INPUT"},
+    {"command": "rollback-test", "file": "tests/valid/minimal-action.json", "exit_code": 2, "result_code": "INVALID_INPUT"},
+    {"command": "migrate-v2", "file": "tests/legacy/unsupported-v3.json", "exit_code": 2, "result_code": "DEFINITION_REJECTED"}
+  ],
+  "argument_error": {"exit_code": 2, "result_code": "INVALID_INPUT"},
+  "io_error": {"command": "validate", "file": "tests/does-not-exist.json", "exit_code": 2, "result_code": "IO_ERROR"}
+}

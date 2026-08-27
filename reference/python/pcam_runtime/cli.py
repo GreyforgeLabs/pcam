@@ -17,8 +17,17 @@ from .state import SimulationState
 from .vectors import rollback_vector, run_vector
 
 
+class _ArgumentError(Exception):
+    pass
+
+
+class _MachineReadableParser(argparse.ArgumentParser):
+    def error(self, message: str) -> None:
+        raise _ArgumentError(message)
+
+
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="pcam")
+    parser = _MachineReadableParser(prog="pcam")
     sub = parser.add_subparsers(dest="command", required=True)
     for name in ("validate", "canonicalize", "definition-hash", "compile", "state-hash", "migrate-v2"):
         command = sub.add_parser(name)
@@ -30,7 +39,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
+    try:
+        args = build_parser().parse_args(argv)
+    except _ArgumentError as exc:
+        return _emit({"code": ResultCode.INVALID_INPUT.value, "message": str(exc)}, exit_code=2)
     try:
         document = load_document(args.file)
         handler = {
@@ -48,7 +60,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         }.get(args.command)
         assert handler is not None
         return handler(document)
-    except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
+    except OSError as exc:
+        return _emit({"code": ResultCode.IO_ERROR.value, "message": str(exc)}, exit_code=2)
+    except (UnicodeError, json.JSONDecodeError, ValueError, TypeError, KeyError, IndexError, OverflowError) as exc:
         return _emit({"code": ResultCode.INVALID_INPUT.value, "message": str(exc)}, exit_code=2)
     except PCAMError as exc:
         return _emit(
