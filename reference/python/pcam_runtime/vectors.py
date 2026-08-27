@@ -11,6 +11,7 @@ from .intents import Claim
 from .ledgers import HitPolicy
 from .model import (
     ActionDefinition,
+    Assignment,
     Contact,
     Effect,
     FactBinding,
@@ -176,6 +177,12 @@ def _definition(value: dict[str, Any]) -> ActionDefinition:
                 mode=str(item.get("mode", "EVENT_DRIVEN")),  # type: ignore[arg-type]
                 duration_quanta=item.get("duration_quanta"),
                 seekable=bool(item.get("seekable", False)),
+                entry_assignments=tuple(
+                    _assignment(assignment) for assignment in item.get("entry_assignments", [])
+                ),
+                exit_assignments=tuple(
+                    _assignment(assignment) for assignment in item.get("exit_assignments", [])
+                ),
             )
             for item in value["nodes"]
         ),
@@ -263,8 +270,15 @@ def _transition(value: dict[str, Any]) -> TransitionDefinition:
         consume_policy=str(value.get("consume_policy", "ON_ACCEPT")),  # type: ignore[arg-type]
         claims=tuple(_claim(item) for item in value.get("claims", [])),
         effects=tuple(_effect(item) for item in value.get("effects", [])),
+        exit_assignments=tuple(_assignment(item) for item in value.get("exit_assignments", [])),
+        assignments=tuple(_assignment(item) for item in value.get("assignments", [])),
+        entry_assignments=tuple(_assignment(item) for item in value.get("entry_assignments", [])),
         cycle_delta=int(value.get("cycle_delta", 0)),
     )
+
+
+def _assignment(value: dict[str, Any]) -> Assignment:
+    return Assignment(target=str(value["target"]), value=dict(value["value"]))
 
 
 def _effect(value: dict[str, Any]) -> Effect:

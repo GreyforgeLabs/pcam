@@ -57,6 +57,31 @@ def test_python_transition_context_rejects_invalid_host_imports():
         assert raised.value.fault.value == case["fault"], case["id"]
 
 
+def test_python_ordered_assignment_fault_is_tick_atomic_before_containment():
+    vector = _vector()
+    for case in vector["assignment_fault_cases"]:
+        document = json.loads(json.dumps(vector))
+        document["runtime_profile"]["fault_policy"] = "FAULT_ACTION"
+        document["definitions"][0]["register_declarations"]["order"]["maximum"] = case[
+            "register_maximum"
+        ]
+        run = run_vector(document)
+        state = run.final_state
+        action = state.action_instances["1"]
+        summary = {
+            "tick": state.tick,
+            "node": action.current_node_id,
+            "lifecycle": action.lifecycle_state,
+            "fault_record": action.fault_record,
+            "registers": action.registers,
+            "input_buffer": [entry.__dict__ for entry in action.input_buffer],
+        }
+        assert [trace["state_digest"] for trace in run.traces] == case["tick_state_digests"]
+        assert state.state_hash() == case["final_state_digest"], case["id"]
+        assert run.traces[-1]["faults"][0]["fault"] == case["fault"], case["id"]
+        assert summary == case["expected"], case["id"]
+
+
 def test_python_complete_state_rejects_invalid_predicate_graphs():
     vector = _vector()
     for case in vector["definition_fault_cases"]:

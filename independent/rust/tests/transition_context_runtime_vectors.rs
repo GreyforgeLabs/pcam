@@ -83,6 +83,59 @@ fn independent_transition_context_rejects_invalid_host_imports() {
 }
 
 #[test]
+fn independent_ordered_assignment_fault_is_tick_atomic_before_containment() {
+    let vector = vector();
+    for case in vector["assignment_fault_cases"].as_array().unwrap() {
+        let mut document = vector.clone();
+        document["runtime_profile"]["fault_policy"] = json!("FAULT_ACTION");
+        document["definitions"][0]["register_declarations"]["order"]["maximum"] =
+            case["register_maximum"].clone();
+        let runtime = SimulationRuntime::from_vector(&document).unwrap();
+        let mut state = runtime.initial_state(&document).unwrap();
+        let mut digests = Vec::new();
+        let mut traces = Vec::new();
+        for tick in document["ticks"].as_array().unwrap() {
+            let result = runtime.tick(&state, tick).unwrap();
+            state = result.0;
+            traces.push(result.1);
+            digests.push(state.digest().unwrap());
+        }
+        let action = state
+            .action_instances
+            .iter()
+            .find(|action| action.instance_id == 1)
+            .unwrap();
+        let summary = json!({
+            "tick": state.tick,
+            "node": action.current_node_id,
+            "lifecycle": action.lifecycle_state,
+            "fault_record": action.fault_record,
+            "registers": action.registers,
+            "input_buffer": action.input_buffer,
+        });
+        assert_eq!(
+            json!(digests),
+            case["tick_state_digests"],
+            "{}:ticks",
+            case["id"]
+        );
+        assert_eq!(
+            state.digest().unwrap(),
+            case["final_state_digest"],
+            "{}:final",
+            case["id"]
+        );
+        assert_eq!(
+            traces.last().unwrap().faults[0]["fault"],
+            case["fault"],
+            "{}:fault",
+            case["id"]
+        );
+        assert_eq!(summary, case["expected"], "{}:summary", case["id"]);
+    }
+}
+
+#[test]
 fn independent_complete_state_rejects_invalid_predicate_graphs() {
     let vector = vector();
     for case in vector["definition_fault_cases"].as_array().unwrap() {

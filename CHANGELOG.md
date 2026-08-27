@@ -40,6 +40,7 @@
 - Moved complete-state predicate-cycle and missing-dependency detection to Python and Rust definition construction with shared fail-closed fault evidence.
 - Added shared complete-state definition faults for negative cycle and target-step values, non-seekable skips, and out-of-range timed-node entry.
 - Added shared complete-state structural definition rejection for duplicate transition priorities, missing source and guard references, illegal AFTER_QUANTUM claims, and missing cross-definition action targets.
+- Integrated ordered complete-state register assignments across source exit, transition exit/body/entry, and target entry, fixed the Python vector adapter to retain those assignments, preserved matched input after consumption, and added shared U64 overflow rollback evidence.
 - Added independent runtime freeze controls and shared schedules for HOLD/ACCRUE progression, transition domains, input capture, and buffer expiry.
 - Added canonical cross-language action-state projection hashes plus restore-and-continue digest vectors for every shared runtime case.
 - Added a schema-valid conformance claim manifest with exact §37 requirement sets, evidence-path validation, dependency enforcement, and fail-closed premature-claim tests.

@@ -63,6 +63,8 @@ struct Definition {
     rate_scale: u64,
     units_per_tick: u64,
     nodes: BTreeMap<String, String>,
+    node_entry_assignments: BTreeMap<String, Vec<RuntimeAssignment>>,
+    node_exit_assignments: BTreeMap<String, Vec<RuntimeAssignment>>,
     predicates: Vec<Predicate>,
     facts: Vec<FactBinding>,
     transitions: Vec<SimulationTransition>,
@@ -73,6 +75,7 @@ struct Definition {
     parameter_declarations: BTreeMap<String, Value>,
     parameter_defaults: BTreeMap<String, Value>,
     register_initials: BTreeMap<String, Value>,
+    register_declarations: BTreeMap<String, Value>,
     child_slot_capacities: BTreeMap<String, u64>,
     child_termination_policies: BTreeMap<String, String>,
     start_claims: Vec<ArbitrationClaim>,
@@ -99,7 +102,16 @@ struct SimulationTransition {
     guard_predicate: Option<String>,
     guard_expression: Option<Value>,
     consume_policy: String,
+    exit_assignments: Vec<RuntimeAssignment>,
+    assignments: Vec<RuntimeAssignment>,
+    entry_assignments: Vec<RuntimeAssignment>,
     effects: Vec<RuntimeEffect>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct RuntimeAssignment {
+    target: String,
+    value: Value,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1617,6 +1629,27 @@ impl SimulationRuntime {
                         }
                         continue;
                     }
+                    let action = state
+                        .action_instances
+                        .iter()
+                        .find(|action| {
+                            action.instance_id == decision.intent.source_action_instance_id
+                        })
+                        .cloned()
+                        .ok_or(SimulationError::RuntimeFault)?;
+                    let matched_input = transition.input_command.as_ref().and_then(|command| {
+                        select_buffer_input(&action.input_buffer, command).cloned()
+                    });
+                    let matched_event = transition.event_type.as_ref().and_then(|event_type| {
+                        action
+                            .event_inbox
+                            .iter()
+                            .find(|event| {
+                                event.get("event_type").and_then(Value::as_str)
+                                    == Some(event_type.as_str())
+                            })
+                            .cloned()
+                    });
                     if transition.input_command.is_some() && transition.consume_policy != "NEVER" {
                         remove_buffer_input(
                             state,
@@ -1629,6 +1662,8 @@ impl SimulationRuntime {
                         decision.intent.source_action_instance_id,
                         transition,
                         runtime_effects,
+                        matched_input.as_ref(),
+                        matched_event.as_ref(),
                     )?;
                 }
                 "ACTION_START" => {
@@ -1963,6 +1998,19 @@ impl SimulationRuntime {
                         .then_with(|| left.id.as_bytes().cmp(right.id.as_bytes()))
                 });
                 if let Some(transition) = eligible.into_iter().next() {
+                    let matched_input = transition.input_command.as_ref().and_then(|command| {
+                        select_buffer_input(&action.input_buffer, command).cloned()
+                    });
+                    let matched_event = transition.event_type.as_ref().and_then(|event_type| {
+                        action
+                            .event_inbox
+                            .iter()
+                            .find(|event| {
+                                event.get("event_type").and_then(Value::as_str)
+                                    == Some(event_type.as_str())
+                            })
+                            .cloned()
+                    });
                     if transition.input_command.is_some() && transition.consume_policy != "NEVER" {
                         let matched_input = transition
                             .input_command
@@ -1979,6 +2027,8 @@ impl SimulationRuntime {
                         action_id,
                         &transition,
                         runtime_effects,
+                        matched_input.as_ref(),
+                        matched_event.as_ref(),
                     )?;
                 }
                 if state.action_instances[index].lifecycle_state != "RUNNING" {
@@ -1989,34 +2039,128 @@ impl SimulationRuntime {
         Ok(())
     }
 
+    fn apply_runtime_assignments(
+        &self,
+        state: &mut SimulationState,
+        action_id: u64,
+        definition: &Definition,
+        assignments: &[RuntimeAssignment],
+        matched_input: Option<&Value>,
+        matched_event: Option<&Value>,
+    ) -> Result<(), SimulationError> {
+        for assignment in assignments {
+            let register_id = assignment
+                .target
+                .strip_prefix("action.register.")
+                .ok_or_else(|| assignment_fault("MISSING_REFERENCE", action_id, state))?;
+            let action = state
+                .action_instances
+                .iter()
+                .find(|action| action.instance_id == action_id)
+                .cloned()
+                .ok_or(SimulationError::RuntimeFault)?;
+            if !action.registers.contains_key(register_id) {
+                return Err(assignment_fault("MISSING_REFERENCE", action_id, state));
+            }
+            let context = transition_guard_context(
+                state,
+                &action,
+                definition,
+                &assignment.value,
+                matched_input,
+                matched_event,
+            )?;
+            let value = evaluate_expression(
+                &assignment.value,
+                &context,
+                self.max_expression_depth,
+                self.max_expression_nodes,
+            )
+            .map_err(|error| predicate_expression_fault(error, &action))?;
+            let normalized = normalize_register_assignment(
+                register_id,
+                value,
+                definition.register_declarations.get(register_id),
+                action_id,
+                state,
+            )?;
+            state
+                .action_instances
+                .iter_mut()
+                .find(|action| action.instance_id == action_id)
+                .ok_or(SimulationError::RuntimeFault)?
+                .registers
+                .insert(register_id.to_owned(), normalized);
+        }
+        Ok(())
+    }
+
     fn apply_simulation_transition(
         &self,
         state: &mut SimulationState,
         action_id: u64,
         transition: &SimulationTransition,
         runtime_effects: &mut Vec<RuntimeEffect>,
+        matched_input: Option<&Value>,
+        matched_event: Option<&Value>,
     ) -> Result<(), SimulationError> {
         let index = state
             .action_instances
             .iter()
             .position(|action| action.instance_id == action_id)
             .ok_or(SimulationError::RuntimeFault)?;
+        let definition = self
+            .definitions
+            .values()
+            .find(|definition| definition.hash == state.action_instances[index].definition_hash)
+            .ok_or(SimulationError::RuntimeFault)?;
+        let source_node = state.action_instances[index].current_node_id.clone();
+        self.apply_runtime_assignments(
+            state,
+            action_id,
+            definition,
+            definition
+                .node_exit_assignments
+                .get(&source_node)
+                .map(Vec::as_slice)
+                .unwrap_or(&[]),
+            matched_input,
+            matched_event,
+        )?;
+        self.apply_runtime_assignments(
+            state,
+            action_id,
+            definition,
+            &transition.exit_assignments,
+            matched_input,
+            matched_event,
+        )?;
+        self.apply_runtime_assignments(
+            state,
+            action_id,
+            definition,
+            &transition.assignments,
+            matched_input,
+            matched_event,
+        )?;
         state.action_instances[index].cycle = state.action_instances[index]
             .cycle
             .checked_add(transition.cycle_delta)
             .ok_or(SimulationError::RuntimeFault)?;
+        runtime_effects.extend(transition.effects.clone());
+        self.apply_runtime_assignments(
+            state,
+            action_id,
+            definition,
+            &transition.entry_assignments,
+            matched_input,
+            matched_event,
+        )?;
         match transition.target_kind.as_str() {
             "NODE" => {
                 let target = transition
                     .target_node
                     .as_ref()
-                    .ok_or(SimulationError::RuntimeFault)?;
-                let definition = self
-                    .definitions
-                    .values()
-                    .find(|definition| {
-                        definition.hash == state.action_instances[index].definition_hash
-                    })
                     .ok_or(SimulationError::RuntimeFault)?;
                 state.action_instances[index].current_node_id = target.clone();
                 state.action_instances[index].node_step = transition.target_step;
@@ -2024,6 +2168,18 @@ impl SimulationRuntime {
                     .transition_serial
                     .checked_add(1)
                     .ok_or(SimulationError::RuntimeFault)?;
+                self.apply_runtime_assignments(
+                    state,
+                    action_id,
+                    definition,
+                    definition
+                        .node_entry_assignments
+                        .get(target)
+                        .map(Vec::as_slice)
+                        .unwrap_or(&[]),
+                    matched_input,
+                    matched_event,
+                )?;
                 if definition
                     .nodes
                     .get(target)
@@ -2284,7 +2440,6 @@ impl SimulationRuntime {
             }
             _ => return Err(SimulationError::RuntimeFault),
         }
-        runtime_effects.extend(transition.effects.clone());
         Ok(())
     }
 
@@ -2629,6 +2784,21 @@ fn parse_runtime_effect(raw: &Value) -> Result<RuntimeEffect, SimulationError> {
     })
 }
 
+fn parse_runtime_assignments(
+    raw: &Value,
+    field: &str,
+) -> Result<Vec<RuntimeAssignment>, SimulationError> {
+    raw.get(field)
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .map(|assignment| {
+            serde_json::from_value(assignment).map_err(|_| SimulationError::InvalidVector)
+        })
+        .collect()
+}
+
 fn canonical_definition(raw: &Value) -> Result<Value, SimulationError> {
     let id = string_field(raw, "id")?;
     let nodes = array(raw, "nodes")?
@@ -2917,6 +3087,24 @@ fn parse_definition(raw: &Value, hash: String) -> Result<Definition, SimulationE
             "node identifier must be unique",
         ));
     }
+    let node_entry_assignments = raw_nodes
+        .iter()
+        .map(|node| {
+            Ok((
+                string_field(node, "id")?.to_owned(),
+                parse_runtime_assignments(node, "entry_assignments")?,
+            ))
+        })
+        .collect::<Result<BTreeMap<_, _>, SimulationError>>()?;
+    let node_exit_assignments = raw_nodes
+        .iter()
+        .map(|node| {
+            Ok((
+                string_field(node, "id")?.to_owned(),
+                parse_runtime_assignments(node, "exit_assignments")?,
+            ))
+        })
+        .collect::<Result<BTreeMap<_, _>, SimulationError>>()?;
     let predicates = raw
         .get("predicates")
         .and_then(Value::as_array)
@@ -3106,6 +3294,9 @@ fn parse_definition(raw: &Value, hash: String) -> Result<Definition, SimulationE
                     .map(str::to_owned),
                 guard_expression: transition.get("guard_expression").cloned(),
                 consume_policy,
+                exit_assignments: parse_runtime_assignments(transition, "exit_assignments")?,
+                assignments: parse_runtime_assignments(transition, "assignments")?,
+                entry_assignments: parse_runtime_assignments(transition, "entry_assignments")?,
                 effects: transition
                     .get("effects")
                     .and_then(Value::as_array)
@@ -3160,6 +3351,8 @@ fn parse_definition(raw: &Value, hash: String) -> Result<Definition, SimulationE
         rate_scale: u64_field(raw, "rate_scale")?,
         units_per_tick: u64_field(raw, "units_per_tick")?,
         nodes,
+        node_entry_assignments,
+        node_exit_assignments,
         predicates,
         facts,
         transitions,
@@ -3186,6 +3379,12 @@ fn parse_definition(raw: &Value, hash: String) -> Result<Definition, SimulationE
             .unwrap_or_default(),
         register_initials: raw
             .get("register_initials")
+            .cloned()
+            .map(|value| serde_json::from_value(value).map_err(|_| SimulationError::InvalidVector))
+            .transpose()?
+            .unwrap_or_default(),
+        register_declarations: raw
+            .get("register_declarations")
             .cloned()
             .map(|value| serde_json::from_value(value).map_err(|_| SimulationError::InvalidVector))
             .transpose()?
@@ -3829,6 +4028,148 @@ fn definition_fault(fault: &str, message: &str) -> SimulationError {
         action_instance_id: None,
         owner_entity_id: None,
     })
+}
+
+fn assignment_fault(fault: &str, action_id: u64, state: &SimulationState) -> SimulationError {
+    assignment_fault_message(fault, "register assignment failed", action_id, state)
+}
+
+fn assignment_fault_message(
+    fault: &str,
+    message: &str,
+    action_id: u64,
+    state: &SimulationState,
+) -> SimulationError {
+    let owner_entity_id = state
+        .action_instances
+        .iter()
+        .find(|action| action.instance_id == action_id)
+        .map(|action| action.owner_entity_id);
+    SimulationError::Fault(FaultContext {
+        code: "RUNTIME_FAULT".to_owned(),
+        fault: fault.to_owned(),
+        message: message.to_owned(),
+        action_instance_id: Some(action_id),
+        owner_entity_id,
+    })
+}
+
+fn normalize_register_assignment(
+    register_id: &str,
+    value: Value,
+    declaration: Option<&Value>,
+    action_id: u64,
+    state: &SimulationState,
+) -> Result<Value, SimulationError> {
+    let Some(declaration) = declaration else {
+        return Ok(value);
+    };
+    let kind = declaration
+        .get("type")
+        .and_then(Value::as_str)
+        .ok_or_else(|| assignment_fault("STATE_INVARIANT_FAILURE", action_id, state))?;
+    match kind {
+        "BOOL" if value.is_boolean() => Ok(value),
+        "SYMBOL" | "BYTES" if value.is_string() => Ok(value),
+        "I64" => {
+            let number = value
+                .as_i64()
+                .ok_or_else(|| assignment_fault("STATE_INVARIANT_FAILURE", action_id, state))?;
+            let minimum = declaration
+                .get("minimum")
+                .and_then(Value::as_i64)
+                .ok_or_else(|| assignment_fault("STATE_INVARIANT_FAILURE", action_id, state))?;
+            let maximum = declaration
+                .get("maximum")
+                .and_then(Value::as_i64)
+                .ok_or_else(|| assignment_fault("STATE_INVARIANT_FAILURE", action_id, state))?;
+            normalize_bounded_integer(
+                register_id,
+                number as i128,
+                minimum as i128,
+                maximum as i128,
+                declaration,
+                action_id,
+                state,
+            )
+            .and_then(|normalized| {
+                i64::try_from(normalized)
+                    .map(Value::from)
+                    .map_err(|_| assignment_fault("INTEGER_OVERFLOW", action_id, state))
+            })
+        }
+        "U64" => {
+            let number = value
+                .as_u64()
+                .ok_or_else(|| assignment_fault("STATE_INVARIANT_FAILURE", action_id, state))?;
+            let minimum = declaration
+                .get("minimum")
+                .and_then(Value::as_u64)
+                .ok_or_else(|| assignment_fault("STATE_INVARIANT_FAILURE", action_id, state))?;
+            let maximum = declaration
+                .get("maximum")
+                .and_then(Value::as_u64)
+                .ok_or_else(|| assignment_fault("STATE_INVARIANT_FAILURE", action_id, state))?;
+            normalize_bounded_integer(
+                register_id,
+                number as i128,
+                minimum as i128,
+                maximum as i128,
+                declaration,
+                action_id,
+                state,
+            )
+            .and_then(|normalized| {
+                u64::try_from(normalized)
+                    .map(Value::from)
+                    .map_err(|_| assignment_fault("INTEGER_OVERFLOW", action_id, state))
+            })
+        }
+        _ => Err(assignment_fault(
+            "STATE_INVARIANT_FAILURE",
+            action_id,
+            state,
+        )),
+    }
+}
+
+fn normalize_bounded_integer(
+    register_id: &str,
+    value: i128,
+    minimum: i128,
+    maximum: i128,
+    declaration: &Value,
+    action_id: u64,
+    state: &SimulationState,
+) -> Result<i128, SimulationError> {
+    if minimum > maximum {
+        return Err(assignment_fault(
+            "STATE_INVARIANT_FAILURE",
+            action_id,
+            state,
+        ));
+    }
+    if (minimum..=maximum).contains(&value) {
+        return Ok(value);
+    }
+    match declaration.get("overflow").and_then(Value::as_str) {
+        Some("SATURATE") => Ok(value.clamp(minimum, maximum)),
+        Some("WRAP") => {
+            let width = maximum - minimum + 1;
+            Ok(minimum + (value - minimum).rem_euclid(width))
+        }
+        Some("FAULT") => Err(assignment_fault_message(
+            "INTEGER_OVERFLOW",
+            &format!("{register_id}: {value}"),
+            action_id,
+            state,
+        )),
+        _ => Err(assignment_fault(
+            "STATE_INVARIANT_FAILURE",
+            action_id,
+            state,
+        )),
+    }
 }
 
 fn predicate_expression_fault(error: EvalError, action: &ActionSnapshot) -> SimulationError {

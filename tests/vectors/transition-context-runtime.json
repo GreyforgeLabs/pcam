@@ -37,7 +37,10 @@
       "default_buffer_lifetime": 3,
       "parameter_declarations": {"threshold": {"type": "U64", "minimum": 0, "maximum": 10}},
       "parameter_defaults": {"threshold": 4},
-      "register_initials": {"mode": "ready"},
+      "register_declarations": {
+        "order": {"type": "U64", "minimum": 0, "maximum": 10, "overflow": "FAULT"}
+      },
+      "register_initials": {"mode": "ready", "order": 0},
       "predicates": [
         {
           "id": "CONTEXT_READY",
@@ -66,8 +69,20 @@
         }
       },
       "nodes": [
-        {"id": "WAIT", "mode": "EVENT_DRIVEN"},
-        {"id": "DONE", "mode": "EVENT_DRIVEN"}
+        {
+          "id": "WAIT",
+          "mode": "EVENT_DRIVEN",
+          "exit_assignments": [
+            {"target": "action.register.order", "value": {"ref": "input.payload.increment"}}
+          ]
+        },
+        {
+          "id": "DONE",
+          "mode": "EVENT_DRIVEN",
+          "entry_assignments": [
+            {"target": "action.register.order", "value": {"op": "add", "args": [{"ref": "action.register.order"}, {"literal": 1}]}}
+          ]
+        }
       ],
       "transitions": [
         {
@@ -79,6 +94,15 @@
           "target_node": "DONE",
           "input_command": "GO",
           "guard_predicate": "DERIVED_READY",
+          "exit_assignments": [
+            {"target": "action.register.order", "value": {"op": "add", "args": [{"ref": "action.register.order"}, {"literal": 1}]}}
+          ],
+          "assignments": [
+            {"target": "action.register.order", "value": {"op": "add", "args": [{"ref": "action.register.order"}, {"literal": 1}]}}
+          ],
+          "entry_assignments": [
+            {"target": "action.register.order", "value": {"op": "add", "args": [{"ref": "action.register.order"}, {"literal": 1}]}}
+          ],
           "guard_expression": {
             "op": "and",
             "args": [
@@ -109,7 +133,7 @@
       "contacts": []
     },
     {
-      "inputs": [{"input_id": "go", "source_entity_id": 1, "sequence": 1, "command_id": "GO", "assigned_tick": 1, "payload": {"permit": true}}],
+      "inputs": [{"input_id": "go", "source_entity_id": 1, "sequence": 1, "command_id": "GO", "assigned_tick": 1, "payload": {"permit": true, "increment": 1}}],
       "imports": {"allowed": true},
       "contacts": []
     }
@@ -119,31 +143,41 @@
       "id": "all-contexts-match",
       "imports": {"allowed": true},
       "failure_policy": "FAULT",
-      "tick_state_digests": ["92af9fd5475b3be4da1dfa8e7052432468a6e30b4a39c20327f635f9f12e986d", "32e718109fb0b227706b121c9df4b8a6d05e494c903c718b6d6983c4adcfd1c9"],
-      "final_state_digest": "32e718109fb0b227706b121c9df4b8a6d05e494c903c718b6d6983c4adcfd1c9",
-      "expected": {"node": "DONE", "transition_serial": 1, "captured_parameters": {"threshold": 5}, "registers": {"mode": "ready"}, "predicate_truth_state": {"CONTEXT_READY": true, "DERIVED_READY": true}, "predicate_entry_serials": {"CONTEXT_READY": 1, "DERIVED_READY": 1}, "input_buffer": [], "host_imports": {"allowed": true}}
+      "tick_state_digests": ["261cba8d9c43e6d9416a6a7da2d95d61be75f2153ceb2db9fd9e158f94a49874", "32dff8d4afbae09d3bd140e98c8c7d749392cb14fb5e791d7046965d1fd637e1"],
+      "final_state_digest": "32dff8d4afbae09d3bd140e98c8c7d749392cb14fb5e791d7046965d1fd637e1",
+      "expected": {"node": "DONE", "transition_serial": 1, "captured_parameters": {"threshold": 5}, "registers": {"mode": "ready", "order": 5}, "predicate_truth_state": {"CONTEXT_READY": true, "DERIVED_READY": true}, "predicate_entry_serials": {"CONTEXT_READY": 1, "DERIVED_READY": 1}, "input_buffer": [], "host_imports": {"allowed": true}}
     },
     {
       "id": "host-context-rejects",
       "imports": {"allowed": false},
       "failure_policy": "FAULT",
-      "tick_state_digests": ["92af9fd5475b3be4da1dfa8e7052432468a6e30b4a39c20327f635f9f12e986d", "c59cd043a7237d00c0e1c9909f5957c7573cc0f1c664d8e7cb9cc3485e219310"],
-      "final_state_digest": "c59cd043a7237d00c0e1c9909f5957c7573cc0f1c664d8e7cb9cc3485e219310",
-      "expected": {"node": "WAIT", "transition_serial": 0, "captured_parameters": {"threshold": 5}, "registers": {"mode": "ready"}, "predicate_truth_state": {"CONTEXT_READY": true, "DERIVED_READY": true}, "predicate_entry_serials": {"CONTEXT_READY": 1, "DERIVED_READY": 1}, "input_buffer": [{"buffer_entry_id": "buffer:go", "captured_tick": 1, "command_id": "GO", "input_id": "go", "payload": {"permit": true}, "priority": 0, "remaining_eligibility_ticks": 2, "sequence": 1}], "host_imports": {"allowed": false}}
+      "tick_state_digests": ["261cba8d9c43e6d9416a6a7da2d95d61be75f2153ceb2db9fd9e158f94a49874", "8abe93022d8bdea7792a7a74ce52b2f9f123032ba40e1758e383ad621e8ef8f7"],
+      "final_state_digest": "8abe93022d8bdea7792a7a74ce52b2f9f123032ba40e1758e383ad621e8ef8f7",
+      "expected": {"node": "WAIT", "transition_serial": 0, "captured_parameters": {"threshold": 5}, "registers": {"mode": "ready", "order": 0}, "predicate_truth_state": {"CONTEXT_READY": true, "DERIVED_READY": true}, "predicate_entry_serials": {"CONTEXT_READY": 1, "DERIVED_READY": 1}, "input_buffer": [{"buffer_entry_id": "buffer:go", "captured_tick": 1, "command_id": "GO", "input_id": "go", "payload": {"permit": true, "increment": 1}, "priority": 0, "remaining_eligibility_ticks": 2, "sequence": 1}], "host_imports": {"allowed": false}}
     },
     {
       "id": "host-default-matches",
       "imports": {},
       "failure_policy": "USE_DEFAULT",
       "default": true,
-      "tick_state_digests": ["a534764326fae65a5258ba1c80c04284f276eee2e27f8dfaa1b2ead17ace71ec", "57b3ded551ed21fe8edc37f0c3bc4406ef82e72bebd8712dfb45fcf59b116bcc"],
-      "final_state_digest": "57b3ded551ed21fe8edc37f0c3bc4406ef82e72bebd8712dfb45fcf59b116bcc",
-      "expected": {"node": "DONE", "transition_serial": 1, "captured_parameters": {"threshold": 5}, "registers": {"mode": "ready"}, "predicate_truth_state": {"CONTEXT_READY": true, "DERIVED_READY": true}, "predicate_entry_serials": {"CONTEXT_READY": 1, "DERIVED_READY": 1}, "input_buffer": [], "host_imports": {}}
+      "tick_state_digests": ["55a0d8dc26ab1198a284832601bfa24219d647556e895aab4c3f500e13f4965b", "95fb77137b51afff08b8c43c91401dd7373170e3b893cd1a9f0465dd629cf637"],
+      "final_state_digest": "95fb77137b51afff08b8c43c91401dd7373170e3b893cd1a9f0465dd629cf637",
+      "expected": {"node": "DONE", "transition_serial": 1, "captured_parameters": {"threshold": 5}, "registers": {"mode": "ready", "order": 5}, "predicate_truth_state": {"CONTEXT_READY": true, "DERIVED_READY": true}, "predicate_entry_serials": {"CONTEXT_READY": 1, "DERIVED_READY": 1}, "input_buffer": [], "host_imports": {}}
     }
   ],
   "fault_cases": [
     {"id": "missing-required-host-import", "imports": {}, "failure_policy": "FAULT", "fault": "INVALID_HOST_IMPORT"},
     {"id": "invalid-host-import-type", "imports": {"allowed": "yes"}, "failure_policy": "FAULT", "fault": "INVALID_HOST_IMPORT"}
+  ],
+  "assignment_fault_cases": [
+    {
+      "id": "ordered-assignment-overflow",
+      "fault": "INTEGER_OVERFLOW",
+      "register_maximum": 4,
+      "tick_state_digests": ["0e9d1965a9d9135d494e53e339c42fc8141aac3c68727008e2ed896e89db1362", "0c80a40a8a88e94191c09557ab5e717244ba10ed0e1151234dba52c47787b7a3"],
+      "final_state_digest": "0c80a40a8a88e94191c09557ab5e717244ba10ed0e1151234dba52c47787b7a3",
+      "expected": {"tick": 2, "node": "WAIT", "lifecycle": "FAULTED", "fault_record": "INTEGER_OVERFLOW", "registers": {"mode": "ready", "order": 0}, "input_buffer": []}
+    }
   ],
   "definition_fault_cases": [
     {
