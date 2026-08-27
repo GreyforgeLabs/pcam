@@ -1,0 +1,40 @@
+{
+  "profile": "pcam.repository-layout.v1",
+  "required_files": [
+    "README.md",
+    "STATUS.md",
+    "CHANGELOG.md",
+    "spec/PCAM-v3.md",
+    "spec/state-model.md",
+    "spec/transition-model.md",
+    "spec/interaction-model.md",
+    "spec/networking-profiles.md",
+    "spec/conformance.md",
+    "schemas/action.schema.json",
+    "schemas/interaction-profile.schema.json",
+    "schemas/runtime-profile.schema.json",
+    "schemas/snapshot.schema.json",
+    "schemas/pcam24.schema.json",
+    "reference/runtime/README.md",
+    "reference/validator/README.md",
+    "reference/compiler/README.md",
+    "reference/canonicalizer/README.md",
+    "reference/trace-viewer/README.md",
+    "profiles/pcam24/README.md",
+    "archive/v1/README.md",
+    "archive/v2/README.md",
+    "archive/legacy-claims/README.md"
+  ],
+  "required_directories": [
+    "LICENSES",
+    "tests/valid",
+    "tests/invalid",
+    "tests/vectors",
+    "tests/rollback",
+    "tests/generated",
+    "tests/cross-platform",
+    "experiments/methodology",
+    "experiments/baselines",
+    "experiments/results"
+  ]
+}
