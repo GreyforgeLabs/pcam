@@ -2,6 +2,8 @@ import importlib.util
 import json
 from pathlib import Path
 
+import pytest
+
 from pcam_runtime import (
     ActionDefinition,
     EffectEnvelope,
@@ -9,6 +11,8 @@ from pcam_runtime import (
     InteractionCandidate,
     InteractionRule,
     NodeDefinition,
+    OverflowPolicy,
+    PCAMError,
     RuleOperation,
     RetainedRollbackHistory,
     RuntimeProfile,
@@ -16,12 +20,16 @@ from pcam_runtime import (
     TickExecutor,
     TickInput,
     TransitionDefinition,
+    apply_i64,
+    apply_u64,
     canonical_candidates,
+    euclidean_divmod,
     expire_freeze_tokens,
     is_frozen,
     progression_accrual,
     reduce_effects,
     resolve_candidate,
+    scale_ratio,
 )
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -463,6 +471,42 @@ def test_python_shared_generated_parent_child_structures_respect_limits_and_rest
             assert (child.parent_instance_id, child.parent_slot_id) == (
                 1,
                 case["child_slot_id"],
+            ), case["id"]
+
+
+def test_python_shared_generated_numeric_division_is_euclidean():
+    for case in _corpus()["numeric_division_cases"]:
+        assert euclidean_divmod(case["dividend"], case["divisor"]) == (
+            case["quotient"],
+            case["remainder"],
+        ), case["id"]
+
+
+def test_python_shared_generated_numeric_ratios_use_checked_floor_rounding():
+    for case in _corpus()["numeric_ratio_cases"]:
+        assert (
+            scale_ratio(case["value"], case["numerator"], case["denominator"])
+            == case["result"]
+        ), case["id"]
+
+
+def test_python_shared_generated_numeric_overflow_policies_match():
+    policies = {
+        "FAULT": OverflowPolicy.FAULT,
+        "SATURATE": OverflowPolicy.SATURATE,
+        "WRAP": OverflowPolicy.WRAP,
+    }
+    functions = {"I64": apply_i64, "U64": apply_u64}
+    for case in _corpus()["numeric_overflow_cases"]:
+        operation = functions[case["domain"]]
+        if case["fault"]:
+            with pytest.raises(PCAMError) as raised:
+                operation(int(case["input"]), policies[case["policy"]])
+            assert raised.value.fault.value == case["fault"], case["id"]
+        else:
+            assert (
+                operation(int(case["input"]), policies[case["policy"]])
+                == case["result"]
             ), case["id"]
 
 

@@ -27045,6 +27045,652 @@
     }
   ],
   "kind": "generated_core_properties",
+  "numeric_division_cases": [
+    {
+      "dividend": 326723095,
+      "divisor": 638460,
+      "id": "numeric-division-000",
+      "quotient": 511,
+      "remainder": 470035
+    },
+    {
+      "dividend": 173284625,
+      "divisor": 409239,
+      "id": "numeric-division-001",
+      "quotient": 423,
+      "remainder": 176528
+    },
+    {
+      "dividend": 314232822,
+      "divisor": 461890,
+      "id": "numeric-division-002",
+      "quotient": 680,
+      "remainder": 147622
+    },
+    {
+      "dividend": -387693507,
+      "divisor": 851207,
+      "id": "numeric-division-003",
+      "quotient": -456,
+      "remainder": 456885
+    },
+    {
+      "dividend": 202737690,
+      "divisor": 901967,
+      "id": "numeric-division-004",
+      "quotient": 224,
+      "remainder": 697082
+    },
+    {
+      "dividend": -413111592,
+      "divisor": 693327,
+      "id": "numeric-division-005",
+      "quotient": -596,
+      "remainder": 111300
+    },
+    {
+      "dividend": -588530739,
+      "divisor": 698868,
+      "id": "numeric-division-006",
+      "quotient": -843,
+      "remainder": 614985
+    },
+    {
+      "dividend": 622910785,
+      "divisor": 703982,
+      "id": "numeric-division-007",
+      "quotient": 884,
+      "remainder": 590697
+    },
+    {
+      "dividend": 418248271,
+      "divisor": 908866,
+      "id": "numeric-division-008",
+      "quotient": 460,
+      "remainder": 169911
+    },
+    {
+      "dividend": -841908028,
+      "divisor": 130813,
+      "id": "numeric-division-009",
+      "quotient": -6436,
+      "remainder": 4440
+    },
+    {
+      "dividend": -633104,
+      "divisor": 751302,
+      "id": "numeric-division-010",
+      "quotient": -1,
+      "remainder": 118198
+    },
+    {
+      "dividend": -470255998,
+      "divisor": 664758,
+      "id": "numeric-division-011",
+      "quotient": -708,
+      "remainder": 392666
+    },
+    {
+      "dividend": -497196301,
+      "divisor": 71840,
+      "id": "numeric-division-012",
+      "quotient": -6921,
+      "remainder": 8339
+    },
+    {
+      "dividend": 773556056,
+      "divisor": 706821,
+      "id": "numeric-division-013",
+      "quotient": 1094,
+      "remainder": 293882
+    },
+    {
+      "dividend": -808332416,
+      "divisor": 636701,
+      "id": "numeric-division-014",
+      "quotient": -1270,
+      "remainder": 277854
+    },
+    {
+      "dividend": -235515044,
+      "divisor": 90785,
+      "id": "numeric-division-015",
+      "quotient": -2595,
+      "remainder": 72031
+    },
+    {
+      "dividend": 697805276,
+      "divisor": 393807,
+      "id": "numeric-division-016",
+      "quotient": 1771,
+      "remainder": 373079
+    },
+    {
+      "dividend": -663188859,
+      "divisor": 351245,
+      "id": "numeric-division-017",
+      "quotient": -1889,
+      "remainder": 312946
+    },
+    {
+      "dividend": -100936298,
+      "divisor": 413196,
+      "id": "numeric-division-018",
+      "quotient": -245,
+      "remainder": 296722
+    },
+    {
+      "dividend": -556141431,
+      "divisor": 289173,
+      "id": "numeric-division-019",
+      "quotient": -1924,
+      "remainder": 227421
+    },
+    {
+      "dividend": 421668365,
+      "divisor": 561852,
+      "id": "numeric-division-020",
+      "quotient": 750,
+      "remainder": 279365
+    },
+    {
+      "dividend": -561213677,
+      "divisor": 9342,
+      "id": "numeric-division-021",
+      "quotient": -60075,
+      "remainder": 6973
+    },
+    {
+      "dividend": -894321214,
+      "divisor": 965457,
+      "id": "numeric-division-022",
+      "quotient": -927,
+      "remainder": 657425
+    },
+    {
+      "dividend": -990854593,
+      "divisor": 442413,
+      "id": "numeric-division-023",
+      "quotient": -2240,
+      "remainder": 150527
+    },
+    {
+      "dividend": -171666549,
+      "divisor": 331662,
+      "id": "numeric-division-024",
+      "quotient": -518,
+      "remainder": 134367
+    },
+    {
+      "dividend": -156030096,
+      "divisor": 650447,
+      "id": "numeric-division-025",
+      "quotient": -240,
+      "remainder": 77184
+    },
+    {
+      "dividend": 361236233,
+      "divisor": 43907,
+      "id": "numeric-division-026",
+      "quotient": 8227,
+      "remainder": 13344
+    },
+    {
+      "dividend": 638515645,
+      "divisor": 806698,
+      "id": "numeric-division-027",
+      "quotient": 791,
+      "remainder": 417527
+    },
+    {
+      "dividend": 929245053,
+      "divisor": 566955,
+      "id": "numeric-division-028",
+      "quotient": 1639,
+      "remainder": 5808
+    },
+    {
+      "dividend": 892818935,
+      "divisor": 981928,
+      "id": "numeric-division-029",
+      "quotient": 909,
+      "remainder": 246383
+    },
+    {
+      "dividend": 118099071,
+      "divisor": 86566,
+      "id": "numeric-division-030",
+      "quotient": 1364,
+      "remainder": 23047
+    },
+    {
+      "dividend": 285881587,
+      "divisor": 782001,
+      "id": "numeric-division-031",
+      "quotient": 365,
+      "remainder": 451222
+    }
+  ],
+  "numeric_overflow_cases": [
+    {
+      "domain": "U64",
+      "fault": "INTEGER_OVERFLOW",
+      "id": "numeric-overflow-000",
+      "input": "-2297",
+      "policy": "FAULT",
+      "result": null
+    },
+    {
+      "domain": "U64",
+      "fault": "INTEGER_OVERFLOW",
+      "id": "numeric-overflow-001",
+      "input": "-197",
+      "policy": "FAULT",
+      "result": null
+    },
+    {
+      "domain": "I64",
+      "fault": "INTEGER_OVERFLOW",
+      "id": "numeric-overflow-002",
+      "input": "-9223372036854776538",
+      "policy": "FAULT",
+      "result": null
+    },
+    {
+      "domain": "I64",
+      "fault": null,
+      "id": "numeric-overflow-003",
+      "input": "-9223372036854777250",
+      "policy": "WRAP",
+      "result": 9223372036854774366
+    },
+    {
+      "domain": "U64",
+      "fault": null,
+      "id": "numeric-overflow-004",
+      "input": "-993",
+      "policy": "WRAP",
+      "result": 18446744073709550623
+    },
+    {
+      "domain": "U64",
+      "fault": null,
+      "id": "numeric-overflow-005",
+      "input": "-1206",
+      "policy": "WRAP",
+      "result": 18446744073709550410
+    },
+    {
+      "domain": "U64",
+      "fault": null,
+      "id": "numeric-overflow-006",
+      "input": "18446744073709551835",
+      "policy": "SATURATE",
+      "result": 18446744073709551615
+    },
+    {
+      "domain": "U64",
+      "fault": "INTEGER_OVERFLOW",
+      "id": "numeric-overflow-007",
+      "input": "-469",
+      "policy": "FAULT",
+      "result": null
+    },
+    {
+      "domain": "I64",
+      "fault": "INTEGER_OVERFLOW",
+      "id": "numeric-overflow-008",
+      "input": "9223372036854779049",
+      "policy": "FAULT",
+      "result": null
+    },
+    {
+      "domain": "I64",
+      "fault": null,
+      "id": "numeric-overflow-009",
+      "input": "-9223372036854775843",
+      "policy": "WRAP",
+      "result": 9223372036854775773
+    },
+    {
+      "domain": "I64",
+      "fault": null,
+      "id": "numeric-overflow-010",
+      "input": "-9223372036854777525",
+      "policy": "SATURATE",
+      "result": -9223372036854775808
+    },
+    {
+      "domain": "U64",
+      "fault": "INTEGER_OVERFLOW",
+      "id": "numeric-overflow-011",
+      "input": "18446744073709552903",
+      "policy": "FAULT",
+      "result": null
+    },
+    {
+      "domain": "I64",
+      "fault": "INTEGER_OVERFLOW",
+      "id": "numeric-overflow-012",
+      "input": "9223372036854777766",
+      "policy": "FAULT",
+      "result": null
+    },
+    {
+      "domain": "I64",
+      "fault": null,
+      "id": "numeric-overflow-013",
+      "input": "9223372036854777102",
+      "policy": "WRAP",
+      "result": -9223372036854774514
+    },
+    {
+      "domain": "I64",
+      "fault": null,
+      "id": "numeric-overflow-014",
+      "input": "-9223372036854776194",
+      "policy": "WRAP",
+      "result": 9223372036854775422
+    },
+    {
+      "domain": "I64",
+      "fault": null,
+      "id": "numeric-overflow-015",
+      "input": "9223372036854777229",
+      "policy": "WRAP",
+      "result": -9223372036854774387
+    },
+    {
+      "domain": "U64",
+      "fault": "INTEGER_OVERFLOW",
+      "id": "numeric-overflow-016",
+      "input": "-3907",
+      "policy": "FAULT",
+      "result": null
+    },
+    {
+      "domain": "I64",
+      "fault": null,
+      "id": "numeric-overflow-017",
+      "input": "9223372036854776237",
+      "policy": "SATURATE",
+      "result": 9223372036854775807
+    },
+    {
+      "domain": "U64",
+      "fault": null,
+      "id": "numeric-overflow-018",
+      "input": "18446744073709551656",
+      "policy": "WRAP",
+      "result": 40
+    },
+    {
+      "domain": "I64",
+      "fault": null,
+      "id": "numeric-overflow-019",
+      "input": "9223372036854777718",
+      "policy": "WRAP",
+      "result": -9223372036854773898
+    },
+    {
+      "domain": "I64",
+      "fault": null,
+      "id": "numeric-overflow-020",
+      "input": "-9223372036854777379",
+      "policy": "WRAP",
+      "result": 9223372036854774237
+    },
+    {
+      "domain": "I64",
+      "fault": null,
+      "id": "numeric-overflow-021",
+      "input": "-9223372036854776008",
+      "policy": "SATURATE",
+      "result": -9223372036854775808
+    },
+    {
+      "domain": "U64",
+      "fault": null,
+      "id": "numeric-overflow-022",
+      "input": "18446744073709552972",
+      "policy": "SATURATE",
+      "result": 18446744073709551615
+    },
+    {
+      "domain": "U64",
+      "fault": null,
+      "id": "numeric-overflow-023",
+      "input": "-1091",
+      "policy": "WRAP",
+      "result": 18446744073709550525
+    }
+  ],
+  "numeric_ratio_cases": [
+    {
+      "denominator": 813,
+      "id": "numeric-ratio-000",
+      "numerator": -799,
+      "result": -495252,
+      "value": 503929
+    },
+    {
+      "denominator": 731,
+      "id": "numeric-ratio-001",
+      "numerator": 41,
+      "result": -4076,
+      "value": -72672
+    },
+    {
+      "denominator": 796,
+      "id": "numeric-ratio-002",
+      "numerator": 693,
+      "result": -705047,
+      "value": -809837
+    },
+    {
+      "denominator": 934,
+      "id": "numeric-ratio-003",
+      "numerator": -888,
+      "result": 492951,
+      "value": -518487
+    },
+    {
+      "denominator": 194,
+      "id": "numeric-ratio-004",
+      "numerator": 472,
+      "result": 797108,
+      "value": 327625
+    },
+    {
+      "denominator": 692,
+      "id": "numeric-ratio-005",
+      "numerator": 95,
+      "result": -61677,
+      "value": -449268
+    },
+    {
+      "denominator": 933,
+      "id": "numeric-ratio-006",
+      "numerator": -356,
+      "result": -17155,
+      "value": 44958
+    },
+    {
+      "denominator": 305,
+      "id": "numeric-ratio-007",
+      "numerator": -517,
+      "result": -1679942,
+      "value": 991068
+    },
+    {
+      "denominator": 788,
+      "id": "numeric-ratio-008",
+      "numerator": 82,
+      "result": 91827,
+      "value": 882437
+    },
+    {
+      "denominator": 105,
+      "id": "numeric-ratio-009",
+      "numerator": 732,
+      "result": -5476330,
+      "value": -785539
+    },
+    {
+      "denominator": 803,
+      "id": "numeric-ratio-010",
+      "numerator": -753,
+      "result": 787080,
+      "value": -839344
+    },
+    {
+      "denominator": 637,
+      "id": "numeric-ratio-011",
+      "numerator": 787,
+      "result": -210032,
+      "value": -170000
+    },
+    {
+      "denominator": 487,
+      "id": "numeric-ratio-012",
+      "numerator": -757,
+      "result": 1105324,
+      "value": -711087
+    },
+    {
+      "denominator": 398,
+      "id": "numeric-ratio-013",
+      "numerator": -856,
+      "result": -1307102,
+      "value": 607741
+    },
+    {
+      "denominator": 174,
+      "id": "numeric-ratio-014",
+      "numerator": 504,
+      "result": -1024800,
+      "value": -353800
+    },
+    {
+      "denominator": 458,
+      "id": "numeric-ratio-015",
+      "numerator": 700,
+      "result": 1055422,
+      "value": 690548
+    },
+    {
+      "denominator": 336,
+      "id": "numeric-ratio-016",
+      "numerator": -280,
+      "result": -553485,
+      "value": 664182
+    },
+    {
+      "denominator": 855,
+      "id": "numeric-ratio-017",
+      "numerator": -74,
+      "result": 54013,
+      "value": -624075
+    },
+    {
+      "denominator": 790,
+      "id": "numeric-ratio-018",
+      "numerator": 718,
+      "result": -517441,
+      "value": -569329
+    },
+    {
+      "denominator": 565,
+      "id": "numeric-ratio-019",
+      "numerator": 468,
+      "result": 234037,
+      "value": 282545
+    },
+    {
+      "denominator": 790,
+      "id": "numeric-ratio-020",
+      "numerator": 932,
+      "result": 910731,
+      "value": 771972
+    },
+    {
+      "denominator": 532,
+      "id": "numeric-ratio-021",
+      "numerator": 512,
+      "result": 70282,
+      "value": 73028
+    },
+    {
+      "denominator": 188,
+      "id": "numeric-ratio-022",
+      "numerator": -754,
+      "result": -2715014,
+      "value": 676953
+    },
+    {
+      "denominator": 472,
+      "id": "numeric-ratio-023",
+      "numerator": -1,
+      "result": 876,
+      "value": -413568
+    },
+    {
+      "denominator": 169,
+      "id": "numeric-ratio-024",
+      "numerator": -850,
+      "result": -4403941,
+      "value": 875607
+    },
+    {
+      "denominator": 634,
+      "id": "numeric-ratio-025",
+      "numerator": 21,
+      "result": -20700,
+      "value": -624938
+    },
+    {
+      "denominator": 117,
+      "id": "numeric-ratio-026",
+      "numerator": 716,
+      "result": -3292138,
+      "value": -537961
+    },
+    {
+      "denominator": 743,
+      "id": "numeric-ratio-027",
+      "numerator": -883,
+      "result": 749354,
+      "value": -630544
+    },
+    {
+      "denominator": 730,
+      "id": "numeric-ratio-028",
+      "numerator": -729,
+      "result": -984874,
+      "value": 986224
+    },
+    {
+      "denominator": 361,
+      "id": "numeric-ratio-029",
+      "numerator": -257,
+      "result": -207085,
+      "value": 290885
+    },
+    {
+      "denominator": 71,
+      "id": "numeric-ratio-030",
+      "numerator": -552,
+      "result": -3419602,
+      "value": 439840
+    },
+    {
+      "denominator": 418,
+      "id": "numeric-ratio-031",
+      "numerator": -998,
+      "result": 2147163,
+      "value": -899313
+    }
+  ],
   "parent_child_cases": [
     {
       "capacity": 4,

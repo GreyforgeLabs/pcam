@@ -243,6 +243,86 @@ def _parent_child_cases(generator: random.Random) -> list[dict[str, object]]:
     return cases
 
 
+def _numeric_division_cases(generator: random.Random) -> list[dict[str, object]]:
+    cases = []
+    for case_index in range(32):
+        dividend = generator.randint(-1_000_000_000, 1_000_000_000)
+        divisor = generator.randint(1, 1_000_000)
+        quotient, remainder = divmod(dividend, divisor)
+        cases.append(
+            {
+                "id": f"numeric-division-{case_index:03d}",
+                "dividend": dividend,
+                "divisor": divisor,
+                "quotient": quotient,
+                "remainder": remainder,
+            }
+        )
+    return cases
+
+
+def _numeric_ratio_cases(generator: random.Random) -> list[dict[str, object]]:
+    cases = []
+    for case_index in range(32):
+        value = generator.randint(-1_000_000, 1_000_000)
+        numerator = generator.randint(-1_000, 1_000)
+        denominator = generator.randint(1, 1_000)
+        cases.append(
+            {
+                "id": f"numeric-ratio-{case_index:03d}",
+                "value": value,
+                "numerator": numerator,
+                "denominator": denominator,
+                "result": (value * numerator) // denominator,
+            }
+        )
+    return cases
+
+
+def _bounded_integer(
+    value: int, bits: int, signed: bool, policy: str
+) -> tuple[int | None, str | None]:
+    minimum = -(1 << (bits - 1)) if signed else 0
+    maximum = (1 << (bits - (1 if signed else 0))) - 1
+    if minimum <= value <= maximum:
+        return value, None
+    if policy == "FAULT":
+        return None, "INTEGER_OVERFLOW"
+    if policy == "SATURATE":
+        return min(max(value, minimum), maximum), None
+    modulus = 1 << bits
+    wrapped = value % modulus
+    if signed and wrapped > maximum:
+        wrapped -= modulus
+    return wrapped, None
+
+
+def _numeric_overflow_cases(generator: random.Random) -> list[dict[str, object]]:
+    cases = []
+    for case_index in range(24):
+        domain = generator.choice(("I64", "U64"))
+        policy = generator.choice(("FAULT", "SATURATE", "WRAP"))
+        if domain == "I64":
+            boundary = generator.choice((-(1 << 63), (1 << 63) - 1))
+            direction = -1 if boundary < 0 else 1
+        else:
+            boundary = generator.choice((0, (1 << 64) - 1))
+            direction = -1 if boundary == 0 else 1
+        value = boundary + direction * generator.randint(1, 4096)
+        result, fault = _bounded_integer(value, 64, domain == "I64", policy)
+        cases.append(
+            {
+                "id": f"numeric-overflow-{case_index:03d}",
+                "domain": domain,
+                "input": str(value),
+                "policy": policy,
+                "result": result,
+                "fault": fault,
+            }
+        )
+    return cases
+
+
 def _effect_key(effect: dict[str, object]) -> tuple[object, ...]:
     return (
         effect["target_entity_id"],
@@ -398,6 +478,9 @@ def build_corpus() -> dict[str, object]:
     freeze_token_cases = _freeze_token_cases(generator)
     rollback_correction_cases = _rollback_correction_cases(generator)
     parent_child_cases = _parent_child_cases(generator)
+    numeric_division_cases = _numeric_division_cases(generator)
+    numeric_ratio_cases = _numeric_ratio_cases(generator)
+    numeric_overflow_cases = _numeric_overflow_cases(generator)
     return {
         "pcam_generated_corpus_version": "1",
         "kind": "generated_core_properties",
@@ -411,6 +494,9 @@ def build_corpus() -> dict[str, object]:
         "freeze_token_cases": freeze_token_cases,
         "rollback_correction_cases": rollback_correction_cases,
         "parent_child_cases": parent_child_cases,
+        "numeric_division_cases": numeric_division_cases,
+        "numeric_ratio_cases": numeric_ratio_cases,
+        "numeric_overflow_cases": numeric_overflow_cases,
         "effect_aggregation_cases": effect_aggregation_cases,
         "candidate_permutation_cases": candidate_permutation_cases,
         "interaction_rule_cases": interaction_rule_cases,

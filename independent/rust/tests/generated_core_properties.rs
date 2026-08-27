@@ -10,6 +10,9 @@ use pcam_independent::freezes::{
 use pcam_independent::interactions::{
     InteractionCandidate, InteractionRule, SemanticFact, canonical_candidates, resolve_candidate,
 };
+use pcam_independent::numeric::{
+    NumericError, OverflowPolicy, apply_i64, apply_u64, euclidean_divmod, scale_ratio,
+};
 use pcam_independent::simulation::{RetainedRollbackHistory, SimulationRuntime, SimulationState};
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
@@ -649,6 +652,77 @@ fn independent_shared_generated_parent_child_structures_respect_limits_and_resto
                 "{}:slot",
                 case["id"]
             );
+        }
+    }
+}
+
+#[test]
+fn independent_shared_generated_numeric_division_is_euclidean() {
+    let corpus = corpus();
+    for case in corpus["numeric_division_cases"].as_array().unwrap() {
+        assert_eq!(
+            euclidean_divmod(
+                case["dividend"].as_i64().unwrap(),
+                case["divisor"].as_i64().unwrap(),
+            )
+            .unwrap(),
+            (
+                case["quotient"].as_i64().unwrap(),
+                case["remainder"].as_i64().unwrap(),
+            ),
+            "{}",
+            case["id"]
+        );
+    }
+}
+
+#[test]
+fn independent_shared_generated_numeric_ratios_use_checked_floor_rounding() {
+    let corpus = corpus();
+    for case in corpus["numeric_ratio_cases"].as_array().unwrap() {
+        assert_eq!(
+            scale_ratio(
+                case["value"].as_i64().unwrap(),
+                case["numerator"].as_i64().unwrap(),
+                case["denominator"].as_u64().unwrap(),
+            )
+            .unwrap(),
+            case["result"].as_i64().unwrap(),
+            "{}",
+            case["id"]
+        );
+    }
+}
+
+#[test]
+fn independent_shared_generated_numeric_overflow_policies_match() {
+    let corpus = corpus();
+    for case in corpus["numeric_overflow_cases"].as_array().unwrap() {
+        let input = case["input"].as_str().unwrap().parse::<i128>().unwrap();
+        let policy = match case["policy"].as_str().unwrap() {
+            "FAULT" => OverflowPolicy::Fault,
+            "SATURATE" => OverflowPolicy::Saturate,
+            "WRAP" => OverflowPolicy::Wrap,
+            value => panic!("unknown policy {value}"),
+        };
+        let actual = match case["domain"].as_str().unwrap() {
+            "I64" => apply_i64(input, policy).map(i128::from),
+            "U64" => apply_u64(input, policy).map(i128::from),
+            value => panic!("unknown domain {value}"),
+        };
+        if case["fault"].is_string() {
+            assert_eq!(
+                actual.unwrap_err(),
+                NumericError::IntegerOverflow,
+                "{}",
+                case["id"]
+            );
+        } else {
+            let expected = case["result"]
+                .as_i64()
+                .map(i128::from)
+                .unwrap_or_else(|| i128::from(case["result"].as_u64().unwrap()));
+            assert_eq!(actual.unwrap(), expected, "{}", case["id"]);
         }
     }
 }
