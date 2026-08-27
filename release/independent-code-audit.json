@@ -1,0 +1,36 @@
+{
+  "audit_version": "1",
+  "implementation_root": "independent/rust",
+  "allowed_direct_dependencies": [
+    "serde",
+    "serde_json",
+    "sha2",
+    "unicode-normalization"
+  ],
+  "allowed_dev_dependencies": ["serde"],
+  "forbidden_package_regex": "(?i)(?:pyo3|cpython|pythonize|rustpython)",
+  "forbidden_source_patterns": [
+    {"id": "python_binding", "regex": "(?i)(?:pyo3|cpython|pythonize|rustpython)"},
+    {"id": "reference_runtime_path", "regex": "(?:reference/python|pcam_runtime|\\.py\\b)"},
+    {"id": "subprocess_execution", "regex": "(?:std::process::(?:Command|Stdio)|Command::new)"},
+    {"id": "generated_include", "regex": "(?:include!\\s*\\(|OUT_DIR|@generated|automatically generated)"}
+  ],
+  "manifest_sha256": "fb8b210d19f4cef4bfbd8fa473b0ae882c244052b1bc68ba48cc1783bda73eb4",
+  "lockfile_sha256": "3e24c931d76ee8ad16fb349791e609da141f7d0ad74607f70f9273876a812d23",
+  "source_sha256": {
+    "src/action.rs": "be2894a53212ca610f1f13582bff4576567443cd74191a7a2cd93c323321eb61",
+    "src/arbitration.rs": "ad88591ec2ddff88ca9d3bb21eb05cb53bd7807920520c8c3476a142fbf6fbd4",
+    "src/effects.rs": "af20967df6e91d79888f2dc705c70dd0e4f7d7690315895696cd5e577bec7502",
+    "src/events.rs": "428884b55876ff534a065919267eab3a7543bcb5c000665a705249c421e6c8b3",
+    "src/expression.rs": "982d2c4759c21659367056619686193a6413b3435774e564e3510786a3f48766",
+    "src/extension.rs": "93e36288536708006f06d702ab2867aaa68d5cff553ee3c74dd80769e368002d",
+    "src/faults.rs": "9a661f90643f206dfa3f49b9a07aec4c7e01a836538234e35a277953b1f4c0be",
+    "src/interactions.rs": "1dadbb6cc2f5b0a63199f1629f51ab007d56934acd506f4a2c873a040a235519",
+    "src/ledger.rs": "9bbf2ce8070c818e1c40c650b3cfd52592fc4f3903685b5d80f481c5224667c2",
+    "src/lib.rs": "011b02ab5e93df7c6d6199af7ca8b64dddbea228f2eab7a960f1880d4228673b",
+    "src/main.rs": "bba58af9c28f1fdb63eba41dbe813ae77c98168d9e8837c0756384000c38d98f",
+    "src/numeric.rs": "afcc646130285fa2abd08ccb40b92917bac93c0165d5c892a938bb64993cc88e",
+    "src/rng.rs": "a56d24cd559e7f7674c85dd77f76c7bd53f655940d67b1acd656809c343a05e6",
+    "src/simulation.rs": "78765e1c7a6661eb99f74e7263db36053cb2e6465a1cfe2eaf7d426af104b4c9"
+  }
+}
