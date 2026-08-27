@@ -5,6 +5,7 @@ from pathlib import Path
 from pcam_runtime import (
     ActionDefinition,
     EffectEnvelope,
+    FreezeToken,
     InteractionCandidate,
     InteractionRule,
     NodeDefinition,
@@ -15,6 +16,9 @@ from pcam_runtime import (
     TickInput,
     TransitionDefinition,
     canonical_candidates,
+    expire_freeze_tokens,
+    is_frozen,
+    progression_accrual,
     reduce_effects,
     resolve_candidate,
 )
@@ -258,6 +262,63 @@ def test_python_shared_generated_input_orders_produce_one_buffer_snapshot():
         entries = states[0].action_instances["1"].input_buffer
         assert [entry.input_id for entry in entries] == case["expected_input_ids"], case["id"]
         assert all(entry.remaining_eligibility_ticks == 2 for entry in entries), case["id"]
+
+
+def _freeze_tokens(values):
+    return tuple(
+        FreezeToken(
+            token_id=value["token_id"],
+            source_id=value["source_id"],
+            target_id=value["target_id"],
+            activation_tick=value["activation_tick"],
+            remaining_ticks=value["remaining_ticks"],
+            domains=tuple(value["domains"]),
+            accrual_policy=value["accrual_policy"],
+            stack_group=value["stack_group"],
+            stack_policy=value["stack_policy"],
+            metadata=value["metadata"],
+        )
+        for value in values
+    )
+
+
+def _freeze_remaining(tokens):
+    return [
+        {"token_id": token.token_id, "remaining_ticks": token.remaining_ticks}
+        for token in sorted(tokens, key=lambda token: token.token_id)
+    ]
+
+
+def test_python_shared_generated_freeze_token_combinations_match_timing_and_domains():
+    domains = ("BUFFER_EXPIRY", "INPUT_CAPTURE", "PROGRESSION")
+    for case in _corpus()["freeze_token_cases"]:
+        runs = []
+        for field in ("tokens", "shuffled_tokens"):
+            tokens = _freeze_tokens(case[field])
+            observations = []
+            for expected in case["expected_ticks"]:
+                tick = expected["tick"]
+                targets = {}
+                for target_id in (1, 2):
+                    targets[str(target_id)] = {
+                        "domains": {
+                            domain: is_frozen(tokens, tick, target_id, domain)
+                            for domain in domains
+                        },
+                        "progression_accrual": progression_accrual(
+                            tokens, tick, target_id
+                        ),
+                    }
+                tokens = expire_freeze_tokens(tokens, tick)
+                observations.append(
+                    {
+                        "tick": tick,
+                        "targets": targets,
+                        "remaining_after_tick": _freeze_remaining(tokens),
+                    }
+                )
+            runs.append(observations)
+        assert runs[0] == runs[1] == case["expected_ticks"], case["id"]
 
 
 def test_python_shared_generated_effect_aggregation_is_permutation_invariant():

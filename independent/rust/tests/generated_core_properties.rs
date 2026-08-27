@@ -3,6 +3,9 @@ use pcam_independent::action::{
     tick_with_controls,
 };
 use pcam_independent::effects::{EffectEnvelope, reduce_effects};
+use pcam_independent::freezes::{
+    FreezeToken, canonical_tokens, end_tick, is_frozen, progression_accrual,
+};
 use pcam_independent::interactions::{
     InteractionCandidate, InteractionRule, SemanticFact, canonical_candidates, resolve_candidate,
 };
@@ -285,6 +288,59 @@ fn independent_shared_generated_input_orders_produce_one_buffer_snapshot() {
             "{}:ttl",
             case["id"]
         );
+    }
+}
+
+#[test]
+fn independent_shared_generated_freeze_token_combinations_match_timing_and_domains() {
+    let corpus = corpus();
+    let domains = ["BUFFER_EXPIRY", "INPUT_CAPTURE", "PROGRESSION"];
+    for case in corpus["freeze_token_cases"].as_array().unwrap() {
+        let mut runs = Vec::new();
+        for field in ["tokens", "shuffled_tokens"] {
+            let parsed: Vec<FreezeToken> = serde_json::from_value(case[field].clone()).unwrap();
+            let mut tokens = canonical_tokens(parsed).unwrap();
+            let mut observations = Vec::new();
+            for expected in case["expected_ticks"].as_array().unwrap() {
+                let tick = expected["tick"].as_u64().unwrap();
+                let mut targets = serde_json::Map::new();
+                for target_id in [1_u64, 2] {
+                    let domain_state = domains
+                        .iter()
+                        .map(|domain| {
+                            (
+                                (*domain).to_owned(),
+                                Value::Bool(is_frozen(&tokens, tick, target_id, domain)),
+                            )
+                        })
+                        .collect();
+                    targets.insert(
+                        target_id.to_string(),
+                        json!({
+                            "domains": Value::Object(domain_state),
+                            "progression_accrual": progression_accrual(
+                                &tokens, tick, target_id
+                            ),
+                        }),
+                    );
+                }
+                tokens = end_tick(&tokens, tick).unwrap();
+                observations.push(json!({
+                    "tick": tick,
+                    "targets": targets,
+                    "remaining_after_tick": tokens
+                        .iter()
+                        .map(|token| json!({
+                            "token_id": token.token_id,
+                            "remaining_ticks": token.remaining_ticks,
+                        }))
+                        .collect::<Vec<_>>(),
+                }));
+            }
+            runs.push(Value::Array(observations));
+        }
+        assert_eq!(runs[0], runs[1], "{}:permutation", case["id"]);
+        assert_eq!(runs[0], case["expected_ticks"], "{}:expected", case["id"]);
     }
 }
 

@@ -10,6 +10,7 @@ pub mod events;
 pub mod expression;
 pub mod extension;
 pub mod faults;
+pub mod freezes;
 pub mod interactions;
 pub mod ledger;
 pub mod numeric;

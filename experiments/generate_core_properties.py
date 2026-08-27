@@ -106,6 +106,96 @@ def _input_order_cases(generator: random.Random) -> list[dict[str, object]]:
     return cases
 
 
+def _freeze_token_cases(generator: random.Random) -> list[dict[str, object]]:
+    domains = ("BUFFER_EXPIRY", "INPUT_CAPTURE", "PROGRESSION")
+    cases = []
+    for case_index in range(24):
+        tokens = []
+        for token_index in range(generator.randint(1, 8)):
+            token_domains = sorted(
+                generator.sample(domains, generator.randint(1, len(domains)))
+            )
+            tokens.append(
+                {
+                    "token_id": token_index + 1,
+                    "source_id": generator.randint(1, 4),
+                    "target_id": generator.choice((1, 2)),
+                    "activation_tick": generator.randint(1, 3),
+                    "remaining_ticks": generator.randint(1, 4),
+                    "domains": token_domains,
+                    "accrual_policy": generator.choice(("HOLD", "ACCRUE")),
+                    "stack_group": f"generated-{case_index:03d}-{token_index:02d}",
+                    "stack_policy": "INDEPENDENT",
+                    "metadata": {"case": case_index, "token": token_index},
+                }
+            )
+        shuffled_tokens = json.loads(json.dumps(tokens))
+        generator.shuffle(shuffled_tokens)
+        working = json.loads(json.dumps(tokens))
+        expected_ticks = []
+        for tick in range(8):
+            targets = {}
+            for target_id in (1, 2):
+                active = [
+                    token
+                    for token in working
+                    if token["target_id"] == target_id
+                    and token["activation_tick"] <= tick
+                    and token["remaining_ticks"] > 0
+                ]
+                progression = [
+                    token
+                    for token in active
+                    if "PROGRESSION" in token["domains"]
+                ]
+                targets[str(target_id)] = {
+                    "domains": {
+                        domain: any(domain in token["domains"] for token in active)
+                        for domain in domains
+                    },
+                    "progression_accrual": (
+                        "HOLD"
+                        if any(
+                            token["accrual_policy"] == "HOLD"
+                            for token in progression
+                        )
+                        else "ACCRUE" if progression else None
+                    ),
+                }
+            next_working = []
+            for token in working:
+                updated = dict(token)
+                if updated["activation_tick"] <= tick:
+                    updated["remaining_ticks"] -= 1
+                if updated["remaining_ticks"] > 0:
+                    next_working.append(updated)
+            working = next_working
+            expected_ticks.append(
+                {
+                    "tick": tick,
+                    "targets": targets,
+                    "remaining_after_tick": [
+                        {
+                            "token_id": token["token_id"],
+                            "remaining_ticks": token["remaining_ticks"],
+                        }
+                        for token in sorted(
+                            working, key=lambda token: int(token["token_id"])
+                        )
+                    ],
+                }
+            )
+        cases.append(
+            {
+                "id": f"freeze-token-{case_index:03d}",
+                "tokens": tokens,
+                "shuffled_tokens": shuffled_tokens,
+                "expected_ticks": expected_ticks,
+            }
+        )
+    return cases
+
+
 def _effect_key(effect: dict[str, object]) -> tuple[object, ...]:
     return (
         effect["target_entity_id"],
@@ -258,6 +348,7 @@ def build_corpus() -> dict[str, object]:
     action_graph_cases = _action_graph_cases(generator)
     transition_guard_cases = _transition_guard_cases(generator)
     input_order_cases = _input_order_cases(generator)
+    freeze_token_cases = _freeze_token_cases(generator)
     return {
         "pcam_generated_corpus_version": "1",
         "kind": "generated_core_properties",
@@ -268,6 +359,7 @@ def build_corpus() -> dict[str, object]:
         "action_graph_cases": action_graph_cases,
         "transition_guard_cases": transition_guard_cases,
         "input_order_cases": input_order_cases,
+        "freeze_token_cases": freeze_token_cases,
         "effect_aggregation_cases": effect_aggregation_cases,
         "candidate_permutation_cases": candidate_permutation_cases,
         "interaction_rule_cases": interaction_rule_cases,
