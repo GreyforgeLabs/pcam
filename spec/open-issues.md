@@ -49,3 +49,7 @@ The audit also added `input_id` to the intent structure, added `target.<field>` 
 ## Transition operation order
 
 Resolved in §8.5, §14.6, §14.7, and §23.1. The required transition `exit_assignments`, `entry_assignments`, and `cycle_delta` fields now have exact positions in the mutation order. All transition assignment arrays target the source action, node-entry state is visible to node entry operations, new actions execute their own initial-node operations, and declarative effect defaults and payload materialization timing are explicit.
+
+## Fault-policy containment
+
+Resolved in §30.3. Fault attribution, tick-start rollback, logical-tick advancement, action and entity scope, child and cross-entity relationship handling, trace behavior, input consumption, and escalation of unattributable faults are explicit for all three runtime policies.

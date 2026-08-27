@@ -14,6 +14,8 @@ The schema-completeness audit later identified one additional conflict between t
 
 Reference-runtime work then exposed that three required transition operation fields lacked an execution position. §8.5, §14.6, §14.7, and §23.1 now define assignment targets, the complete operation order, source versus target ownership, initial-node entry behavior, effect defaults, and payload materialization timing.
 
+Fault-policy implementation exposed a second executable ambiguity: the three declared policies had no attribution, rollback, tick-advance, or containment semantics. §30.3 now defines these behaviors and fail-closed escalation for unattributable faults.
+
 ## Required evidence
 
 - no unresolved normative contradictions

@@ -28,6 +28,8 @@ def test_resolved_normative_contracts_remain_in_master_text():
         "Canonical machine documents MUST encode an absent `input_match` or `event_match` as `null`",
         "All three transition assignment arrays target the source action instance",
         "Starting an action enters its declared initial node",
+        "A runtime fault is action-attributable",
+        "FAULT_ACTION` contains only an action-attributable fault",
         "Phase is an optional projection, never the whole state",
     )
     assert all(contract in specification for contract in required_contracts)

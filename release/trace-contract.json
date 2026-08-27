@@ -26,6 +26,7 @@
     "state digest": "state_digest"
   },
   "evidence": [
+    "reference/python/tests/test_fault_policies.py",
     "reference/python/tests/test_trace_contract.py",
     "examples/heavy-strike.scenario.json"
   ]

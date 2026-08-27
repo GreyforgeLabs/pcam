@@ -53,6 +53,22 @@ class PCAMError(Exception):
     code: ResultCode
     fault: PCAMFault
     message: str
+    action_instance_id: int | None = None
+    owner_entity_id: int | None = None
+
+    def with_context(
+        self,
+        *,
+        action_instance_id: int | None = None,
+        owner_entity_id: int | None = None,
+    ) -> "PCAMError":
+        return PCAMError(
+            self.code,
+            self.fault,
+            self.message,
+            self.action_instance_id if self.action_instance_id is not None else action_instance_id,
+            self.owner_entity_id if self.owner_entity_id is not None else owner_entity_id,
+        )
 
     def __str__(self) -> str:
         return f"{self.code.value}:{self.fault.value}:{self.message}"

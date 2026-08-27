@@ -127,6 +127,20 @@ class TickExecutor:
         inputs: tuple[TickInput, ...] = (),
         host: HostSnapshot | None = None,
     ) -> tuple[SimulationState, dict[str, object]]:
+        try:
+            return self._tick_once(state, inputs, host)
+        except PCAMError as error:
+            contained = self._contain_fault(state, error)
+            if contained is None:
+                raise
+            return contained
+
+    def _tick_once(
+        self,
+        state: SimulationState,
+        inputs: tuple[TickInput, ...] = (),
+        host: HostSnapshot | None = None,
+    ) -> tuple[SimulationState, dict[str, object]]:
         if state.definition_set_hash != self.definition_set_hash:
             raise PCAMError(
                 ResultCode.SNAPSHOT_DEFINITION_MISMATCH,
@@ -182,7 +196,18 @@ class TickExecutor:
             if action.lifecycle_state != "RUNNING":
                 continue
             definition = self.definitions_by_hash[action.definition_hash]
-            work, emitted, emitted_typed, quanta, node_changes = self._progress_action(work, action, definition, trace)
+            try:
+                work, emitted, emitted_typed, quanta, node_changes = self._progress_action(
+                    work,
+                    action,
+                    definition,
+                    trace,
+                )
+            except PCAMError as error:
+                raise error.with_context(
+                    action_instance_id=action.instance_id,
+                    owner_entity_id=action.owner_entity_id,
+                ) from error
             effects.extend(emitted)
             typed_effects.extend(emitted_typed)
             trace.setdefault("progression_quanta", {})[key] = quanta  # type: ignore[index]
@@ -290,6 +315,113 @@ class TickExecutor:
             trace["state_changes"] = state.to_snapshot()
             trace["state_digest"] = state.state_hash()
             return state, trace, error
+
+    def _contain_fault(
+        self,
+        state: SimulationState,
+        error: PCAMError,
+    ) -> tuple[SimulationState, dict[str, object]] | None:
+        policy = self.profile.fault_policy
+        action = (
+            state.action_instances.get(str(error.action_instance_id))
+            if error.action_instance_id is not None
+            else None
+        )
+        owner_entity_id = error.owner_entity_id
+        if owner_entity_id is None and action is not None:
+            owner_entity_id = action.owner_entity_id
+        if policy == "ABORT_SIMULATION":
+            return None
+        if policy == "FAULT_ACTION" and action is None:
+            return None
+        if policy == "FAULT_ENTITY" and owner_entity_id is None:
+            return None
+
+        record: dict[str, object] = {
+            "action_instance_id": action.instance_id if action is not None else None,
+            "code": error.code.value,
+            "contained": True,
+            "fault": error.fault.value,
+            "message": error.message,
+            "owner_entity_id": owner_entity_id,
+            "policy": policy,
+            "tick": state.tick,
+        }
+        work = state
+        if policy == "FAULT_ACTION":
+            assert action is not None
+            work, faulted = self._terminate_action(
+                work,
+                action,
+                "FAULTED",
+                error.fault.value,
+            )
+            work = _put_action(work, faulted)
+        else:
+            assert owner_entity_id is not None
+            faulted_ids = {
+                item.instance_id
+                for item in work.action_instances.values()
+                if item.owner_entity_id == owner_entity_id
+                and item.lifecycle_state not in {"TERMINATED", "FAULTED"}
+            }
+            actions = {}
+            for key, item in work.action_instances.items():
+                if item.instance_id in faulted_ids:
+                    item = replace(
+                        item,
+                        child_instance_ids=tuple(
+                            child_id for child_id in item.child_instance_ids if child_id in faulted_ids
+                        ),
+                        lifecycle_state="FAULTED",
+                        fault_record=error.fault.value,
+                        parent_instance_id=(
+                            item.parent_instance_id
+                            if item.parent_instance_id in faulted_ids
+                            else None
+                        ),
+                        parent_slot_id=(
+                            item.parent_slot_id
+                            if item.parent_instance_id in faulted_ids
+                            else None
+                        ),
+                    )
+                else:
+                    item = replace(
+                        item,
+                        parent_instance_id=(
+                            None if item.parent_instance_id in faulted_ids else item.parent_instance_id
+                        ),
+                        parent_slot_id=(
+                            None if item.parent_instance_id in faulted_ids else item.parent_slot_id
+                        ),
+                        child_instance_ids=tuple(
+                            child_id for child_id in item.child_instance_ids if child_id not in faulted_ids
+                        ),
+                    )
+                actions[key] = item
+            records = {key: dict(value) for key, value in work.entity_records.items()}
+            entity_record = records.setdefault(str(owner_entity_id), {})
+            entity_record["fault_record"] = record
+            work = replace(
+                work,
+                action_instances=actions,
+                entity_records=records,
+                freeze_tokens=tuple(
+                    token for token in work.freeze_tokens if token.target_id not in faulted_ids
+                ),
+            )
+
+        fault_state = dict(work.fault_state)
+        fault_state["last_fault"] = record
+        work = self._rebuild_action_slots(replace(work, fault_state=fault_state))
+        work = replace(work, tick=apply_u64(state.tick + 1))
+        trace = self._empty_trace(state)
+        trace["faults"] = [record]
+        trace["stages"] = [{"index": 0, "name": "fault_containment"}]
+        trace["state_changes"] = work.to_snapshot()
+        trace["state_digest"] = work.state_hash()
+        return work, trace
 
     @staticmethod
     def _empty_trace(state: SimulationState) -> dict[str, object]:
@@ -561,23 +693,37 @@ class TickExecutor:
                 state = self._consume_rejected_attempt(state, decision)
                 continue
             for operation in decision.intent.operations:
-                if operation["kind"] == "START":
-                    state, emitted_typed = self._start_action(
-                        state,
-                        str(operation["definition_id"]),
-                        int(operation["owner_entity_id"]),
-                    )
-                    typed_effects.extend(emitted_typed)
-                elif operation["kind"] == "TRANSITION":
-                    instance_id = int(operation["instance_id"])
-                    action = state.action_instances[str(instance_id)]
-                    definition = self.definitions_by_hash[action.definition_hash]
-                    transition = next(
-                        item for item in definition.transitions if item.id == operation["transition_id"]
-                    )
-                    state, emitted, emitted_typed = self._apply_transition(state, instance_id, transition)
-                    effects.extend(emitted)
-                    typed_effects.extend(emitted_typed)
+                try:
+                    if operation["kind"] == "START":
+                        state, emitted_typed = self._start_action(
+                            state,
+                            str(operation["definition_id"]),
+                            int(operation["owner_entity_id"]),
+                        )
+                        typed_effects.extend(emitted_typed)
+                    elif operation["kind"] == "TRANSITION":
+                        instance_id = int(operation["instance_id"])
+                        action = state.action_instances[str(instance_id)]
+                        definition = self.definitions_by_hash[action.definition_hash]
+                        transition = next(
+                            item for item in definition.transitions if item.id == operation["transition_id"]
+                        )
+                        state, emitted, emitted_typed = self._apply_transition(
+                            state,
+                            instance_id,
+                            transition,
+                        )
+                        effects.extend(emitted)
+                        typed_effects.extend(emitted_typed)
+                except PCAMError as error:
+                    if operation["kind"] == "TRANSITION":
+                        raise error.with_context(
+                            action_instance_id=instance_id,
+                            owner_entity_id=action.owner_entity_id,
+                        ) from error
+                    raise error.with_context(
+                        owner_entity_id=int(operation["owner_entity_id"]),
+                    ) from error
         return self._rebuild_action_slots(state), effects, typed_effects, decision_trace
 
     def _arbitration_state(self, state: SimulationState) -> ArbitrationState:
@@ -722,12 +868,18 @@ class TickExecutor:
                 if tick_input.source_entity_id != action.owner_entity_id:
                     continue
                 entry = BufferEntry.capture(tick_input, lifetime=definition.default_buffer_lifetime)
-                entries = capture_entry(
-                    entries,
-                    entry,
-                    capacity=definition.buffer_capacity,
-                    overflow_policy=definition.buffer_overflow_policy,
-                )
+                try:
+                    entries = capture_entry(
+                        entries,
+                        entry,
+                        capacity=definition.buffer_capacity,
+                        overflow_policy=definition.buffer_overflow_policy,
+                    )
+                except PCAMError as error:
+                    raise error.with_context(
+                        action_instance_id=action.instance_id,
+                        owner_entity_id=action.owner_entity_id,
+                    ) from error
             state = _put_action(state, replace(action, input_buffer=entries))
         return state
 
@@ -804,7 +956,13 @@ class TickExecutor:
                 if is_frozen(state.freeze_tokens, state.tick, action.instance_id, domain):
                     continue
                 definition = self.definitions_by_hash[action.definition_hash]
-                eligible = self._eligible_transitions(action, definition, point)
+                try:
+                    eligible = self._eligible_transitions(action, definition, point)
+                except PCAMError as error:
+                    raise error.with_context(
+                        action_instance_id=action.instance_id,
+                        owner_entity_id=action.owner_entity_id,
+                    ) from error
                 eligible_trace.extend(
                     {
                         "evaluation_point": point,
@@ -1195,7 +1353,13 @@ class TickExecutor:
             truth = dict(action.predicate_truth_state)
             entries = dict(action.predicate_entry_serials)
             exits = dict(action.predicate_exit_serials)
-            current_values = self._predicate_values(action, definition)
+            try:
+                current_values = self._predicate_values(action, definition)
+            except PCAMError as error:
+                raise error.with_context(
+                    action_instance_id=action.instance_id,
+                    owner_entity_id=action.owner_entity_id,
+                ) from error
             for predicate in sorted(definition.predicates, key=lambda item: item.id.encode("utf-8")):
                 now = current_values[predicate.id]
                 before = truth.get(predicate.id, False)
@@ -1360,7 +1524,13 @@ class TickExecutor:
             binding = active_bindings.get((candidate.source_instance_id, candidate.fact_id))
             if binding is None:
                 if candidate.effect is None:
-                    raise PCAMError(ResultCode.RUNTIME_FAULT, PCAMFault.INVALID_CONTACT, candidate.candidate_id)
+                    raise PCAMError(
+                        ResultCode.RUNTIME_FAULT,
+                        PCAMFault.INVALID_CONTACT,
+                        candidate.candidate_id,
+                        action.instance_id,
+                        action.owner_entity_id,
+                    )
                 legacy_key = f"{candidate.source_instance_id}:{candidate.target_entity_id}:{candidate.fact_id}"
                 if legacy_key in ledgers:
                     receipts.append({"candidate_id": candidate.candidate_id, "accepted": False, "reason": "ONCE_PER_ACTION_INSTANCE"})
@@ -1370,7 +1540,13 @@ class TickExecutor:
                 receipts.append({"candidate_id": candidate.candidate_id, "accepted": True, "ledger_key": legacy_key})
                 continue
             if binding.fact.direction != "OFFENSE":
-                raise PCAMError(ResultCode.RUNTIME_FAULT, PCAMFault.INVALID_CONTACT, candidate.candidate_id)
+                raise PCAMError(
+                    ResultCode.RUNTIME_FAULT,
+                    PCAMFault.INVALID_CONTACT,
+                    candidate.candidate_id,
+                    action.instance_id,
+                    action.owner_entity_id,
+                )
             context = LedgerContext(
                 tick=state.tick,
                 source_action_instance_id=action.instance_id,
@@ -1399,18 +1575,24 @@ class TickExecutor:
                 host_context=candidate.host_context,
                 defense_fact_id=candidate.defense_fact_id,
             )
-            defenses = self._defense_map(state, active_bindings, candidate.defense_fact_id)
-            definition = self.definitions_by_hash[action.definition_hash]
-            offense = self._bound_fact(binding.fact, action, definition)
-            decision = resolve_candidate(
-                interaction_candidate,
-                offense,
-                defenses,
-                self.interaction_rules,
-                max_redirects=self.profile.max_redirects_per_candidate,
-                max_expression_depth=self.profile.max_expression_depth,
-                max_expression_nodes=self.profile.max_expression_nodes,
-            )
+            try:
+                defenses = self._defense_map(state, active_bindings, candidate.defense_fact_id)
+                definition = self.definitions_by_hash[action.definition_hash]
+                offense = self._bound_fact(binding.fact, action, definition)
+                decision = resolve_candidate(
+                    interaction_candidate,
+                    offense,
+                    defenses,
+                    self.interaction_rules,
+                    max_redirects=self.profile.max_redirects_per_candidate,
+                    max_expression_depth=self.profile.max_expression_depth,
+                    max_expression_nodes=self.profile.max_expression_nodes,
+                )
+            except PCAMError as error:
+                raise error.with_context(
+                    action_instance_id=action.instance_id,
+                    owner_entity_id=action.owner_entity_id,
+                ) from error
             typed_effects.extend(decision.generated_effects)
             accepted = decision.status == "ACCEPTED"
             impact = any(item.authoritative for item in decision.generated_effects)
@@ -1480,7 +1662,13 @@ class TickExecutor:
             if effect.kind == "RNG_DRAW":
                 snapshot = rng_streams.get(effect.resource)
                 if not isinstance(snapshot, dict):
-                    raise PCAMError(ResultCode.RUNTIME_FAULT, PCAMFault.RNG_PROFILE_MISMATCH, effect.resource)
+                    raise PCAMError(
+                        ResultCode.RUNTIME_FAULT,
+                        PCAMFault.RNG_PROFILE_MISMATCH,
+                        effect.resource,
+                        effect.source_action_instance_id,
+                        effect.source_entity_id,
+                    )
                 try:
                     stream = PCG32Stream.from_snapshot(snapshot)
                     stream, value = stream.draw_u32()
@@ -1489,6 +1677,8 @@ class TickExecutor:
                         ResultCode.RUNTIME_FAULT,
                         PCAMFault.RNG_PROFILE_MISMATCH,
                         effect.resource,
+                        effect.source_action_instance_id,
+                        effect.source_entity_id,
                     ) from exc
                 rng_streams[effect.resource] = stream.to_snapshot()
                 reduction_trace.append(
@@ -1502,7 +1692,13 @@ class TickExecutor:
                 )
                 continue
             if effect.kind != "RESOURCE_DELTA":
-                raise PCAMError(ResultCode.RUNTIME_FAULT, PCAMFault.UNKNOWN_EFFECT, effect.kind)
+                raise PCAMError(
+                    ResultCode.RUNTIME_FAULT,
+                    PCAMFault.UNKNOWN_EFFECT,
+                    effect.kind,
+                    effect.source_action_instance_id,
+                    effect.source_entity_id,
+                )
             entity = str(effect.target_entity_id)
             banks.setdefault(entity, {})
             banks[entity][effect.resource] = banks[entity].get(effect.resource, 0) + effect.amount

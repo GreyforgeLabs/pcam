@@ -2596,6 +2596,16 @@ All peers in a deterministic session MUST use the same policy.
 
 The runtime MUST NOT silently ignore an authoritative fault.
 
+A runtime fault is action-attributable when it arises while evaluating or applying an operation initiated by an existing action instance. It is entity-attributable when it is action-attributable or when a direct action-start operation identifies an owner entity. Validation, snapshot identity, global capacity, canonicalization, and multi-source reduction faults without one unique initiating action or entity are unattributable.
+
+`ABORT_SIMULATION` preserves the complete tick-start state and does not advance the logical tick.
+
+`FAULT_ACTION` contains only an action-attributable fault. The runtime MUST restore the complete tick-start state, move the initiating action to `FAULTED`, apply its declared child-termination policies, store the fault record, discard every other mutation and effect from the failed tick, and advance the logical tick once. If the fault is not action-attributable, the runtime MUST apply `ABORT_SIMULATION` behavior.
+
+`FAULT_ENTITY` contains an entity-attributable fault. The runtime MUST restore the complete tick-start state, move every nonterminal action owned by the initiating entity to `FAULTED`, remove those actions from active slot usage, store the fault record on the entity and in simulation fault state, discard every other mutation and effect from the failed tick, and advance the logical tick once. Surviving cross-entity parent or child links to a faulted action MUST be detached. If the fault is not entity-attributable, the runtime MUST apply `ABORT_SIMULATION` behavior.
+
+A contained fault produces a successful tick result whose trace identifies the fault, attribution, policy, and containment. Inputs assigned to the contained tick are consumed by the tick advance. No entry, exit, transition, interaction, authoritative, or presentation effect from the failed attempt is emitted. Fault containment itself MUST be deterministic and included in snapshots and state digests.
+
 ---
 
 # 31. Required Limits
