@@ -26,7 +26,7 @@
         "buffers": {"status": "OPEN", "evidence": ["tests/vectors/action-runtime.json"]},
         "intents_and_claims": {"status": "OPEN", "evidence": ["reference/python/tests/test_intents.py"]},
         "parent_child_actions": {"status": "OPEN", "evidence": ["reference/python/tests/test_runtime_slice.py", "tests/vectors/parent-child.json", "tests/vectors/parent-policies.json", "tests/vectors/child-termination-policies.json", "tests/vectors/nesting-runtime.json", "tests/vectors/child-global-limit-runtime.json"]},
-        "freeze_tokens": {"status": "OPEN", "evidence": ["tests/vectors/action-runtime.json"]},
+        "freeze_tokens": {"status": "OPEN", "evidence": ["tests/vectors/action-runtime.json", "tests/vectors/event-delivery-runtime.json", "tests/vectors/once-freeze-runtime.json", "tests/vectors/rng-freeze-runtime.json"]},
         "interaction_resolution": {"status": "OPEN", "evidence": ["reference/python/tests/test_interactions.py"]},
         "ledgers": {"status": "OPEN", "evidence": ["reference/python/tests/test_ledgers.py"]},
         "effect_reduction": {"status": "OPEN", "evidence": ["reference/python/tests/test_effects.py", "tests/vectors/event-effect-runtime.json", "tests/vectors/custom-effect-ordered-fold.json", "tests/vectors/custom-effect-runtime.json"]},

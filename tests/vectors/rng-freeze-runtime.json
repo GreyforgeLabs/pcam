@@ -1,0 +1,36 @@
+{
+  "pcam_vector_version": "1",
+  "kind": "runtime_overlay_vector",
+  "id": "rng-freeze-runtime",
+  "base_vector": "tests/vectors/rng-call-order-runtime.json",
+  "freeze_token": {
+    "token_id": 1,
+    "source_id": 99,
+    "target_id": 1,
+    "activation_tick": 1,
+    "remaining_ticks": 1,
+    "domains": ["RNG_CONSUMPTION"],
+    "accrual_policy": "HOLD",
+    "stack_group": "rng-freeze",
+    "stack_policy": "INDEPENDENT",
+    "metadata": {"test": "18.2-rng-consumption"}
+  },
+  "expected": {
+    "definition_set_hash": "87428a1619c91e7ffd4fe6974e2a342c26eda2e2a2b4fdc8d7d07233d6d7cfd1",
+    "tick_state_digests": [
+      "356aa837fa62504b4e4d12d6d2d177d539ef68af714fd79883e52a24d1623187",
+      "701f510ffd8563398d52b834b6c4bc78c428589a5d28a8f58d60187c17775d39",
+      "28acf6d0fdefd44b367c8bc7ac9890eb3c98e6ccaad3e739ca9669b11163211b"
+    ],
+    "rng_draws": [
+      [],
+      [{"draw_count": 1, "effect_id": "draw-b", "effect_type": "pcam.rng.draw", "stream_id": "shared.simulation", "value": 2707161783}],
+      [
+        {"draw_count": 2, "effect_id": "draw-a", "effect_type": "pcam.rng.draw", "stream_id": "shared.simulation", "value": 2068313097},
+        {"draw_count": 3, "effect_id": "draw-b", "effect_type": "pcam.rng.draw", "stream_id": "shared.simulation", "value": 3122475824}
+      ]
+    ],
+    "final_stream": {"algorithm_id": "pcam.pcg32.v1", "draw_count": 3, "state": 17800363335834976035, "stream_selector": 54},
+    "final_state_digest": "28acf6d0fdefd44b367c8bc7ac9890eb3c98e6ccaad3e739ca9669b11163211b"
+  }
+}

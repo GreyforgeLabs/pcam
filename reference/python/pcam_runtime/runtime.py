@@ -2033,6 +2033,13 @@ class TickExecutor:
                 )
                 continue
             if effect.kind == "RNG_DRAW":
+                if is_frozen(
+                    state.freeze_tokens,
+                    state.tick,
+                    effect.source_action_instance_id,
+                    "RNG_CONSUMPTION",
+                ):
+                    continue
                 snapshot = rng_streams.get(effect.resource)
                 if not isinstance(snapshot, dict):
                     raise PCAMError(

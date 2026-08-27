@@ -1186,6 +1186,9 @@ impl SimulationRuntime {
                     });
                 }
                 "RNG_DRAW" => {
+                    if domain_frozen(state, effect.source_action_instance_id, "RNG_CONSUMPTION") {
+                        continue;
+                    }
                     let raw = state
                         .rng_streams
                         .get(&effect.resource)
