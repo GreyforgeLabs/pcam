@@ -29,6 +29,7 @@ The project targets Python 3.12 for the reference runtime and Rust for the indep
 ```bash
 python3 -m pytest reference/python/tests
 cargo test --manifest-path independent/rust/Cargo.toml
+python3 experiments/run_cross_platform.py --check tests/cross-platform/linux-x86_64.json
 ```
 
 The Rust lane currently covers independent PCAM-CJ1 canonicalization and hashing including hostile raw JSON, set, and logical-map inputs, all 18 action-document hash-bearing fields, checked integer and ratio semantics, PCG32 output and restore state, the bounded pure expression language, the five-stage Core interaction rule language, bounded lockstep and server-authoritative coordination, and a complete-state runtime for progression, transitions, semantic predicates, inputs, freezes, actions and children, interactions, effects, events, snapshots, faults, and retained rollback. Shared mixed-stage and network-service vectors combine those lanes through child interaction, restore, correction, peer readiness, digest exchange, resimulation, and prediction discard. The independent gate remains open for cross-platform validation. Additional commands become authoritative only when their implementation and machine-readable result contracts are covered by vectors.
