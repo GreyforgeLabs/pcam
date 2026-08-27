@@ -122,6 +122,13 @@
     {"inputs": [], "contacts": []}
   ],
   "expected": {
+    "definition_hash": "c91938fd9cdb42d5002956f995d11821fe114dc7e1ed8fc3f3db15e19e9079ce",
+    "definition_set_hash": "244d47801abcc3b0fcb16d9e9920855b145fc5976e826621a81b709047d444d9",
+    "tick_state_digests": [
+      "4633b2290ba5b1cd49f86188ef66882ec39b5a95f42d5bd03900002238290864",
+      "d072fec3e06337f3fc0a00768c17148dfbb1948038202424c641de1e44b9d2e7",
+      "6980d6c2a8eb30e169048634fa7fcb037e731a70e49ce4707fb42ecccad0868b"
+    ],
     "final_state_digest": "6980d6c2a8eb30e169048634fa7fcb037e731a70e49ce4707fb42ecccad0868b"
   },
   "rollback": {

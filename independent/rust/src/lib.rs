@@ -9,6 +9,7 @@ pub mod expression;
 pub mod extension;
 pub mod numeric;
 pub mod rng;
+pub mod simulation;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CanonicalError {
