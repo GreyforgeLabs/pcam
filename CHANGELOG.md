@@ -28,3 +28,4 @@
 - Replaced placeholder legacy migration with a bounded v1/v2 importer that emits every required semantic warning class, quarantines floating timing, validates generated PCAM-24 drafts, records deterministic source evidence, and rejects non-legacy versions.
 - Extended the independent Rust lane with shared I64/U64 overflow, Euclidean division, checked ratio, and PCG32 output, snapshot, restore, and continuation vectors that also execute in Python.
 - Added a bounded independent Rust evaluator and shared Python/Rust vectors for every core expression operator and its principal deterministic fault paths.
+- Added shared Python/Rust action-runtime vectors for rational progression, transition priority and evaluation points, explicit seek, terminal entry, and quantum and internal-transition limit faults.

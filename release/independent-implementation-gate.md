@@ -12,6 +12,7 @@ Required: an implementation built from the specification and shared black-box ve
 - `tests/vectors/numeric-rng.json` supplies shared overflow, Euclidean division, checked ratio, PCG32 output, snapshot, and continuation expectations.
 - Python and Rust independently agree on I64/U64 overflow policy, negative-floor division, checked intermediate overflow, five PCG32 draws, serialized stream state, restore, and the next draw.
 - `tests/vectors/expressions.json` exercises every core expression operator plus unresolved-reference, arity, float, division, overflow, depth, and node-budget failures in both languages.
+- `tests/vectors/action-runtime.json` drives independent Python and Rust runtime paths through rational progression, PRE_ADVANCE, AFTER_QUANTUM, POST_ADVANCE, priority selection, explicit seek, terminal entry, and both per-tick progression limits.
 - Validation command: `cargo test --manifest-path independent/rust/Cargo.toml`.
 
 ## Remaining before closure
@@ -21,4 +22,4 @@ Required: an implementation built from the specification and shared black-box ve
 - Produce matching Linux x86-64 and Linux ARM64 digest manifests.
 - Audit that no Python runtime execution code or behavior-specific generated source is shared.
 
-The current evidence covers independent PCAM-CJ1, core numeric, PCG32, and pure expression slices. It does not satisfy the independent action-runtime gate.
+The current evidence covers independent PCAM-CJ1, core numeric, PCG32, pure expressions, and a bounded local progression and transition runtime. It does not yet cover independent inputs, predicates, arbitration, effects, interactions, events, parent-child behavior, complete snapshots, or the full tick pipeline, so the independent action-runtime gate remains open.

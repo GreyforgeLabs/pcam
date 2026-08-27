@@ -1,0 +1,103 @@
+{
+  "profile": "pcam.action-runtime.v1",
+  "limits": {
+    "max_quanta_per_action_per_tick": 8,
+    "max_internal_transitions_per_tick": 8
+  },
+  "cases": [
+    {
+      "id": "rational-progression",
+      "definition": {
+        "id": "RATIONAL",
+        "rate": {"scale": 5, "units_per_tick": 2},
+        "initial_node": "WINDUP",
+        "nodes": [
+          {"id": "WINDUP", "mode": "EVENT_DRIVEN"},
+          {"id": "ACTIVE", "mode": "EVENT_DRIVEN"}
+        ],
+        "transitions": [
+          {"id": "activate", "source_node": "WINDUP", "evaluation_point": "AFTER_QUANTUM", "priority": 10, "target_kind": "NODE", "target_node": "ACTIVE"}
+        ]
+      },
+      "ticks": 3,
+      "expected": [
+        {"lifecycle_state": "RUNNING", "current_node_id": "WINDUP", "node_step": 0, "local_step": 0, "transition_serial": 0, "quantum_accumulator": 2},
+        {"lifecycle_state": "RUNNING", "current_node_id": "WINDUP", "node_step": 0, "local_step": 0, "transition_serial": 0, "quantum_accumulator": 4},
+        {"lifecycle_state": "RUNNING", "current_node_id": "ACTIVE", "node_step": 0, "local_step": 1, "transition_serial": 1, "quantum_accumulator": 1}
+      ]
+    },
+    {
+      "id": "priority-points-seek-and-terminate",
+      "definition": {
+        "id": "POINTS",
+        "rate": {"scale": 1, "units_per_tick": 2},
+        "initial_node": "WAIT",
+        "nodes": [
+          {"id": "WAIT", "mode": "EVENT_DRIVEN"},
+          {"id": "FAIL", "mode": "EVENT_DRIVEN"},
+          {"id": "SEEK", "mode": "TIMED", "duration_quanta": 10, "seekable": true},
+          {"id": "POST", "mode": "EVENT_DRIVEN"}
+        ],
+        "transitions": [
+          {"id": "low", "source_node": "WAIT", "evaluation_point": "PRE_ADVANCE", "priority": 1, "target_kind": "NODE", "target_node": "FAIL"},
+          {"id": "high", "source_node": "WAIT", "evaluation_point": "PRE_ADVANCE", "priority": 20, "target_kind": "NODE", "target_node": "SEEK", "target_step": 2},
+          {"id": "after", "source_node": "SEEK", "evaluation_point": "AFTER_QUANTUM", "priority": 5, "target_kind": "NODE", "target_node": "POST", "guard_expression": {"op": "gte", "args": [{"ref": "action.node_step"}, {"literal": 4}]}},
+          {"id": "post", "source_node": "POST", "evaluation_point": "POST_ADVANCE", "priority": 5, "target_kind": "TERMINATE"}
+        ]
+      },
+      "ticks": 2,
+      "expected": [
+        {"lifecycle_state": "RUNNING", "current_node_id": "WAIT", "node_step": 2, "local_step": 2, "transition_serial": 0, "quantum_accumulator": 0},
+        {"lifecycle_state": "TERMINATED", "current_node_id": "POST", "node_step": 0, "local_step": 4, "transition_serial": 3, "quantum_accumulator": 0}
+      ]
+    },
+    {
+      "id": "terminal-node-entry",
+      "definition": {
+        "id": "TERMINAL_ENTRY",
+        "rate": {"scale": 1, "units_per_tick": 1},
+        "initial_node": "RUN",
+        "nodes": [
+          {"id": "RUN", "mode": "EVENT_DRIVEN"},
+          {"id": "END", "mode": "TERMINAL"}
+        ],
+        "transitions": [
+          {"id": "finish", "source_node": "RUN", "evaluation_point": "AFTER_QUANTUM", "priority": 1, "target_kind": "NODE", "target_node": "END"}
+        ]
+      },
+      "ticks": 1,
+      "expected": [
+        {"lifecycle_state": "TERMINATED", "current_node_id": "END", "node_step": 0, "local_step": 1, "transition_serial": 1, "quantum_accumulator": 0}
+      ]
+    }
+  ],
+  "fault_cases": [
+    {
+      "id": "quantum-limit",
+      "definition": {
+        "id": "QUANTUM_LIMIT",
+        "rate": {"scale": 1, "units_per_tick": 3},
+        "initial_node": "RUN",
+        "nodes": [{"id": "RUN", "mode": "EVENT_DRIVEN"}],
+        "transitions": []
+      },
+      "limits": {"max_quanta_per_action_per_tick": 2, "max_internal_transitions_per_tick": 8},
+      "fault": "QUANTUM_LIMIT_EXCEEDED"
+    },
+    {
+      "id": "transition-limit",
+      "definition": {
+        "id": "TRANSITION_LIMIT",
+        "rate": {"scale": 1, "units_per_tick": 2},
+        "initial_node": "A",
+        "nodes": [{"id": "A", "mode": "EVENT_DRIVEN"}, {"id": "B", "mode": "EVENT_DRIVEN"}],
+        "transitions": [
+          {"id": "a-to-b", "source_node": "A", "evaluation_point": "AFTER_QUANTUM", "priority": 1, "target_kind": "NODE", "target_node": "B"},
+          {"id": "b-to-a", "source_node": "B", "evaluation_point": "AFTER_QUANTUM", "priority": 1, "target_kind": "NODE", "target_node": "A"}
+        ]
+      },
+      "limits": {"max_quanta_per_action_per_tick": 8, "max_internal_transitions_per_tick": 1},
+      "fault": "TRANSITION_LIMIT_EXCEEDED"
+    }
+  ]
+}

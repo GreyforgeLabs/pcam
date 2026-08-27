@@ -10,12 +10,12 @@ This matrix preserves the complete target. A row is complete only when its named
 |---|---|---|
 | §1-6 language, scope, invariants, determinism boundary, formal model | contradiction-free specification audit | missing |
 | §7 authoritative state | snapshot schema plus complete-state round-trip vectors | partial: initial schema and slice round-trip |
-| §8 definitions | action schema, immutable hash binding, positive and negative vectors | missing |
+| §8 definitions | action schema, immutable hash binding, positive and negative vectors | partial: Python schema/compiler coverage plus independent Rust validation for the shared runtime corpus; cross-language immutable binding and broader negative vectors remain open |
 | §9 numeric semantics | arithmetic unit/property vectors including Euclidean division and overflow | partial: Python and independent Rust agree on shared checked I64/U64 overflow, Euclidean division, exact ratio, negative-floor, and checked-intermediate vectors; broader generated cross-language arithmetic remains open |
-| §10 progression | rational accumulator and bounded quantum vectors | partial: targeted rational-rate, HOLD/ACCRUE deferred-state, and limit slice |
+| §10 progression | rational accumulator and bounded quantum vectors | partial: Python and independent Rust agree on rational-rate and quantum-limit vectors; Python also covers HOLD/ACCRUE deferred state, while independent freeze progression remains open |
 | §11-12 expressions and predicates | pure evaluator, cycle validator, edge serial vectors | partial: Python and independent Rust agree on every bounded pure expression operator and core faults; Python also has cycle validation and runtime edge serials, while independent predicate-graph execution remains open |
 | §13 inputs | canonical ordering, buffering, TTL, overflow, and consumption vectors | partial: runtime capture/consume/expiry plus pure capacity and policy vectors |
-| §14 transitions | all evaluation points, priorities, targets, mutation order, seek/skip vectors | missing |
+| §14 transitions | all evaluation points, priorities, targets, mutation order, seek/skip vectors | partial: Python and independent Rust agree on all evaluation points, unique-priority selection, NODE/TERMINATE targets, explicit seek, terminal entry, continued quanta, and internal-transition limits; assignments/effects and ACTION/CHILD_ACTION/FAULT breadth remain open |
 | §15-16 intents, claims, slots | atomic arbitration and replacement vectors | partial: runtime-integrated resource/slot starts, permutation invariance, atomic replacement, and ID allocation; child/capacity/exclusive integration and group semantics open |
 | §17 parent-child | lifecycle, freeze, result event, nesting, restore vectors | partial: runtime child slots, relationships, nesting bounds, parent freezes, termination policy, next-tick result, and restore equivalence; two policy precedence gaps open |
 | §18 freezes | domains, timing, expiry, stacking, accrual vectors | partial: runtime progression, transition, capture, and expiry domains plus provisional stacking; normative gap open |
