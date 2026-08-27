@@ -9,6 +9,10 @@ use crate::interactions::{
     EffectTemplate as InteractionEffectTemplate, InteractionCandidate, InteractionRule,
     SemanticFact, resolve_candidate,
 };
+use crate::ledger::{
+    HitPolicy as LedgerHitPolicy, LedgerContext, is_eligible as ledger_is_eligible,
+    receipt_required, write_receipt,
+};
 use crate::{CanonicalError, canonical_hash};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
@@ -45,8 +49,7 @@ struct FactBinding {
     tags: Vec<String>,
     when_predicate: String,
     effect_templates: Vec<InteractionEffectTemplate>,
-    hit_policy: String,
-    receipt_on: String,
+    hit_policy: LedgerHitPolicy,
 }
 
 #[derive(Debug, Clone)]
@@ -641,6 +644,7 @@ impl SimulationRuntime {
                 .action_instances
                 .iter()
                 .find(|action| action.instance_id == instance_id)
+                .cloned()
             else {
                 continue;
             };
@@ -662,25 +666,44 @@ impl SimulationRuntime {
                             .unwrap_or(false)
                 })
                 .ok_or(SimulationError::RuntimeFault)?;
-            let ledger_key = canonical_hash(&json!({
-                "fact": binding.fact_id,
-                "instance": instance_id,
-                "policy": binding.hit_policy,
-                "target": u64_field(contact, "target_entity_id")?,
-            }))?;
             let candidate_id = string_field(contact, "candidate_id")?;
-            if work.interaction_ledgers.contains_key(&ledger_key) {
+            let target_entity_id = u64_field(contact, "target_entity_id")?;
+            let ledger_context = LedgerContext {
+                tick: state.tick,
+                source_action_instance_id: instance_id,
+                offense_fact_id: binding.fact_id.clone(),
+                target_entity_id,
+                cycle: action.cycle,
+                predicate_entry_serials: action.predicate_entry_serials.clone(),
+                contact_partition: string_field(contact, "contact_partition")?.to_owned(),
+            };
+            if !ledger_is_eligible(
+                &work.interaction_ledgers,
+                &binding.hit_policy,
+                &ledger_context,
+            )
+            .map_err(|_| SimulationError::RuntimeFault)?
+            {
                 receipts.push(json!({
                     "accepted": false,
                     "candidate_id": candidate_id,
-                    "reason": binding.hit_policy,
+                    "reason": binding.hit_policy.kind,
                 }));
                 continue;
             }
             if binding.direction != "OFFENSE" {
                 return Err(SimulationError::RuntimeFault);
             }
-            let target_entity_id = u64_field(contact, "target_entity_id")?;
+            let mut receipt_written = false;
+            if binding.hit_policy.receipt_on == "ON_CONTACT" {
+                receipt_written = write_receipt(
+                    &mut work.interaction_ledgers,
+                    &binding.hit_policy,
+                    &ledger_context,
+                    candidate_id,
+                )
+                .map_err(|_| SimulationError::RuntimeFault)?;
+            }
             let offense = SemanticFact {
                 fact_id: binding.fact_id.clone(),
                 direction: binding.direction.clone(),
@@ -724,18 +747,17 @@ impl SimulationRuntime {
                 .iter()
                 .any(|effect| effect.authoritative);
             effects.extend(decision.generated_effects.clone());
-            let receipt_written = binding.receipt_on == "ON_CONTACT"
-                || (binding.receipt_on == "ON_ACCEPT" && accepted)
-                || (binding.receipt_on == "ON_IMPACT" && impact);
-            if receipt_written {
-                work.interaction_ledgers.insert(
-                    ledger_key,
-                    json!({
-                        "candidate_id": candidate_id,
-                        "condition": binding.receipt_on,
-                        "origin_tick": state.tick,
-                    }),
-                );
+            if !receipt_written
+                && receipt_required(&binding.hit_policy.receipt_on, accepted, impact)
+                    .map_err(|_| SimulationError::RuntimeFault)?
+            {
+                receipt_written = write_receipt(
+                    &mut work.interaction_ledgers,
+                    &binding.hit_policy,
+                    &ledger_context,
+                    candidate_id,
+                )
+                .map_err(|_| SimulationError::RuntimeFault)?;
             }
             receipts.push(json!({
                 "accepted": accepted,
@@ -2260,8 +2282,14 @@ fn parse_definition(raw: &Value, hash: String) -> Result<Definition, SimulationE
                     .collect::<Result<Vec<_>, _>>()?,
                 when_predicate: string_field(binding, "when_predicate")?.to_owned(),
                 effect_templates,
-                hit_policy: string_field(policy, "kind")?.to_owned(),
-                receipt_on: string_field(policy, "receipt_on")?.to_owned(),
+                hit_policy: {
+                    let policy = serde_json::from_value::<LedgerHitPolicy>(policy.clone())
+                        .map_err(|_| SimulationError::InvalidVector)?;
+                    policy
+                        .validate()
+                        .map_err(|_| SimulationError::InvalidVector)?;
+                    policy
+                },
             })
         })
         .collect::<Result<Vec<_>, SimulationError>>()?;

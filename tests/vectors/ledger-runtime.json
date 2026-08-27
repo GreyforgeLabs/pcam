@@ -1,0 +1,326 @@
+{
+  "pcam_vector_version": "1",
+  "kind": "runtime_vector",
+  "id": "ledger-runtime",
+  "runtime_profile": {
+    "pcam_version": "3.0",
+    "kind": "runtime_profile",
+    "id": "pcam.reference.ledger-runtime.v1",
+    "revision": 1,
+    "fault_policy": "ABORT_SIMULATION",
+    "limits": {
+      "max_actions_per_entity": 8,
+      "max_action_nesting_depth": 4,
+      "max_children_per_action": 4,
+      "max_quanta_per_action_per_tick": 8,
+      "max_internal_transitions_per_action_per_tick": 8,
+      "max_buffer_entries_per_action": 8,
+      "max_pending_events_per_entity": 8,
+      "max_candidates_per_tick": 32,
+      "max_effects_per_tick": 32,
+      "max_redirects_per_candidate": 4,
+      "max_definition_size_bytes": 65536,
+      "max_snapshot_size_bytes": 262144,
+      "max_extension_state_bytes": 4096,
+      "max_expression_depth": 64,
+      "max_expression_nodes": 4096
+    },
+    "rng_profiles": ["pcam.pcg32.v1"],
+    "network_profiles": [
+      {"id": "pcam.local.v1", "topology": "LOCAL_DETERMINISTIC"}
+    ],
+    "extensions": {}
+  },
+  "definitions": [
+    {
+      "id": "STRIKER",
+      "rate_scale": 1,
+      "units_per_tick": 0,
+      "initial_node_id": "ACTIVE",
+      "nodes": [
+        {"id": "ACTIVE", "mode": "EVENT_DRIVEN"},
+        {"id": "INACTIVE", "mode": "EVENT_DRIVEN"}
+      ],
+      "predicates": [{"id": "ACTIVE", "node_ids": ["ACTIVE"]}],
+      "transitions": [
+        {
+          "id": "off",
+          "source_node": "ACTIVE",
+          "evaluation_point": "PRE_ADVANCE",
+          "priority": 1,
+          "target_kind": "NODE",
+          "target_node": "INACTIVE",
+          "input_command": "OFF",
+          "consume_policy": "ON_ACCEPT"
+        },
+        {
+          "id": "on",
+          "source_node": "INACTIVE",
+          "evaluation_point": "PRE_ADVANCE",
+          "priority": 1,
+          "target_kind": "NODE",
+          "target_node": "ACTIVE",
+          "input_command": "ON",
+          "consume_policy": "ON_ACCEPT"
+        }
+      ],
+      "semantic_facts": [
+        {
+          "fact": {
+            "fact_id": "strike",
+            "direction": "OFFENSE",
+            "channels": ["STRIKE"],
+            "effect_templates": [
+              {
+                "effect_type": "combat.damage",
+                "effect_class": "DAMAGE",
+                "payload": 10,
+                "reducer": "SUM"
+              }
+            ]
+          },
+          "when_predicate": "ACTIVE",
+          "hit_policy": {"kind": "ONCE_PER_ACTION_INSTANCE", "receipt_on": "ON_IMPACT"}
+        }
+      ]
+    }
+  ],
+  "interaction_rules": [
+    {
+      "rule_id": "materialize",
+      "stage": "MATERIALIZATION",
+      "order": 10,
+      "condition": {"literal": true},
+      "operations": [{"op": "MATERIALIZE"}]
+    }
+  ],
+  "effect_registry": {"combat.damage": ["hp", -1]},
+  "initial_state": {
+    "resource_banks": {"2": {"hp": 100}},
+    "slot_capacities": {}
+  },
+  "cases": [
+    {
+      "id": "unbounded",
+      "policy": {"kind": "UNBOUNDED", "receipt_on": "ON_IMPACT"},
+      "ticks": [
+        {
+          "inputs": [
+            {
+              "input_id": "start",
+              "source_entity_id": 1,
+              "sequence": 0,
+              "command_id": "START",
+              "assigned_tick": 0,
+              "action_definition_id": "STRIKER"
+            }
+          ],
+          "contacts": [
+            {
+              "candidate_id": "a",
+              "source_instance_id": 1,
+              "source_entity_id": 1,
+              "target_entity_id": 2,
+              "fact_id": "strike",
+              "contact_id": "a"
+            },
+            {
+              "candidate_id": "b",
+              "source_instance_id": 1,
+              "source_entity_id": 1,
+              "target_entity_id": 2,
+              "fact_id": "strike",
+              "contact_id": "b"
+            }
+          ]
+        }
+      ],
+      "definition_hash": "812977e8953919b33947701489b1a6f178755f5fd44597315f601dfcc70ee520",
+      "definition_set_hash": "a33bbaa3f2b232af7be7af09256eb286e33a7a1c9eec388f5e872480c2162de5",
+      "tick_state_digests": ["267d6a33f38125783176cfb5901d9b74c8f082d5bfdec122c746d4da48fd3895"],
+      "final_state_digest": "267d6a33f38125783176cfb5901d9b74c8f082d5bfdec122c746d4da48fd3895",
+      "expected": {
+        "hp": 80,
+        "ledger_count": 0,
+        "ledger_origin_ticks": [],
+        "effects_by_tick": [["0:1:a:materialize:0:0", "0:1:b:materialize:0:0"]],
+        "accepted_by_tick": [[true, true]],
+        "receipt_written_by_tick": [[false, false]],
+        "reasons_by_tick": [[null, null]],
+        "predicate_entry_serials": {"ACTIVE": 1},
+        "predicate_exit_serials": {}
+      }
+    },
+    {
+      "id": "once-per-action",
+      "policy": {"kind": "ONCE_PER_ACTION_INSTANCE", "receipt_on": "ON_IMPACT"},
+      "ticks": [
+        {
+          "inputs": [
+            {
+              "input_id": "start",
+              "source_entity_id": 1,
+              "sequence": 0,
+              "command_id": "START",
+              "assigned_tick": 0,
+              "action_definition_id": "STRIKER"
+            }
+          ],
+          "contacts": [
+            {"candidate_id": "a", "source_instance_id": 1, "source_entity_id": 1, "target_entity_id": 2, "fact_id": "strike", "contact_id": "a"},
+            {"candidate_id": "b", "source_instance_id": 1, "source_entity_id": 1, "target_entity_id": 2, "fact_id": "strike", "contact_id": "b"}
+          ]
+        }
+      ],
+      "definition_hash": "a5cf8118a6398177e10c171d7400fa1c60f27a9959078df6522dc526dfb790c7",
+      "definition_set_hash": "3add9e9ee6f07cbdf32f2ad19e5201c37a90911e5f24a8573afbbbc38cec2e3b",
+      "tick_state_digests": ["9aaa75f4ec2785605dfc7de8b311150a536cf69fb1ca5a9340a16476c4cc1487"],
+      "final_state_digest": "9aaa75f4ec2785605dfc7de8b311150a536cf69fb1ca5a9340a16476c4cc1487",
+      "expected": {
+        "hp": 90,
+        "ledger_count": 1,
+        "ledger_origin_ticks": [0],
+        "effects_by_tick": [["0:1:a:materialize:0:0"]],
+        "accepted_by_tick": [[true, false]],
+        "receipt_written_by_tick": [[true, null]],
+        "reasons_by_tick": [[null, "ONCE_PER_ACTION_INSTANCE"]],
+        "predicate_entry_serials": {"ACTIVE": 1},
+        "predicate_exit_serials": {}
+      }
+    },
+    {
+      "id": "contact-partitions",
+      "policy": {"kind": "ONCE_PER_CONTACT_PARTITION", "receipt_on": "ON_CONTACT"},
+      "ticks": [
+        {
+          "inputs": [
+            {
+              "input_id": "start",
+              "source_entity_id": 1,
+              "sequence": 0,
+              "command_id": "START",
+              "assigned_tick": 0,
+              "action_definition_id": "STRIKER"
+            }
+          ],
+          "contacts": [
+            {"candidate_id": "body-a", "source_instance_id": 1, "source_entity_id": 1, "target_entity_id": 2, "fact_id": "strike", "contact_partition": "body", "contact_id": "a"},
+            {"candidate_id": "body-b", "source_instance_id": 1, "source_entity_id": 1, "target_entity_id": 2, "fact_id": "strike", "contact_partition": "body", "contact_id": "b"},
+            {"candidate_id": "weapon", "source_instance_id": 1, "source_entity_id": 1, "target_entity_id": 2, "fact_id": "strike", "contact_partition": "weapon", "contact_id": "c"}
+          ]
+        }
+      ],
+      "definition_hash": "d8e91f4f131cb998415be12f568f7f05e7d0658988a0cd336ea85bba7623865f",
+      "definition_set_hash": "8ff42626f723fd4434f19b403c7d42b422614e2a8ab56bccab6c18f90cebd584",
+      "tick_state_digests": ["ebfce769f204478a84bfda5c27ef316d834775238aecbfd21ca523e63c1b808a"],
+      "final_state_digest": "ebfce769f204478a84bfda5c27ef316d834775238aecbfd21ca523e63c1b808a",
+      "expected": {
+        "hp": 80,
+        "ledger_count": 2,
+        "ledger_origin_ticks": [0, 0],
+        "effects_by_tick": [["0:1:body-a:materialize:0:0", "0:1:weapon:materialize:0:0"]],
+        "accepted_by_tick": [[true, false, true]],
+        "receipt_written_by_tick": [[true, null, true]],
+        "reasons_by_tick": [[null, "ONCE_PER_CONTACT_PARTITION", null]],
+        "predicate_entry_serials": {"ACTIVE": 1},
+        "predicate_exit_serials": {}
+      }
+    },
+    {
+      "id": "cooldown",
+      "policy": {"kind": "COOLDOWN_TICKS", "receipt_on": "ON_IMPACT", "cooldown_ticks": 2},
+      "ticks": [
+        {
+          "inputs": [
+            {"input_id": "start", "source_entity_id": 1, "sequence": 0, "command_id": "START", "assigned_tick": 0, "action_definition_id": "STRIKER"}
+          ],
+          "contacts": [
+            {"candidate_id": "tick-0", "source_instance_id": 1, "source_entity_id": 1, "target_entity_id": 2, "fact_id": "strike", "contact_id": "a"}
+          ]
+        },
+        {
+          "inputs": [],
+          "contacts": [
+            {"candidate_id": "tick-1", "source_instance_id": 1, "source_entity_id": 1, "target_entity_id": 2, "fact_id": "strike", "contact_id": "b"}
+          ]
+        },
+        {
+          "inputs": [],
+          "contacts": [
+            {"candidate_id": "tick-2", "source_instance_id": 1, "source_entity_id": 1, "target_entity_id": 2, "fact_id": "strike", "contact_id": "c"}
+          ]
+        }
+      ],
+      "definition_hash": "6651fc1a6cce77a3430f4da7a1ef42a4a14dedae5218f2bfd7cf46b75af0cf08",
+      "definition_set_hash": "41154a1318b326a7772d2ca8fd0b7b5ff68a1fc77b75fad70d8f83909a17364b",
+      "tick_state_digests": [
+        "ede574007efafb9507789ee333c82c139d5f9fd6663ac5a21ac4eb12da235065",
+        "36c2ce9e7e37742f43038c2216041d825c231d7c98442922b54202cabfa2ca69",
+        "1e2b2d18d501ca676ab948eca6c8ee033cf071e1ee34e29f950ea669e36159ee"
+      ],
+      "final_state_digest": "1e2b2d18d501ca676ab948eca6c8ee033cf071e1ee34e29f950ea669e36159ee",
+      "expected": {
+        "hp": 80,
+        "ledger_count": 1,
+        "ledger_origin_ticks": [2],
+        "effects_by_tick": [["0:1:tick-0:materialize:0:0"], [], ["2:1:tick-2:materialize:0:0"]],
+        "accepted_by_tick": [[true], [false], [true]],
+        "receipt_written_by_tick": [[true], [null], [true]],
+        "reasons_by_tick": [[null], ["COOLDOWN_TICKS"], [null]],
+        "predicate_entry_serials": {"ACTIVE": 1},
+        "predicate_exit_serials": {}
+      }
+    },
+    {
+      "id": "predicate-activation",
+      "policy": {
+        "kind": "ONCE_PER_PREDICATE_ACTIVATION",
+        "receipt_on": "ON_ACCEPT",
+        "predicate_id": "ACTIVE"
+      },
+      "ticks": [
+        {
+          "inputs": [
+            {"input_id": "start", "source_entity_id": 1, "sequence": 0, "command_id": "START", "assigned_tick": 0, "action_definition_id": "STRIKER"}
+          ],
+          "contacts": [
+            {"candidate_id": "activation-1", "source_instance_id": 1, "source_entity_id": 1, "target_entity_id": 2, "fact_id": "strike", "contact_id": "a"}
+          ]
+        },
+        {
+          "inputs": [
+            {"input_id": "off", "source_entity_id": 1, "sequence": 1, "command_id": "OFF", "assigned_tick": 1}
+          ],
+          "contacts": []
+        },
+        {
+          "inputs": [
+            {"input_id": "on", "source_entity_id": 1, "sequence": 2, "command_id": "ON", "assigned_tick": 2}
+          ],
+          "contacts": [
+            {"candidate_id": "activation-2", "source_instance_id": 1, "source_entity_id": 1, "target_entity_id": 2, "fact_id": "strike", "contact_id": "b"}
+          ]
+        }
+      ],
+      "definition_hash": "3e58a3bc279264c1dc0499ba7226e154b3ccabc234bbf5c49adf429e7daefacc",
+      "definition_set_hash": "4c2e2be34230e3adf11433488ebda5ee024bba7bd0934a6a210e7bfec8700ff1",
+      "tick_state_digests": [
+        "0cfd13632ba505d420545642f19218a7ecb56210f9ff067358c0ecf883f45d5c",
+        "ad76ab8459ee310965fb1c99919c6337cd7bc127db1199ddbfdbb9d4b1423007",
+        "f496e328909682e37a650917ef97915bccfd0397fc5842e08d623caf497aa5ad"
+      ],
+      "final_state_digest": "f496e328909682e37a650917ef97915bccfd0397fc5842e08d623caf497aa5ad",
+      "expected": {
+        "hp": 80,
+        "ledger_count": 2,
+        "ledger_origin_ticks": [0, 2],
+        "effects_by_tick": [["0:1:activation-1:materialize:0:0"], [], ["2:1:activation-2:materialize:0:0"]],
+        "accepted_by_tick": [[true], [], [true]],
+        "receipt_written_by_tick": [[true], [], [true]],
+        "reasons_by_tick": [[null], [], [null]],
+        "predicate_entry_serials": {"ACTIVE": 2},
+        "predicate_exit_serials": {"ACTIVE": 1}
+      }
+    }
+  ]
+}
