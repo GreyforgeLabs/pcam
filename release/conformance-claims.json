@@ -41,7 +41,7 @@
         "deterministic_host_imports": {"status": "OPEN", "evidence": ["reference/python/pcam_runtime/model.py"]},
         "deterministic_contact_generation": {"status": "OPEN", "evidence": ["reference/python/tests/test_runtime_slice.py"]},
         "deterministic_host_effects": {"status": "OPEN", "evidence": ["reference/python/tests/test_effects.py"]},
-        "deterministic_numeric_behavior": {"status": "PASS", "evidence": ["tests/vectors/numeric-rng.json"]},
+        "deterministic_numeric_behavior": {"status": "PASS", "evidence": ["tests/vectors/numeric-rng.json", "tests/vectors/rng-runtime.json", "tests/vectors/rng-call-order-runtime.json"]},
         "cross_run_state_digest_identity": {"status": "OPEN", "evidence": ["reference/python/tests/test_generated_properties.py", "tests/generated/core-properties-v1.json", "reference/python/tests/test_shared_generated_core.py", "independent/rust/tests/generated_core_properties.rs"]}
       }
     },

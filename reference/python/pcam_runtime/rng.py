@@ -48,10 +48,15 @@ class PCG32Stream:
 
     @classmethod
     def from_snapshot(cls, snapshot: dict[str, object]) -> "PCG32Stream":
+        if set(snapshot) != {"algorithm_id", "state", "stream_selector", "draw_count"}:
+            raise ValueError("RNG snapshot fields mismatch")
         if snapshot.get("algorithm_id") != "pcam.pcg32.v1":
             raise ValueError("RNG algorithm mismatch")
+        for field_name in ("state", "stream_selector", "draw_count"):
+            if type(snapshot[field_name]) is not int:
+                raise ValueError(f"RNG {field_name} must be U64")
         return cls(
-            state=apply_u64(int(snapshot["state"])),
-            stream_selector=apply_u64(int(snapshot["stream_selector"])),
-            draw_count=apply_u64(int(snapshot["draw_count"])),
+            state=apply_u64(snapshot["state"]),  # type: ignore[arg-type]
+            stream_selector=apply_u64(snapshot["stream_selector"]),  # type: ignore[arg-type]
+            draw_count=apply_u64(snapshot["draw_count"]),  # type: ignore[arg-type]
         )

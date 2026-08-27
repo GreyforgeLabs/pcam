@@ -31,7 +31,7 @@
     "src/lib.rs": "14784f36526dac7beec0b392909325e734221e0566d3c2ba766a4f8fadf3cd6d",
     "src/main.rs": "bba58af9c28f1fdb63eba41dbe813ae77c98168d9e8837c0756384000c38d98f",
     "src/numeric.rs": "afcc646130285fa2abd08ccb40b92917bac93c0165d5c892a938bb64993cc88e",
-    "src/rng.rs": "a56d24cd559e7f7674c85dd77f76c7bd53f655940d67b1acd656809c343a05e6",
-    "src/simulation.rs": "727a6b386fac655a3846948b8b3d3ba566d5691fc3c623bce7b9676b4f55f680"
+    "src/rng.rs": "76eb9d44d5298bd0d95621222c44c34401b01ded46df1eca8e40f9866af4d4af",
+    "src/simulation.rs": "4a84ea69e28b7f645781bfb3c83195d628bb5f155d7f01c2121ecc5d1899474a"
   }
 }

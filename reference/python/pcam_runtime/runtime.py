@@ -141,6 +141,7 @@ class TickExecutor:
         freeze_tokens: tuple[FreezeToken, ...] = (),
         next_freeze_token_id: int = 1,
     ) -> SimulationState:
+        normalized_rng_streams = self._validate_rng_streams(rng_streams or {})
         action_slots = {
             str(entity): {
                 slot: {"capacity": capacity, "instance_ids": [], "usage": 0}
@@ -157,7 +158,7 @@ class TickExecutor:
             pending_events=pending_events,
             freeze_tokens=freeze_tokens,
             next_freeze_token_id=next_freeze_token_id,
-            rng_streams=rng_streams or {},
+            rng_streams=normalized_rng_streams,
         )
 
     def tick(
@@ -565,6 +566,7 @@ class TickExecutor:
         ))
 
     def save(self, state: SimulationState) -> dict[str, object]:
+        self._validate_rng_streams(state.rng_streams)
         self._validate_limits(state, 0, 0)
         return state.to_snapshot()
 
@@ -582,8 +584,36 @@ class TickExecutor:
                 PCAMFault.SNAPSHOT_DEFINITION_MISMATCH,
                 state.definition_set_hash,
             )
+        self._validate_rng_streams(state.rng_streams)
         self._validate_limits(state, 0, 0)
         return state
+
+    def _validate_rng_streams(self, streams: dict[str, object]) -> dict[str, object]:
+        normalized: dict[str, object] = {}
+        for stream_id in sorted(streams, key=lambda item: item.encode("utf-8")):
+            snapshot = streams[stream_id]
+            if not isinstance(snapshot, dict):
+                raise PCAMError(
+                    ResultCode.RUNTIME_FAULT,
+                    PCAMFault.RNG_PROFILE_MISMATCH,
+                    stream_id,
+                )
+            algorithm_id = snapshot.get("algorithm_id")
+            if algorithm_id not in self.profile.rng_profiles:
+                raise PCAMError(
+                    ResultCode.RUNTIME_FAULT,
+                    PCAMFault.RNG_PROFILE_MISMATCH,
+                    stream_id,
+                )
+            try:
+                normalized[stream_id] = PCG32Stream.from_snapshot(snapshot).to_snapshot()
+            except (KeyError, TypeError, ValueError, PCAMError) as error:
+                raise PCAMError(
+                    ResultCode.RUNTIME_FAULT,
+                    PCAMFault.RNG_PROFILE_MISMATCH,
+                    stream_id,
+                ) from error
+        return normalized
 
     def _deliver_events(self, state: SimulationState) -> tuple[SimulationState, list[str]]:
         events = tuple(event_from_snapshot(dict(item)) for item in state.pending_events)

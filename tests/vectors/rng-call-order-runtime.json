@@ -1,0 +1,139 @@
+{
+  "pcam_vector_version": "1",
+  "kind": "runtime_vector",
+  "id": "rng-call-order-runtime",
+  "runtime_profile": {
+    "pcam_version": "3.0",
+    "kind": "runtime_profile",
+    "id": "pcam.reference.rng-call-order.v1",
+    "revision": 1,
+    "fault_policy": "ABORT_SIMULATION",
+    "limits": {
+      "max_actions_per_entity": 8,
+      "max_action_nesting_depth": 4,
+      "max_children_per_action": 4,
+      "max_quanta_per_action_per_tick": 8,
+      "max_internal_transitions_per_action_per_tick": 8,
+      "max_buffer_entries_per_action": 8,
+      "max_pending_events_per_entity": 8,
+      "max_candidates_per_tick": 32,
+      "max_effects_per_tick": 32,
+      "max_redirects_per_candidate": 4,
+      "max_definition_size_bytes": 65536,
+      "max_snapshot_size_bytes": 262144,
+      "max_extension_state_bytes": 4096,
+      "max_expression_depth": 64,
+      "max_expression_nodes": 4096
+    },
+    "rng_profiles": ["pcam.pcg32.v1"],
+    "network_profiles": [{"id": "pcam.local.v1", "topology": "LOCAL_DETERMINISTIC"}],
+    "extensions": {}
+  },
+  "definitions": [
+    {
+      "id": "RANDOM_A",
+      "rate_scale": 1,
+      "units_per_tick": 0,
+      "nodes": [{"id": "RUN", "mode": "EVENT_DRIVEN"}],
+      "transitions": [
+        {
+          "id": "draw-a",
+          "source_node": "RUN",
+          "evaluation_point": "PRE_ADVANCE",
+          "priority": 10,
+          "target_kind": "NODE",
+          "target_node": "RUN",
+          "input_command": "DRAW_A",
+          "effects": [
+            {"id": "draw-a", "kind": "RNG_DRAW", "effect_class": "RNG_CONSUMPTION", "source_entity_id": 1, "target_entity_id": 0, "source_action_instance_id": 1, "origin_tick": 0, "resource": "shared.simulation", "amount": 0, "priority": 0}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "RANDOM_B",
+      "rate_scale": 1,
+      "units_per_tick": 0,
+      "nodes": [{"id": "RUN", "mode": "EVENT_DRIVEN"}],
+      "transitions": [
+        {
+          "id": "draw-b",
+          "source_node": "RUN",
+          "evaluation_point": "PRE_ADVANCE",
+          "priority": 10,
+          "target_kind": "NODE",
+          "target_node": "RUN",
+          "input_command": "DRAW_B",
+          "effects": [
+            {"id": "draw-b", "kind": "RNG_DRAW", "effect_class": "RNG_CONSUMPTION", "source_entity_id": 2, "target_entity_id": 0, "source_action_instance_id": 2, "origin_tick": 0, "resource": "shared.simulation", "amount": 0, "priority": 0}
+          ]
+        }
+      ]
+    }
+  ],
+  "interaction_rules": [],
+  "effect_registry": {},
+  "initial_state": {
+    "rng_streams": {
+      "shared.simulation": {
+        "algorithm_id": "pcam.pcg32.v1",
+        "draw_count": 0,
+        "state": 1753877967969059832,
+        "stream_selector": 54
+      }
+    }
+  },
+  "ticks": [
+    {
+      "inputs": [
+        {"input_id": "start-b", "source_entity_id": 2, "sequence": 0, "command_id": "START", "assigned_tick": 0, "action_definition_id": "RANDOM_B"},
+        {"input_id": "start-a", "source_entity_id": 1, "sequence": 0, "command_id": "START", "assigned_tick": 0, "action_definition_id": "RANDOM_A"}
+      ],
+      "contacts": []
+    },
+    {
+      "inputs": [
+        {"input_id": "draw-b-1", "source_entity_id": 2, "sequence": 1, "command_id": "DRAW_B", "assigned_tick": 1},
+        {"input_id": "draw-a-1", "source_entity_id": 1, "sequence": 1, "command_id": "DRAW_A", "assigned_tick": 1}
+      ],
+      "contacts": []
+    },
+    {
+      "inputs": [
+        {"input_id": "draw-a-2", "source_entity_id": 1, "sequence": 2, "command_id": "DRAW_A", "assigned_tick": 2},
+        {"input_id": "draw-b-2", "source_entity_id": 2, "sequence": 2, "command_id": "DRAW_B", "assigned_tick": 2}
+      ],
+      "contacts": []
+    }
+  ],
+  "expected": {
+    "definition_hashes": {
+      "RANDOM_A": "a2cb9e5b72c77234a5640bbfb859353096283046ef3272b1a1390d576d925cb4",
+      "RANDOM_B": "903ec1850b6f3d8204649df8d313e9b86f1d5cb7cd671bb575ba8b19abea2bfc"
+    },
+    "definition_set_hash": "87428a1619c91e7ffd4fe6974e2a342c26eda2e2a2b4fdc8d7d07233d6d7cfd1",
+    "tick_state_digests": [
+      "4e775a58f686b931acf38a48c81c410baecc25a54f2bda0c480542869ca55bae",
+      "16d96b531f73632902198d8d56be280f0df9cf93a57ecbbca41d13be3e85b5b6",
+      "7f63d51c6d439305eaa46ef36b425b39b4e1f50ec1190d58d92ffdce92b1677d"
+    ],
+    "rng_draws": [
+      [],
+      [
+        {"draw_count": 1, "effect_id": "draw-a", "effect_type": "pcam.rng.draw", "stream_id": "shared.simulation", "value": 2707161783},
+        {"draw_count": 2, "effect_id": "draw-b", "effect_type": "pcam.rng.draw", "stream_id": "shared.simulation", "value": 2068313097}
+      ],
+      [
+        {"draw_count": 3, "effect_id": "draw-a", "effect_type": "pcam.rng.draw", "stream_id": "shared.simulation", "value": 3122475824},
+        {"draw_count": 4, "effect_id": "draw-b", "effect_type": "pcam.rng.draw", "stream_id": "shared.simulation", "value": 2211639955}
+      ]
+    ],
+    "final_stream": {
+      "algorithm_id": "pcam.pcg32.v1",
+      "draw_count": 4,
+      "state": 16987470693695682196,
+      "stream_selector": 54
+    },
+    "final_state_digest": "7f63d51c6d439305eaa46ef36b425b39b4e1f50ec1190d58d92ffdce92b1677d"
+  }
+}

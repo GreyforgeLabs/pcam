@@ -9,6 +9,7 @@ pub enum RngError {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Pcg32Stream {
     pub algorithm_id: String,
     pub draw_count: u64,

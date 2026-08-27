@@ -218,6 +218,11 @@ impl SimulationState {
         if state.pcam_version != "3.0" {
             return Err(SimulationError::RuntimeFault);
         }
+        for stream in state.rng_streams.values() {
+            let stream = serde_json::from_value::<Pcg32Stream>(stream.clone())
+                .map_err(|_| SimulationError::RuntimeFault)?;
+            Pcg32Stream::from_snapshot(stream).map_err(|_| SimulationError::RuntimeFault)?;
+        }
         Ok(state)
     }
 }
@@ -250,6 +255,7 @@ pub struct SimulationRuntime {
     max_expression_nodes: usize,
     max_quanta_per_action_per_tick: u64,
     max_redirects_per_candidate: u64,
+    rng_profiles: BTreeSet<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -447,6 +453,13 @@ impl SimulationRuntime {
         let max_redirects_per_candidate = profile["limits"]["max_redirects_per_candidate"]
             .as_u64()
             .ok_or(SimulationError::InvalidVector)?;
+        let rng_profiles = array(profile, "rng_profiles")?
+            .iter()
+            .map(|value| string(value).map(str::to_owned))
+            .collect::<Result<BTreeSet<_>, _>>()?;
+        if rng_profiles.is_empty() {
+            return Err(SimulationError::InvalidVector);
+        }
         let max_expression_depth = profile["limits"]["max_expression_depth"]
             .as_u64()
             .and_then(|value| usize::try_from(value).ok())
@@ -542,6 +555,7 @@ impl SimulationRuntime {
             max_expression_nodes,
             max_quanta_per_action_per_tick,
             max_redirects_per_candidate,
+            rng_profiles,
         })
     }
 
@@ -578,6 +592,16 @@ impl SimulationRuntime {
             })
             .transpose()?
             .unwrap_or_default();
+        let rng_streams = initial
+            .get("rng_streams")
+            .cloned()
+            .map(|streams| {
+                serde_json::from_value(streams).map_err(|_| SimulationError::InvalidVector)
+            })
+            .transpose()?
+            .unwrap_or_default();
+        self.validate_rng_streams(&rng_streams)
+            .map_err(|_| SimulationError::InvalidVector)?;
         Ok(SimulationState {
             pcam_version: "3.0".to_owned(),
             action_instances: Vec::new(),
@@ -614,16 +638,24 @@ impl SimulationRuntime {
             pending_inputs: Vec::new(),
             resource_banks: serde_json::from_value(resource_banks)
                 .map_err(|_| SimulationError::InvalidVector)?,
-            rng_streams: initial
-                .get("rng_streams")
-                .cloned()
-                .map(|streams| {
-                    serde_json::from_value(streams).map_err(|_| SimulationError::InvalidVector)
-                })
-                .transpose()?
-                .unwrap_or_default(),
+            rng_streams,
             tick: 0,
         })
+    }
+
+    fn validate_rng_streams(
+        &self,
+        streams: &BTreeMap<String, Value>,
+    ) -> Result<(), SimulationError> {
+        for (stream_id, raw) in streams {
+            let snapshot = serde_json::from_value::<Pcg32Stream>(raw.clone())
+                .map_err(|_| rng_profile_fault(stream_id))?;
+            if !self.rng_profiles.contains(&snapshot.algorithm_id) {
+                return Err(rng_profile_fault(stream_id));
+            }
+            Pcg32Stream::from_snapshot(snapshot).map_err(|_| rng_profile_fault(stream_id))?;
+        }
+        Ok(())
     }
 
     pub fn tick(
@@ -727,6 +759,7 @@ impl SimulationRuntime {
         if state.definition_set_hash != self.definition_set_hash {
             return Err(SimulationError::RuntimeFault);
         }
+        self.validate_rng_streams(&state.rng_streams)?;
         let (mut work, events_delivered) = self.deliver_events(state)?;
         let contacts = canonical_contacts(array(tick, "contacts")?)?;
         let imports = tick.get("imports").cloned().unwrap_or_else(|| json!({}));
@@ -2948,6 +2981,16 @@ fn runtime_effect_fault(fault: &str, message: &str, effect: &RuntimeEffect) -> S
         message: message.to_owned(),
         action_instance_id: Some(effect.source_action_instance_id),
         owner_entity_id: Some(effect.source_entity_id),
+    })
+}
+
+fn rng_profile_fault(stream_id: &str) -> SimulationError {
+    SimulationError::Fault(FaultContext {
+        code: "RUNTIME_FAULT".to_owned(),
+        fault: "RNG_PROFILE_MISMATCH".to_owned(),
+        message: stream_id.to_owned(),
+        action_instance_id: None,
+        owner_entity_id: None,
     })
 }
 
