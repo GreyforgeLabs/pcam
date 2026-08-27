@@ -62,6 +62,7 @@ class TransitionDefinition:
     source_disposition: Literal["TERMINATE_SOURCE", "SUSPEND_SOURCE", "KEEP_SOURCE"] = "TERMINATE_SOURCE"
     child_slot_id: str | None = None
     parent_policy: str | None = None
+    event_type: str | None = None
     target_step: int = 0
     guard_predicate: str | None = None
     input_command: str | None = None
@@ -102,6 +103,8 @@ class ActionDefinition:
     transitions: tuple[TransitionDefinition, ...] = ()
     start_claims: tuple[Claim, ...] = ()
     slot_claims: tuple[Claim, ...] = ()
+    child_slot_capacities: dict[str, int] = field(default_factory=dict)
+    child_termination_policies: dict[str, str] = field(default_factory=dict)
     buffer_capacity: int = 8
     buffer_overflow_policy: Literal["DROP_OLDEST", "DROP_NEWEST", "FAULT"] = "DROP_OLDEST"
     default_buffer_lifetime: int = 1
@@ -120,6 +123,8 @@ class ActionDefinition:
             "semantic_facts": self.semantic_facts,
             "start_claims": self.start_claims,
             "slot_claims": self.slot_claims,
+            "child_slot_capacities": self.child_slot_capacities,
+            "child_termination_policies": self.child_termination_policies,
             "rate": {"scale": self.rate_scale, "units_per_tick": self.units_per_tick},
             "buffer": {
                 "capacity": self.buffer_capacity,
@@ -185,12 +190,18 @@ def validate_definition(definition: ActionDefinition) -> None:
         raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.INTEGER_OVERFLOW, definition.id)
     if definition.buffer_capacity < 0 or definition.default_buffer_lifetime <= 0:
         raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.STATE_INVARIANT_FAILURE, definition.id)
+    if any(capacity <= 0 for capacity in definition.child_slot_capacities.values()):
+        raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.STATE_INVARIANT_FAILURE, definition.id)
+    if set(definition.child_termination_policies) != set(definition.child_slot_capacities):
+        raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.STATE_INVARIANT_FAILURE, definition.id)
     node_ids = {node.id for node in definition.nodes}
     predicate_ids = {predicate.id for predicate in definition.predicates}
     if not definition.nodes:
         raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.STATE_INVARIANT_FAILURE, "action has no nodes")
     for node in definition.nodes:
         if node.mode == "TIMED" and (node.duration_quanta is None or node.duration_quanta <= 0):
+            raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.STATE_INVARIANT_FAILURE, node.id)
+        if node.mode != "TIMED" and node.duration_quanta is not None:
             raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.STATE_INVARIANT_FAILURE, node.id)
     fact_ids: set[str] = set()
     for binding in definition.semantic_facts:
@@ -199,8 +210,6 @@ def validate_definition(definition: ActionDefinition) -> None:
         fact_ids.add(binding.fact.fact_id)
         if binding.when_predicate not in predicate_ids:
             raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.MISSING_REFERENCE, binding.when_predicate)
-        if node.mode != "TIMED" and node.duration_quanta is not None:
-            raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.STATE_INVARIANT_FAILURE, node.id)
     seen_priorities: set[tuple[str, str, int]] = set()
     for transition in definition.transitions:
         if transition.evaluation_point == "AFTER_QUANTUM" and transition.claims:
@@ -215,6 +224,17 @@ def validate_definition(definition: ActionDefinition) -> None:
                 raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.STATE_INVARIANT_FAILURE, target.id)
             if target.mode == "TIMED" and target.duration_quanta is not None and transition.target_step >= target.duration_quanta:
                 raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.STATE_INVARIANT_FAILURE, target.id)
+        if transition.target_kind == "CHILD_ACTION":
+            if transition.child_slot_id not in definition.child_slot_capacities:
+                raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.MISSING_REFERENCE, str(transition.child_slot_id))
+            if transition.parent_policy not in {
+                "CONTINUE",
+                "FREEZE_PROGRESSION",
+                "FREEZE_TRANSITIONS",
+                "FREEZE_ALL_ACTION_LOGIC",
+                "TERMINATE_PARENT",
+            }:
+                raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.STATE_INVARIANT_FAILURE, transition.id)
         if transition.guard_predicate is not None and transition.guard_predicate not in predicate_ids:
             raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.STATE_INVARIANT_FAILURE, transition.guard_predicate)
         key = (transition.source_node, transition.evaluation_point, transition.priority)

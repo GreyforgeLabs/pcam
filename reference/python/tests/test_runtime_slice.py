@@ -359,3 +359,114 @@ def test_slot_replacement_starts_target_and_terminates_source_atomically():
     assert state.resource_banks["1"]["STAMINA"] == 0
     assert state.action_slots["1"]["FULL_BODY"]["instance_ids"] == [2]
     assert trace["pre_advance_intents"][0]["accepted"] is True
+
+
+def _parent_child_definitions() -> tuple[ActionDefinition, ActionDefinition]:
+    child = ActionDefinition(
+        id="CHILD",
+        rate_scale=1,
+        units_per_tick=0,
+        nodes=(NodeDefinition(id="CHILD_RUN"),),
+        transitions=(
+            TransitionDefinition(
+                id="finish_child",
+                source_node="CHILD_RUN",
+                evaluation_point="PRE_ADVANCE",
+                priority=20,
+                target_kind="TERMINATE",
+                input_command="FINISH",
+            ),
+        ),
+    )
+    parent = ActionDefinition(
+        id="PARENT",
+        rate_scale=1,
+        units_per_tick=1,
+        nodes=(NodeDefinition(id="PARENT_RUN"), NodeDefinition(id="COMPLETE")),
+        child_slot_capacities={"SUB": 1},
+        child_termination_policies={"SUB": "TERMINATE_CHILD"},
+        transitions=(
+            TransitionDefinition(
+                id="launch_child",
+                source_node="PARENT_RUN",
+                evaluation_point="PRE_ADVANCE",
+                priority=20,
+                target_kind="CHILD_ACTION",
+                target_action="CHILD",
+                child_slot_id="SUB",
+                parent_policy="FREEZE_PROGRESSION",
+                input_command="LAUNCH_CHILD",
+            ),
+            TransitionDefinition(
+                id="receive_child_result",
+                source_node="PARENT_RUN",
+                evaluation_point="PRE_ADVANCE",
+                priority=10,
+                target_kind="NODE",
+                target_node="COMPLETE",
+                event_type="CHILD_RESULT",
+            ),
+            TransitionDefinition(
+                id="stop_parent",
+                source_node="PARENT_RUN",
+                evaluation_point="PRE_ADVANCE",
+                priority=30,
+                target_kind="TERMINATE",
+                input_command="STOP",
+            ),
+        ),
+    )
+    return parent, child
+
+
+def test_parent_child_freeze_result_event_and_restore_equivalence():
+    executor = TickExecutor(_parent_child_definitions())
+    state = executor.initial_state()
+    state, _ = executor.tick(
+        state,
+        (TickInput("start-parent", 1, 0, "START", 0, action_definition_id="PARENT"),),
+    )
+    state, _ = executor.tick(state, (TickInput("launch", 1, 1, "LAUNCH_CHILD", 1),))
+    assert state.action_instances["1"].child_instance_ids == (2,)
+    assert state.action_instances["2"].parent_instance_id == 1
+    assert state.action_instances["2"].parent_slot_id == "SUB"
+    assert state.action_instances["1"].freeze_token_references == (1,)
+    assert state.action_instances["1"].local_step == 2
+
+    snapshot = executor.save(state)
+    restored = executor.restore(snapshot)
+    assert restored.to_snapshot() == state.to_snapshot()
+
+    def finish_from(current):
+        current, _ = executor.tick(current)
+        assert current.action_instances["1"].local_step == 2
+        current, _ = executor.tick(current, (TickInput("finish", 1, 2, "FINISH", 3),))
+        assert current.action_instances["1"].child_instance_ids == ()
+        assert current.freeze_tokens == ()
+        assert current.pending_events[0]["event_type"] == "CHILD_RESULT"
+        current, trace = executor.tick(current)
+        assert trace["events_delivered"] == ["child-result:2:1"]
+        assert current.action_instances["1"].current_node_id == "COMPLETE"
+        assert current.action_instances["1"].local_step == 3
+        return current, trace
+
+    direct, direct_trace = finish_from(state)
+    replayed, replayed_trace = finish_from(restored)
+    assert direct.to_snapshot() == replayed.to_snapshot()
+    assert direct_trace["state_digest"] == replayed_trace["state_digest"]
+
+
+def test_parent_termination_policy_terminates_occupied_child():
+    executor = TickExecutor(_parent_child_definitions())
+    state = executor.initial_state()
+    state, _ = executor.tick(
+        state,
+        (TickInput("start-parent", 1, 0, "START", 0, action_definition_id="PARENT"),),
+    )
+    state, _ = executor.tick(state, (TickInput("launch", 1, 1, "LAUNCH_CHILD", 1),))
+    state, _ = executor.tick(state, (TickInput("stop", 1, 2, "STOP", 2),))
+    assert state.action_instances["1"].lifecycle_state == "TERMINATED"
+    assert state.action_instances["2"].lifecycle_state == "TERMINATED"
+    assert state.action_instances["1"].child_instance_ids == ()
+    assert state.action_instances["1"].freeze_token_references == ()
+    assert state.pending_events[0]["event_type"] == "CHILD_RESULT"

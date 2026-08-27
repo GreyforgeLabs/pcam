@@ -17,7 +17,7 @@ This matrix preserves the complete target. A row is complete only when its named
 | §13 inputs | canonical ordering, buffering, TTL, overflow, and consumption vectors | partial: runtime capture/consume/expiry plus pure capacity and policy vectors |
 | §14 transitions | all evaluation points, priorities, targets, mutation order, seek/skip vectors | missing |
 | §15-16 intents, claims, slots | atomic arbitration and replacement vectors | partial: runtime-integrated resource/slot starts, permutation invariance, atomic replacement, and ID allocation; child/capacity/exclusive integration and group semantics open |
-| §17 parent-child | lifecycle, freeze, result event, nesting, restore vectors | missing |
+| §17 parent-child | lifecycle, freeze, result event, nesting, restore vectors | partial: runtime child slots, relationships, nesting bounds, parent freezes, termination policy, next-tick result, and restore equivalence; two policy precedence gaps open |
 | §18 freezes | domains, timing, expiry, stacking, accrual vectors | partial: runtime progression, transition, capture, and expiry domains plus provisional stacking; normative gap open |
 | §19-22 facts, candidates, interactions, ledgers | frozen snapshot, typed stages, redirection, receipt vectors | partial: runtime-integrated semantic facts, five-stage resolver, all ledger policies, provisional receipts, reducers, and defense ambiguity fault; defense-selection semantics remain open |
 | §23 effects | identifiers, canonical order, reducers, exclusive/custom vectors | partial: runtime-integrated authoritative registry commits plus all core reducer primitives and rejection traces |

@@ -37,3 +37,11 @@ Section 21.5 lists core rule operations but omits `MATERIALIZE`, while the canon
 ## Event-delivery freeze lifetime
 
 Sections 18.2 and 25 define `EVENT_DELIVERY` freezes and one-tick event availability, but do not state whether an event frozen on its delivery tick expires, faults, or moves to a later delivery tick. The Python reference provisionally defers the event by one tick and serializes the changed `delivery_tick`.
+
+## Terminate-parent composition
+
+Section 17.2 allows a child start to use `TERMINATE_PARENT`, while §17.4 independently requires a parent termination policy for each child slot. The ordering and precedence between the newly started child's parent policy and that slot's termination policy are not stated. The Python reference lets the newly started child continue when `TERMINATE_PARENT` is the launch policy and applies slot termination policies to later parent termination paths.
+
+## Freeze-all action domains
+
+`FREEZE_ALL_ACTION_LOGIC` is named but its exact domain expansion is not enumerated. The Python reference provisionally expands it to progression, pre/post transitions, input capture, and interaction emission/reception. Event delivery and buffer expiry remain separate explicit domains.

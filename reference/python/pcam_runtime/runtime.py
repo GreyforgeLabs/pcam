@@ -8,12 +8,13 @@ from .buffers import BufferEntry, apply_consumption, capture_entry, end_tick as 
 from .canonical import canonical_hash
 from .effects import EffectEnvelope, reduce_effects
 from .errors import PCAMError, PCAMFault, ResultCode
-from .freezes import end_tick as expire_freezes, is_frozen, progression_accrual
+from .events import EventEnvelope, deliver_due, event_from_snapshot, event_snapshot
+from .freezes import FreezeToken, add_token, end_tick as expire_freezes, is_frozen, progression_accrual
 from .interactions import InteractionCandidate, InteractionRule, SemanticFact, resolve_candidate, validate_rules
 from .intents import ArbitrationState, Claim, Intent, IntentDecision, arbitrate
 from .ledgers import LedgerContext, is_eligible as ledger_is_eligible, receipt_required, write_receipt
 from .model import ActionDefinition, Contact, Effect, FactBinding, HostSnapshot, RuntimeProfile, TickInput, TransitionDefinition, validate_definition
-from .numeric import apply_u64
+from .numeric import U64_MAX, apply_u64
 from .state import ActionInstance, SimulationState
 
 
@@ -98,6 +99,8 @@ class TickExecutor:
         canonical_contacts = self._canonical_contacts(host.contacts)
 
         self._stage(trace, 1, "tick_start_snapshot")
+        work, delivered_events = self._deliver_events(work)
+        trace["events_delivered"] = delivered_events
         work = replace(work, host_state={"contacts": [contact.__dict__ for contact in canonical_contacts], "imports": host.imports})
 
         self._stage(trace, 2, "input_ingestion")
@@ -195,6 +198,34 @@ class TickExecutor:
             )
         return state
 
+    def _deliver_events(self, state: SimulationState) -> tuple[SimulationState, list[str]]:
+        events = tuple(event_from_snapshot(dict(item)) for item in state.pending_events)
+        frozen_targets = frozenset(
+            event.target_id
+            for event in events
+            if event.delivery_mode in {"TARGET_ACTION", "PARENT", "CHILD"}
+            and is_frozen(state.freeze_tokens, state.tick, event.target_id, "EVENT_DELIVERY")
+        )
+        delivered, pending = deliver_due(events, state.tick, frozen_targets)
+        work = replace(state, pending_events=tuple(event_snapshot(item) for item in pending))
+        for event in delivered:
+            if event.delivery_mode in {"TARGET_ACTION", "PARENT", "CHILD"}:
+                action = work.action_instances.get(str(event.target_id))
+                if action is None:
+                    raise PCAMError(ResultCode.RUNTIME_FAULT, PCAMFault.STATE_INVARIANT_FAILURE, event.event_id)
+                work = _put_action(work, replace(action, event_inbox=(*action.event_inbox, event_snapshot(event))))
+            elif event.delivery_mode == "TARGET_ENTITY":
+                records = {key: dict(value) for key, value in work.entity_records.items()}
+                record = records.setdefault(str(event.target_id), {})
+                record["event_inbox"] = [*record.get("event_inbox", []), event_snapshot(event)]
+                work = replace(work, entity_records=records)
+            elif event.delivery_mode == "BROADCAST":
+                records = {key: dict(value) for key, value in work.entity_records.items()}
+                for record in records.values():
+                    record["event_inbox"] = [*record.get("event_inbox", []), event_snapshot(event)]
+                work = replace(work, entity_records=records)
+        return work, [item.event_id for item in delivered]
+
     def _eligible_inputs(self, tick: int, inputs: tuple[TickInput, ...]) -> list[TickInput]:
         dedup: dict[str, TickInput] = {}
         for item in inputs:
@@ -227,6 +258,15 @@ class TickExecutor:
                 target_definition = self.definitions_by_id[transition.target_action]
                 claims.extend(target_definition.start_claims)
                 claims.extend(target_definition.slot_claims)
+                if transition.target_kind == "CHILD_ACTION":
+                    assert transition.child_slot_id is not None
+                    claims.append(
+                        Claim(
+                            "CHILD_SLOT",
+                            transition.child_slot_id,
+                            owner_id=action.instance_id,
+                        )
+                    )
                 if transition.target_kind == "ACTION" and transition.source_disposition == "TERMINATE_SOURCE":
                     releases.extend(
                         Claim(
@@ -327,6 +367,20 @@ class TickExecutor:
                 key = ("ACTION_SLOT", int(entity), str(slot))
                 capacities[key] = int(values["capacity"])
                 usages[key] = int(values.get("usage", len(values.get("instance_ids", []))))
+        for key in sorted(state.action_instances, key=int):
+            action = state.action_instances[key]
+            if action.lifecycle_state in {"TERMINATED", "FAULTED"}:
+                continue
+            definition = self.definitions_by_hash[action.definition_hash]
+            for slot, capacity in definition.child_slot_capacities.items():
+                claim_key = ("CHILD_SLOT", action.instance_id, slot)
+                capacities[claim_key] = min(capacity, self.profile.max_children_per_action)
+                usages[claim_key] = sum(
+                    1
+                    for child_id in action.child_instance_ids
+                    if state.action_instances[str(child_id)].parent_slot_id == slot
+                    and state.action_instances[str(child_id)].lifecycle_state not in {"TERMINATED", "FAULTED"}
+                )
         return ArbitrationState(
             resource_banks={int(owner): dict(bank) for owner, bank in state.resource_banks.items()},
             capacities=capacities,
@@ -356,16 +410,34 @@ class TickExecutor:
             ),
         )
 
-    def _start_action(self, state: SimulationState, definition_id: str, owner_entity_id: int) -> SimulationState:
+    def _start_action(
+        self,
+        state: SimulationState,
+        definition_id: str,
+        owner_entity_id: int,
+        parent_instance_id: int | None = None,
+        parent_slot_id: str | None = None,
+    ) -> SimulationState:
         definition = self.definitions_by_id[definition_id]
         node = definition.nodes[0]
+        if parent_instance_id is not None:
+            depth = 1
+            cursor = state.action_instances[str(parent_instance_id)]
+            while cursor.parent_instance_id is not None:
+                depth += 1
+                cursor = state.action_instances[str(cursor.parent_instance_id)]
+            if depth >= self.profile.max_action_nesting_depth:
+                raise PCAMError(ResultCode.RUNTIME_FAULT, PCAMFault.NESTING_LIMIT_EXCEEDED, definition_id)
         instance_id = state.next_action_instance_id
         action = ActionInstance(
             instance_id=instance_id,
             owner_entity_id=owner_entity_id,
             definition_hash=definition.definition_hash,
+            lifecycle_state="TERMINATED" if node.mode == "TERMINAL" else "RUNNING",
             current_node_id=node.id,
             current_rate_units=definition.units_per_tick,
+            parent_instance_id=parent_instance_id,
+            parent_slot_id=parent_slot_id,
             slot_claims=tuple(
                 {
                     "amount": claim.amount,
@@ -499,6 +571,10 @@ class TickExecutor:
                 continue
             if transition.input_command and select_entry(action.input_buffer, transition.input_command) is None:
                 continue
+            if transition.event_type and not any(
+                event.get("event_type") == transition.event_type for event in action.event_inbox
+            ):
+                continue
             if transition.guard_predicate and not action.predicate_truth_state.get(transition.guard_predicate, False):
                 continue
             eligible.append(transition)
@@ -515,14 +591,17 @@ class TickExecutor:
             return state, []
         matched_input = select_entry(action.input_buffer, transition.input_command) if transition.input_command else None
         if transition.target_kind == "TERMINATE":
-            action = replace(action, lifecycle_state="TERMINATED", transition_serial=action.transition_serial + 1)
+            state, action = self._terminate_action(state, action, "TERMINATED")
+            action = replace(action, transition_serial=action.transition_serial + 1)
         elif transition.target_kind == "FAULT":
-            action = replace(action, lifecycle_state="FAULTED", fault_record=transition.id, transition_serial=action.transition_serial + 1)
+            state, action = self._terminate_action(state, action, "FAULTED", transition.id)
+            action = replace(action, transition_serial=action.transition_serial + 1)
         elif transition.target_kind == "ACTION":
             assert transition.target_action is not None
             owner_entity_id = action.owner_entity_id
             if transition.source_disposition == "TERMINATE_SOURCE":
-                action = replace(action, lifecycle_state="TERMINATED", transition_serial=action.transition_serial + 1)
+                state, action = self._terminate_action(state, action, "TERMINATED")
+                action = replace(action, transition_serial=action.transition_serial + 1)
             elif transition.source_disposition == "SUSPEND_SOURCE":
                 action = replace(action, lifecycle_state="SUSPENDED", transition_serial=action.transition_serial + 1)
             else:
@@ -541,9 +620,68 @@ class TickExecutor:
             state = self._start_action(state, transition.target_action, owner_entity_id)
             return state, list(transition.effects)
         elif transition.target_kind == "CHILD_ACTION":
-            raise PCAMError(ResultCode.RUNTIME_FAULT, PCAMFault.STATE_INVARIANT_FAILURE, "child actions not integrated")
+            assert transition.target_action is not None
+            assert transition.child_slot_id is not None
+            child_id = state.next_action_instance_id
+            state = self._start_action(
+                state,
+                transition.target_action,
+                action.owner_entity_id,
+                parent_instance_id=action.instance_id,
+                parent_slot_id=transition.child_slot_id,
+            )
+            action = replace(
+                action,
+                child_instance_ids=(*action.child_instance_ids, child_id),
+                transition_serial=action.transition_serial + 1,
+                input_buffer=apply_consumption(
+                    action.input_buffer,
+                    matched_input,
+                    transition.consume_policy,
+                    accepted=True,
+                    attempted=True,
+                ),
+            )
+            if transition.parent_policy == "TERMINATE_PARENT":
+                action = replace(action, lifecycle_state="TERMINATED")
+            else:
+                domains = {
+                    "CONTINUE": (),
+                    "FREEZE_PROGRESSION": ("PROGRESSION",),
+                    "FREEZE_TRANSITIONS": ("PRE_ADVANCE_TRANSITIONS", "POST_ADVANCE_TRANSITIONS"),
+                    "FREEZE_ALL_ACTION_LOGIC": (
+                        "INPUT_CAPTURE",
+                        "INTERACTION_EMISSION",
+                        "INTERACTION_RECEPTION",
+                        "POST_ADVANCE_TRANSITIONS",
+                        "PRE_ADVANCE_TRANSITIONS",
+                        "PROGRESSION",
+                    ),
+                }[str(transition.parent_policy)]
+                if domains:
+                    token_id = state.next_freeze_token_id
+                    token = FreezeToken.created(
+                        token_id=token_id,
+                        source_id=child_id,
+                        target_id=action.instance_id,
+                        creation_tick=state.tick,
+                        duration=U64_MAX,
+                        domains=domains,  # type: ignore[arg-type]
+                        metadata={"child_slot_id": transition.child_slot_id, "relationship": "PARENT_CHILD"},
+                    )
+                    state = replace(
+                        state,
+                        freeze_tokens=add_token(state.freeze_tokens, token),
+                        next_freeze_token_id=apply_u64(token_id + 1),
+                    )
+                    action = replace(action, freeze_token_references=(*action.freeze_token_references, token_id))
+            return _put_action(state, action), list(transition.effects)
         else:
             assert transition.target_node is not None
+            definition = self.definitions_by_hash[action.definition_hash]
+            target_definition = next(node for node in definition.nodes if node.id == transition.target_node)
+            if target_definition.mode == "TERMINAL":
+                state, action = self._terminate_action(state, action, "TERMINATED")
             action = replace(
                 action,
                 current_node_id=transition.target_node,
@@ -561,6 +699,41 @@ class TickExecutor:
             ),
         )
         return _put_action(state, action), list(transition.effects)
+
+    def _terminate_action(
+        self,
+        state: SimulationState,
+        action: ActionInstance,
+        lifecycle: str,
+        fault_record: str | None = None,
+    ) -> tuple[SimulationState, ActionInstance]:
+        definition = self.definitions_by_hash[action.definition_hash]
+        work = state
+        retained_children: list[int] = []
+        for child_id in action.child_instance_ids:
+            child = work.action_instances[str(child_id)]
+            policy = definition.child_termination_policies[str(child.parent_slot_id)]
+            if policy == "FAULT_IF_OCCUPIED":
+                raise PCAMError(ResultCode.RUNTIME_FAULT, PCAMFault.STATE_INVARIANT_FAILURE, str(action.instance_id))
+            if policy == "TERMINATE_CHILD":
+                work, child = self._terminate_action(work, child, "TERMINATED")
+                work = _put_action(work, child)
+                retained_children.append(child_id)
+            elif policy == "DETACH_CHILD":
+                work = _put_action(work, replace(child, parent_instance_id=None, parent_slot_id=None))
+            else:
+                retained_children.append(child_id)
+        action = replace(
+            action,
+            child_instance_ids=tuple(retained_children),
+            fault_record=fault_record,
+            lifecycle_state=lifecycle,  # type: ignore[arg-type]
+        )
+        work = replace(
+            work,
+            freeze_tokens=tuple(token for token in work.freeze_tokens if token.target_id != action.instance_id),
+        )
+        return work, action
 
     def _semantic_snapshot(
         self,
@@ -758,14 +931,91 @@ class TickExecutor:
             raise PCAMError(ResultCode.RUNTIME_FAULT, PCAMFault.STATE_INVARIANT_FAILURE, str(state.tick))
 
     def _maintenance(self, state: SimulationState) -> SimulationState:
+        state = self._finalize_child_results(state)
         for key in sorted(state.action_instances, key=int):
             action = state.action_instances[key]
             expiry_frozen = is_frozen(state.freeze_tokens, state.tick, action.instance_id, "BUFFER_EXPIRY")
             state = _put_action(
                 state,
-                replace(action, input_buffer=expire_buffers(action.input_buffer, expiry_frozen)),
+                replace(
+                    action,
+                    event_inbox=(),
+                    input_buffer=expire_buffers(action.input_buffer, expiry_frozen),
+                ),
             )
-        return replace(state, freeze_tokens=expire_freezes(state.freeze_tokens, state.tick))
+        records = {key: {**value, "event_inbox": []} for key, value in state.entity_records.items()}
+        return replace(
+            state,
+            entity_records=records,
+            freeze_tokens=expire_freezes(state.freeze_tokens, state.tick),
+        )
+
+    def _finalize_child_results(self, state: SimulationState) -> SimulationState:
+        pending = [event_from_snapshot(dict(item)) for item in state.pending_events]
+        work = state
+        for key in sorted(state.action_instances, key=int):
+            child = work.action_instances[key]
+            if child.parent_instance_id is None or child.lifecycle_state not in {"TERMINATED", "FAULTED"}:
+                continue
+            if child.extension_state.get("pcam.child_result_emitted") is True:
+                continue
+            parent = work.action_instances.get(str(child.parent_instance_id))
+            if parent is None:
+                raise PCAMError(ResultCode.RUNTIME_FAULT, PCAMFault.STATE_INVARIANT_FAILURE, str(child.instance_id))
+            result_code = child.fault_record if child.lifecycle_state == "FAULTED" else "TERMINATED"
+            event = EventEnvelope.next_tick(
+                event_id=f"child-result:{child.instance_id}:{child.transition_serial}",
+                event_type="CHILD_RESULT",
+                source_id=child.instance_id,
+                target_id=parent.instance_id,
+                origin_tick=state.tick,
+                payload={
+                    "child_instance_id": child.instance_id,
+                    "child_slot_id": child.parent_slot_id,
+                    "parent_instance_id": parent.instance_id,
+                    "result_code": result_code,
+                    "termination_tick": state.tick,
+                },
+                delivery_mode="PARENT",
+            )
+            pending.append(event)
+            work = _put_action(
+                work,
+                replace(
+                    parent,
+                    child_instance_ids=tuple(
+                        instance_id for instance_id in parent.child_instance_ids if instance_id != child.instance_id
+                    ),
+                    freeze_token_references=tuple(
+                        token_id
+                        for token_id in parent.freeze_token_references
+                        if any(
+                            token.token_id == token_id
+                            and not (
+                                token.source_id == child.instance_id
+                                and (token.metadata or {}).get("relationship") == "PARENT_CHILD"
+                            )
+                            for token in work.freeze_tokens
+                        )
+                    ),
+                ),
+            )
+            extension_state = dict(child.extension_state)
+            extension_state["pcam.child_result_emitted"] = True
+            work = _put_action(work, replace(child, extension_state=extension_state))
+            work = replace(
+                work,
+                freeze_tokens=tuple(
+                    token
+                    for token in work.freeze_tokens
+                    if not (
+                        token.source_id == child.instance_id
+                        and token.target_id == parent.instance_id
+                        and (token.metadata or {}).get("relationship") == "PARENT_CHILD"
+                    )
+                ),
+            )
+        return replace(work, pending_events=tuple(event_snapshot(item) for item in pending))
 
     @staticmethod
     def _stage(trace: dict[str, object], index: int, name: str) -> None:
