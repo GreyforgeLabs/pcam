@@ -374,6 +374,7 @@ class ActionDefinition:
     register_initials: dict[str, object] = field(default_factory=dict)
     parameter_declarations: dict[str, dict[str, object]] = field(default_factory=dict)
     register_declarations: dict[str, dict[str, object]] = field(default_factory=dict)
+    import_declarations: dict[str, dict[str, object]] = field(default_factory=dict)
     initial_node_id: str | None = None
 
     @property
@@ -389,6 +390,7 @@ class ActionDefinition:
             "register_initials": self.register_initials,
             "parameter_declarations": self.parameter_declarations,
             "register_declarations": self.register_declarations,
+            "import_declarations": self.import_declarations,
             "initial_node": self.initial_node_id or self.nodes[0].id,
             "nodes": [node.__dict__ for node in self.nodes],
             "predicates": [predicate.__dict__ for predicate in self.predicates],

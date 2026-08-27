@@ -619,6 +619,8 @@ serialization dependency
 
 An authoritative import MUST be included in host snapshots and rollback state.
 
+The tick host snapshot supplies imports in an `imports` object keyed by declared import identifier. Resolving `host.<id>` returns a deep-captured supplied value after declared-type validation. If the value is absent, `USE_DEFAULT` returns the declaration's immutable default and `FAULT` produces `INVALID_HOST_IMPORT`. The supplied import object is copied into authoritative tick host state before action evaluation and is included in snapshots, state digests, and rollback history.
+
 ## 8.7 Nodes
 
 Each action definition MUST declare `initial_node` as the identifier of one node in its `nodes` map. Map insertion order MUST NOT select the initial node.

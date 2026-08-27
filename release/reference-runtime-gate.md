@@ -18,7 +18,6 @@ Direct starts now validate declared parameter bindings before allocation, deep-c
 
 ## Known remaining interpreter gaps
 
-- Host-import declarations are validated structurally but not compiled into runtime records or exposed through `host.<id>` expression references.
 - Core `owner.resource`, `owner.register`, contextual `input`, and contextual `event` action-expression references are not yet executed across every guard, predicate, assignment, and effect-payload site.
 - Independent normative-vector breadth remains insufficient to rule out divergence in arbitration, interactions, general effects, events, parent-child composition, complete snapshots, and rollback.
 - Linux ARM64 digest evidence is unavailable, so this gate cannot contribute to cross-platform closure.

@@ -57,3 +57,7 @@ Resolved in §30.3. Fault attribution, tick-start rollback, logical-tick advance
 ## Parameter binding
 
 Resolved in §8.4. Direct-start bindings use the input payload's `parameters` object and are validated before instance allocation. Captures are authoritative deep copies. Core action and child transitions have no binding field and therefore can start only targets whose required parameters have defaults.
+
+## Host-import binding
+
+Resolved in §8.6. Tick host snapshots supply an `imports` object, supplied and default values are type checked and deep captured, `FAULT` produces `INVALID_HOST_IMPORT`, and raw supplied imports are included in authoritative host state, snapshots, digests, and rollback history.

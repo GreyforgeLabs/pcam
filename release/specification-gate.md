@@ -18,6 +18,8 @@ Fault-policy implementation exposed a second executable ambiguity: the three dec
 
 Parameter execution exposed that declarations had no portable direct-start binding. §8.4 now binds direct inputs through a `parameters` payload object, requires validation before allocation and deep capture, and defines the default-only rule for action and child transition targets.
 
+Host-import execution exposed that declarations had no exact tick-snapshot binding. §8.6 now defines the host `imports` object, typed supplied/default resolution, deep capture, fault behavior, and authoritative serialization.
+
 ## Required evidence
 
 - no unresolved normative contradictions

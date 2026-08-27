@@ -15,11 +15,11 @@
   "contact_tick": 24,
   "expected": {
     "heavy_strike_document_hash": "caa61a0773db471dce8142c1fe86bfce56143992d12a167dcc2ed434b38cfdb5",
-    "heavy_strike_runtime_hash": "cad95ad89c675e4695d96bda404699e84d3c63b9ce0efd3f6012bda0b12575b3",
+    "heavy_strike_runtime_hash": "d70d3df81146715b2c619beb5d41c86f41025612a0c3d1c840348a7fd1007337",
     "interaction_document_hash": "7675dab973b71d447cdb55b622c73d86da03e05577dbc4676beb2a071639f5d9",
-    "definition_set_hash": "59e3c0d7ec9599783114c39b6fb99428034062cd483628744a55fa3523afe886",
-    "trace_digest": "8cd17da47066f367d00988f2bcb43f9c39da07119b0254870f41e428334ef92a",
-    "final_state_digest": "9c428ff52391da43b435cb2f6ab0875410e6af77e601952ec469f170af91a6ec",
+    "definition_set_hash": "0d4d0de2dc7e231992e6307bc8d61a6fe49ed0e1146db60cc98edae73349b409",
+    "trace_digest": "985e2da2794bc710ba1b3efa75cd587f5cb8fe7c3257b5365e17bd2c91b3300c",
+    "final_state_digest": "292abcece1c74f7db576821ac9b985b3c5662b53846a66e0939e64988314ac91",
     "node_change_ticks": [24, 34, 59],
     "candidate_order": ["a-to-b", "a-to-b-dup", "b-to-a"],
     "resource_banks": {

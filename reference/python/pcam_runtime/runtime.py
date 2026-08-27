@@ -187,7 +187,13 @@ class TickExecutor:
                     owner_entity_id=action.owner_entity_id,
                 ) from error
         trace["events_delivered"] = delivered_events
-        work = replace(work, host_state={"contacts": [contact.__dict__ for contact in canonical_contacts], "imports": host.imports})
+        work = replace(
+            work,
+            host_state={
+                "contacts": [contact.__dict__ for contact in canonical_contacts],
+                "imports": deepcopy(host.imports),
+            },
+        )
 
         self._stage(trace, 2, "input_ingestion")
         start_inputs = self._eligible_inputs(work.tick, inputs)
@@ -847,7 +853,7 @@ class TickExecutor:
         actions = dict(state.action_instances)
         actions[str(instance_id)] = action
         state = replace(state, action_instances=actions, next_action_instance_id=instance_id + 1)
-        action = self._apply_assignments(action, definition, node.entry_assignments)
+        action = self._apply_assignments(state, action, definition, node.entry_assignments)
         action, effects = self._materialize_definition_effects(state, action, definition, node.entry_effects)
         if node.mode == "TERMINAL":
             state, action = self._terminate_action(state, action, "TERMINATED")
@@ -939,7 +945,7 @@ class TickExecutor:
                 break
             current = replace(current, local_step=current.local_step + 1, node_step=current.node_step + 1)
             state = _put_action(state, current)
-            eligible = self._eligible_transitions(current, definition, "AFTER_QUANTUM")
+            eligible = self._eligible_transitions(state, current, definition, "AFTER_QUANTUM")
             trace["eligible_transitions"].extend(  # type: ignore[union-attr]
                 {
                     "evaluation_point": "AFTER_QUANTUM",
@@ -983,7 +989,7 @@ class TickExecutor:
                     continue
                 definition = self.definitions_by_hash[action.definition_hash]
                 try:
-                    eligible = self._eligible_transitions(action, definition, point)
+                    eligible = self._eligible_transitions(state, action, definition, point)
                 except PCAMError as error:
                     raise error.with_context(
                         action_instance_id=action.instance_id,
@@ -1005,15 +1011,17 @@ class TickExecutor:
 
     def _select_transition(
         self,
+        state: SimulationState,
         action: ActionInstance,
         definition: ActionDefinition,
         point: str,
     ) -> TransitionDefinition | None:
-        eligible = self._eligible_transitions(action, definition, point)
+        eligible = self._eligible_transitions(state, action, definition, point)
         return eligible[0] if eligible else None
 
     def _eligible_transitions(
         self,
+        state: SimulationState,
         action: ActionInstance,
         definition: ActionDefinition,
         point: str,
@@ -1031,7 +1039,12 @@ class TickExecutor:
             if transition.guard_predicate and not action.predicate_truth_state.get(transition.guard_predicate, False):
                 continue
             if transition.guard_expression is not None:
-                guard = self._evaluate_action_expression(action, definition, transition.guard_expression)
+                guard = self._evaluate_action_expression(
+                    state,
+                    action,
+                    definition,
+                    transition.guard_expression,
+                )
                 if guard is not True:
                     continue
             eligible.append(transition)
@@ -1051,8 +1064,8 @@ class TickExecutor:
         matched_input = select_entry(action.input_buffer, transition.input_command) if transition.input_command else None
         typed_effects: list[EffectEnvelope] = []
 
-        action = self._apply_assignments(action, definition, source_node.exit_assignments)
-        action = self._apply_assignments(action, definition, transition.exit_assignments)
+        action = self._apply_assignments(state, action, definition, source_node.exit_assignments)
+        action = self._apply_assignments(state, action, definition, transition.exit_assignments)
         action, emitted = self._materialize_definition_effects(
             state,
             action,
@@ -1060,7 +1073,7 @@ class TickExecutor:
             source_node.exit_effects,
         )
         typed_effects.extend(emitted)
-        action = self._apply_assignments(action, definition, transition.assignments)
+        action = self._apply_assignments(state, action, definition, transition.assignments)
         action = replace(action, cycle=apply_u64(action.cycle + transition.cycle_delta))
         action, emitted = self._materialize_definition_effects(
             state,
@@ -1069,7 +1082,7 @@ class TickExecutor:
             transition.definition_effects,
         )
         typed_effects.extend(emitted)
-        action = self._apply_assignments(action, definition, transition.entry_assignments)
+        action = self._apply_assignments(state, action, definition, transition.entry_assignments)
         state = _put_action(state, action)
 
         if transition.target_kind == "TERMINATE":
@@ -1170,7 +1183,12 @@ class TickExecutor:
                 node_step=transition.target_step,
                 transition_serial=action.transition_serial + 1,
             )
-            action = self._apply_assignments(action, definition, target_definition.entry_assignments)
+            action = self._apply_assignments(
+                state,
+                action,
+                definition,
+                target_definition.entry_assignments,
+            )
             action, emitted = self._materialize_definition_effects(
                 state,
                 action,
@@ -1260,6 +1278,7 @@ class TickExecutor:
 
     def _apply_assignments(
         self,
+        state: SimulationState,
         action: ActionInstance,
         definition: ActionDefinition,
         assignments: tuple[Assignment, ...],
@@ -1280,7 +1299,7 @@ class TickExecutor:
                     PCAMFault.MISSING_REFERENCE,
                     assignment.target,
                 )
-            value = self._evaluate_action_expression(current, definition, assignment.value)
+            value = self._evaluate_action_expression(state, current, definition, assignment.value)
             declaration = definition.register_declarations.get(register_id)
             normalized = self._normalize_register_value(register_id, value, declaration)
             registers = dict(current.registers)
@@ -1360,7 +1379,13 @@ class TickExecutor:
                 target_entity_id = apply_u64(target)
             elif isinstance(target, str):
                 try:
-                    resolved = self._resolve_action_reference(current, target, lambda _: False)
+                    resolved = self._resolve_action_reference(
+                        state,
+                        current,
+                        definition,
+                        target,
+                        lambda _: False,
+                    )
                 except KeyError as exc:
                     raise PCAMError(
                         ResultCode.RUNTIME_FAULT,
@@ -1387,7 +1412,7 @@ class TickExecutor:
                     source_action_instance_id=current.instance_id,
                     origin_tick=state.tick,
                     priority=effect.priority,
-                    payload=self._resolve_effect_payload(effect.payload, current, definition),
+                    payload=self._resolve_effect_payload(state, effect.payload, current, definition),
                     reducer=effect.reducer or "ORDERED",  # type: ignore[arg-type]
                     authoritative=effect.authoritative,
                 )
@@ -1446,7 +1471,7 @@ class TickExecutor:
             entries = dict(action.predicate_entry_serials)
             exits = dict(action.predicate_exit_serials)
             try:
-                current_values = self._predicate_values(action, definition)
+                current_values = self._predicate_values(state, action, definition)
             except PCAMError as error:
                 raise error.with_context(
                     action_instance_id=action.instance_id,
@@ -1470,7 +1495,12 @@ class TickExecutor:
             state = _put_action(state, replace(action, predicate_truth_state=truth, predicate_entry_serials=entries, predicate_exit_serials=exits))
         return state, changes, sorted(set(facts)), active_bindings
 
-    def _predicate_values(self, action: ActionInstance, definition: ActionDefinition) -> dict[str, bool]:
+    def _predicate_values(
+        self,
+        state: SimulationState | None,
+        action: ActionInstance,
+        definition: ActionDefinition,
+    ) -> dict[str, bool]:
         definitions = {item.id: item for item in definition.predicates}
         values: dict[str, bool] = {}
         visiting: set[str] = set()
@@ -1494,7 +1524,9 @@ class TickExecutor:
                 result = evaluate(
                     predicate.expression,
                     lambda reference: self._resolve_action_reference(
+                        state,
                         action,
+                        definition,
                         reference,
                         predicate_value,
                     ),
@@ -1517,15 +1549,18 @@ class TickExecutor:
 
     def _evaluate_action_expression(
         self,
+        state: SimulationState | None,
         action: ActionInstance,
         definition: ActionDefinition,
         expression: dict[str, object],
     ) -> object:
-        predicates = self._predicate_values(action, definition)
+        predicates = self._predicate_values(state, action, definition)
         return evaluate(
             expression,
             lambda reference: self._resolve_action_reference(
+                state,
                 action,
+                definition,
                 reference,
                 predicates.__getitem__,
             ),
@@ -1535,7 +1570,9 @@ class TickExecutor:
 
     @staticmethod
     def _resolve_action_reference(
+        state: SimulationState | None,
         action: ActionInstance,
+        definition: ActionDefinition,
         reference: str,
         predicate_value: object,
     ) -> object:
@@ -1559,10 +1596,50 @@ class TickExecutor:
         if reference.startswith("action.predicate."):
             name = reference.removeprefix("action.predicate.")
             return predicate_value(name)  # type: ignore[operator]
+        if reference.startswith("host."):
+            import_id = reference.removeprefix("host.")
+            declaration = definition.import_declarations.get(import_id)
+            if declaration is None or state is None:
+                raise PCAMError(ResultCode.RUNTIME_FAULT, PCAMFault.INVALID_HOST_IMPORT, import_id)
+            imports = state.host_state.get("imports", {})
+            if not isinstance(imports, dict):
+                raise PCAMError(ResultCode.RUNTIME_FAULT, PCAMFault.INVALID_HOST_IMPORT, import_id)
+            if import_id in imports:
+                return TickExecutor._validate_host_import_value(
+                    import_id,
+                    imports[import_id],
+                    declaration,
+                )
+            if declaration.get("failure_policy") == "USE_DEFAULT":
+                return TickExecutor._validate_host_import_value(
+                    import_id,
+                    deepcopy(declaration["default"]),
+                    declaration,
+                )
+            raise PCAMError(ResultCode.RUNTIME_FAULT, PCAMFault.INVALID_HOST_IMPORT, import_id)
         raise KeyError(reference)
+
+    @staticmethod
+    def _validate_host_import_value(
+        import_id: str,
+        value: object,
+        declaration: dict[str, object],
+    ) -> object:
+        kind = str(declaration["type"])
+        valid = (
+            (kind == "BOOL" and type(value) is bool)
+            or (kind == "I64" and type(value) is int and -(1 << 63) <= value <= (1 << 63) - 1)
+            or (kind == "U64" and type(value) is int and 0 <= value <= (1 << 64) - 1)
+            or (kind in {"SYMBOL", "BYTES"} and type(value) is str)
+            or kind not in {"BOOL", "I64", "U64", "SYMBOL", "BYTES"}
+        )
+        if not valid:
+            raise PCAMError(ResultCode.RUNTIME_FAULT, PCAMFault.INVALID_HOST_IMPORT, import_id)
+        return deepcopy(value)
 
     def _bound_fact(
         self,
+        state: SimulationState,
         fact: SemanticFact,
         action: ActionInstance,
         definition: ActionDefinition,
@@ -1572,7 +1649,7 @@ class TickExecutor:
             effect_templates=tuple(
                 replace(
                     template,
-                    payload=self._resolve_effect_payload(template.payload, action, definition),
+                    payload=self._resolve_effect_payload(state, template.payload, action, definition),
                 )
                 for template in fact.effect_templates
             ),
@@ -1580,21 +1657,25 @@ class TickExecutor:
 
     def _resolve_effect_payload(
         self,
+        state: SimulationState,
         payload: object,
         action: ActionInstance,
         definition: ActionDefinition,
     ) -> object:
         if isinstance(payload, dict):
             if set(payload) in ({"literal"}, {"ref"}, {"op", "args"}):
-                return self._evaluate_action_expression(action, definition, payload)
+                return self._evaluate_action_expression(state, action, definition, payload)
             if set(payload) == {"amount"}:
-                return self._resolve_effect_payload(payload["amount"], action, definition)
+                return self._resolve_effect_payload(state, payload["amount"], action, definition)
             return {
-                key: self._resolve_effect_payload(value, action, definition)
+                key: self._resolve_effect_payload(state, value, action, definition)
                 for key, value in payload.items()
             }
         if isinstance(payload, list):
-            return [self._resolve_effect_payload(value, action, definition) for value in payload]
+            return [
+                self._resolve_effect_payload(state, value, action, definition)
+                for value in payload
+            ]
         return payload
 
     def _resolve_interactions(
@@ -1670,7 +1751,7 @@ class TickExecutor:
             try:
                 defenses = self._defense_map(state, active_bindings, candidate.defense_fact_id)
                 definition = self.definitions_by_hash[action.definition_hash]
-                offense = self._bound_fact(binding.fact, action, definition)
+                offense = self._bound_fact(state, binding.fact, action, definition)
                 decision = resolve_candidate(
                     interaction_candidate,
                     offense,

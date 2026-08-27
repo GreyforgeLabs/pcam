@@ -75,6 +75,7 @@ def action_from_document(document: dict[str, Any]) -> ActionDefinition:
         register_initials=registers,
         parameter_declarations={str(key): dict(value) for key, value in document["parameters"].items()},
         register_declarations={str(key): dict(value) for key, value in document["registers"].items()},
+        import_declarations={str(key): dict(value) for key, value in document["imports"].items()},
         initial_node_id=str(document["initial_node"]),
     )
 
