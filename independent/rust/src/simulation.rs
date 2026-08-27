@@ -69,6 +69,9 @@ struct Definition {
     buffer_overflow_policy: String,
     default_buffer_lifetime: u64,
     import_declarations: BTreeMap<String, Value>,
+    parameter_declarations: BTreeMap<String, Value>,
+    parameter_defaults: BTreeMap<String, Value>,
+    register_initials: BTreeMap<String, Value>,
     child_slot_capacities: BTreeMap<String, u64>,
     child_termination_policies: BTreeMap<String, String>,
     start_claims: Vec<ArbitrationClaim>,
@@ -1513,10 +1516,19 @@ impl SimulationRuntime {
                 }
                 "ACTION_START" => {
                     if decision.accepted {
+                        let supplied_parameters = inputs
+                            .iter()
+                            .find(|input| {
+                                input.get("input_id").and_then(Value::as_str)
+                                    == Some(decision.intent.input_id.as_str())
+                            })
+                            .and_then(|input| input.get("payload"))
+                            .and_then(|payload| payload.get("parameters"));
                         self.start_direct_action(
                             state,
                             &decision.intent.transition_id,
                             decision.intent.owner_entity_id,
+                            supplied_parameters,
                         )?;
                     }
                 }
@@ -1658,6 +1670,7 @@ impl SimulationRuntime {
         state: &mut SimulationState,
         definition_id: &str,
         owner_entity_id: u64,
+        supplied_parameters: Option<&Value>,
     ) -> Result<(), SimulationError> {
         let definition = self
             .definitions
@@ -1668,7 +1681,7 @@ impl SimulationRuntime {
             .checked_add(1)
             .ok_or(SimulationError::RuntimeFault)?;
         state.action_instances.push(ActionSnapshot {
-            captured_parameters: BTreeMap::new(),
+            captured_parameters: capture_parameters(definition, supplied_parameters)?,
             child_instance_ids: Vec::new(),
             current_node_id: definition.initial_node.clone(),
             current_rate_units: definition.units_per_tick,
@@ -1701,7 +1714,7 @@ impl SimulationRuntime {
             predicate_exit_serials: BTreeMap::new(),
             predicate_truth_state: BTreeMap::new(),
             quantum_accumulator: 0,
-            registers: BTreeMap::new(),
+            registers: definition.register_initials.clone(),
             rng_stream_ids: Vec::new(),
             slot_claims: definition
                 .slot_claims
@@ -1946,7 +1959,7 @@ impl SimulationRuntime {
                     .checked_add(1)
                     .ok_or(SimulationError::RuntimeFault)?;
                 state.action_instances.push(ActionSnapshot {
-                    captured_parameters: BTreeMap::new(),
+                    captured_parameters: definition.parameter_defaults.clone(),
                     child_instance_ids: Vec::new(),
                     current_node_id: definition.initial_node.clone(),
                     current_rate_units: definition.units_per_tick,
@@ -1979,7 +1992,7 @@ impl SimulationRuntime {
                     predicate_exit_serials: BTreeMap::new(),
                     predicate_truth_state: BTreeMap::new(),
                     quantum_accumulator: 0,
-                    registers: BTreeMap::new(),
+                    registers: definition.register_initials.clone(),
                     rng_stream_ids: Vec::new(),
                     slot_claims: definition
                         .slot_claims
@@ -2115,7 +2128,7 @@ impl SimulationRuntime {
                     }));
                 }
                 state.action_instances.push(ActionSnapshot {
-                    captured_parameters: BTreeMap::new(),
+                    captured_parameters: definition.parameter_defaults.clone(),
                     child_instance_ids: Vec::new(),
                     current_node_id: definition.initial_node.clone(),
                     current_rate_units: definition.units_per_tick,
@@ -2140,7 +2153,7 @@ impl SimulationRuntime {
                     predicate_exit_serials: BTreeMap::new(),
                     predicate_truth_state: BTreeMap::new(),
                     quantum_accumulator: 0,
-                    registers: BTreeMap::new(),
+                    registers: definition.register_initials.clone(),
                     rng_stream_ids: Vec::new(),
                     slot_claims: Vec::new(),
                     transition_serial: 0,
@@ -3029,6 +3042,24 @@ fn parse_definition(raw: &Value, hash: String) -> Result<Definition, SimulationE
             .map(|value| serde_json::from_value(value).map_err(|_| SimulationError::InvalidVector))
             .transpose()?
             .unwrap_or_default(),
+        parameter_declarations: raw
+            .get("parameter_declarations")
+            .cloned()
+            .map(|value| serde_json::from_value(value).map_err(|_| SimulationError::InvalidVector))
+            .transpose()?
+            .unwrap_or_default(),
+        parameter_defaults: raw
+            .get("parameter_defaults")
+            .cloned()
+            .map(|value| serde_json::from_value(value).map_err(|_| SimulationError::InvalidVector))
+            .transpose()?
+            .unwrap_or_default(),
+        register_initials: raw
+            .get("register_initials")
+            .cloned()
+            .map(|value| serde_json::from_value(value).map_err(|_| SimulationError::InvalidVector))
+            .transpose()?
+            .unwrap_or_default(),
         child_slot_capacities: serde_json::from_value(child_slot_capacities)
             .map_err(|_| SimulationError::InvalidVector)?,
         child_termination_policies: serde_json::from_value(
@@ -3253,14 +3284,78 @@ fn transition_guard_context(
 }
 
 fn valid_host_import(value: &Value, declaration: &Value) -> bool {
+    valid_declared_value(value, declaration)
+}
+
+fn valid_declared_value(value: &Value, declaration: &Value) -> bool {
     match declaration.get("type").and_then(Value::as_str) {
         Some("BOOL") => value.is_boolean(),
-        Some("I64") => value.as_i64().is_some(),
-        Some("U64") => value.as_u64().is_some(),
+        Some("I64") => value.as_i64().is_some_and(|number| {
+            declaration
+                .get("minimum")
+                .and_then(Value::as_i64)
+                .is_none_or(|minimum| number >= minimum)
+                && declaration
+                    .get("maximum")
+                    .and_then(Value::as_i64)
+                    .is_none_or(|maximum| number <= maximum)
+        }),
+        Some("U64") => value.as_u64().is_some_and(|number| {
+            declaration
+                .get("minimum")
+                .and_then(Value::as_u64)
+                .is_none_or(|minimum| number >= minimum)
+                && declaration
+                    .get("maximum")
+                    .and_then(Value::as_u64)
+                    .is_none_or(|maximum| number <= maximum)
+        }),
         Some("SYMBOL" | "BYTES") => value.is_string(),
         Some(_) => true,
         None => false,
     }
+}
+
+fn capture_parameters(
+    definition: &Definition,
+    supplied_parameters: Option<&Value>,
+) -> Result<BTreeMap<String, Value>, SimulationError> {
+    let supplied = match supplied_parameters {
+        Some(value) => value
+            .as_object()
+            .ok_or(SimulationError::InvalidVector)?
+            .clone(),
+        None => Map::new(),
+    };
+    if definition.parameter_declarations.is_empty() {
+        if !supplied.is_empty() {
+            return Err(SimulationError::InvalidVector);
+        }
+        return Ok(definition.parameter_defaults.clone());
+    }
+    if supplied
+        .keys()
+        .any(|identifier| !definition.parameter_declarations.contains_key(identifier))
+    {
+        return Err(SimulationError::InvalidVector);
+    }
+    let mut captured = BTreeMap::new();
+    for (identifier, declaration) in &definition.parameter_declarations {
+        let value = supplied
+            .get(identifier)
+            .or_else(|| definition.parameter_defaults.get(identifier))
+            .ok_or(SimulationError::InvalidVector)?;
+        if !valid_declared_value(value, declaration)
+            || declaration
+                .get("allowed_values")
+                .and_then(Value::as_array)
+                .is_some_and(|allowed| !allowed.contains(value))
+        {
+            return Err(SimulationError::InvalidVector);
+        }
+        captured.insert(identifier.clone(), value.clone());
+    }
+    Ok(captured)
 }
 
 fn flatten_guard_context(prefix: &str, value: &Value, context: &mut BTreeMap<String, Value>) {

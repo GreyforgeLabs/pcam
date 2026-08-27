@@ -31,6 +31,8 @@ fn independent_complete_state_transition_context_matches_shared_vectors() {
         let summary = json!({
             "node": action.current_node_id,
             "transition_serial": action.transition_serial,
+            "captured_parameters": action.captured_parameters,
+            "registers": action.registers,
             "input_buffer": action.input_buffer,
             "host_imports": state.host_state["imports"],
         });

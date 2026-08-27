@@ -35,6 +35,9 @@
       "rate_scale": 1,
       "units_per_tick": 0,
       "default_buffer_lifetime": 3,
+      "parameter_declarations": {"threshold": {"type": "U64", "minimum": 0, "maximum": 10}},
+      "parameter_defaults": {"threshold": 4},
+      "register_initials": {"mode": "ready"},
       "import_declarations": {
         "allowed": {
           "type": "BOOL",
@@ -64,6 +67,8 @@
               {"op": "eq", "args": [{"ref": "owner.resource.STAMINA"}, {"literal": 5}]},
               {"op": "eq", "args": [{"ref": "owner.register.mode"}, {"literal": "armed"}]},
               {"op": "eq", "args": [{"ref": "action.owner_entity_id"}, {"literal": 1}]},
+              {"op": "eq", "args": [{"ref": "action.parameter.threshold"}, {"literal": 5}]},
+              {"op": "eq", "args": [{"ref": "action.register.mode"}, {"literal": "ready"}]},
               {"op": "eq", "args": [{"ref": "input.payload.permit"}, {"literal": true}]}
             ]
           }
@@ -80,7 +85,7 @@
   },
   "ticks": [
     {
-      "inputs": [{"input_id": "start", "source_entity_id": 1, "sequence": 0, "command_id": "START", "assigned_tick": 0, "action_definition_id": "CONTEXT"}],
+      "inputs": [{"input_id": "start", "source_entity_id": 1, "sequence": 0, "command_id": "START", "assigned_tick": 0, "action_definition_id": "CONTEXT", "payload": {"parameters": {"threshold": 5}}}],
       "imports": {"allowed": true},
       "contacts": []
     },
@@ -94,16 +99,16 @@
     {
       "id": "all-contexts-match",
       "allowed": true,
-      "tick_state_digests": ["d492d83a9b43fad24e699cc609187f28088758d19a3d7039208b1ff04c2b6bee", "1894c454f51fb66ff4497429f0839aa1519980364e10028bbd4ad91ccdabd80b"],
-      "final_state_digest": "1894c454f51fb66ff4497429f0839aa1519980364e10028bbd4ad91ccdabd80b",
-      "expected": {"node": "DONE", "transition_serial": 1, "input_buffer": [], "host_imports": {"allowed": true}}
+      "tick_state_digests": ["67cf2064a5c8760b2a260b869c739d28db95c82c01cf4bbc8aeec50093469ed7", "52b23911ea09f0a9ca0ebaaaf69eb756275a9739664e5fd8ee153df41c2d70f6"],
+      "final_state_digest": "52b23911ea09f0a9ca0ebaaaf69eb756275a9739664e5fd8ee153df41c2d70f6",
+      "expected": {"node": "DONE", "transition_serial": 1, "captured_parameters": {"threshold": 5}, "registers": {"mode": "ready"}, "input_buffer": [], "host_imports": {"allowed": true}}
     },
     {
       "id": "host-context-rejects",
       "allowed": false,
-      "tick_state_digests": ["d492d83a9b43fad24e699cc609187f28088758d19a3d7039208b1ff04c2b6bee", "bb2509b67a6b769bca825b1738f374517d29d75b286470d926c86825fa739d27"],
-      "final_state_digest": "bb2509b67a6b769bca825b1738f374517d29d75b286470d926c86825fa739d27",
-      "expected": {"node": "WAIT", "transition_serial": 0, "input_buffer": [{"buffer_entry_id": "buffer:go", "captured_tick": 1, "command_id": "GO", "input_id": "go", "payload": {"permit": true}, "priority": 0, "remaining_eligibility_ticks": 2, "sequence": 1}], "host_imports": {"allowed": false}}
+      "tick_state_digests": ["67cf2064a5c8760b2a260b869c739d28db95c82c01cf4bbc8aeec50093469ed7", "628cef8803877d1bcee86dd09fe76a247b175bedf9cbbeb903a94900b21ba358"],
+      "final_state_digest": "628cef8803877d1bcee86dd09fe76a247b175bedf9cbbeb903a94900b21ba358",
+      "expected": {"node": "WAIT", "transition_serial": 0, "captured_parameters": {"threshold": 5}, "registers": {"mode": "ready"}, "input_buffer": [{"buffer_entry_id": "buffer:go", "captured_tick": 1, "command_id": "GO", "input_id": "go", "payload": {"permit": true}, "priority": 0, "remaining_eligibility_ticks": 2, "sequence": 1}], "host_imports": {"allowed": false}}
     }
   ]
 }
