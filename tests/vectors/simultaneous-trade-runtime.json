@@ -1,0 +1,141 @@
+{
+  "pcam_vector_version": "1",
+  "kind": "runtime_vector",
+  "id": "simultaneous-trade-runtime",
+  "runtime_profile": {
+    "pcam_version": "3.0",
+    "kind": "runtime_profile",
+    "id": "pcam.reference.simultaneous-trade-runtime.v1",
+    "revision": 1,
+    "fault_policy": "ABORT_SIMULATION",
+    "limits": {
+      "max_actions_per_entity": 8,
+      "max_action_nesting_depth": 4,
+      "max_children_per_action": 4,
+      "max_quanta_per_action_per_tick": 8,
+      "max_internal_transitions_per_action_per_tick": 8,
+      "max_buffer_entries_per_action": 8,
+      "max_pending_events_per_entity": 8,
+      "max_candidates_per_tick": 32,
+      "max_effects_per_tick": 32,
+      "max_redirects_per_candidate": 4,
+      "max_definition_size_bytes": 65536,
+      "max_snapshot_size_bytes": 262144,
+      "max_extension_state_bytes": 4096,
+      "max_expression_depth": 64,
+      "max_expression_nodes": 4096
+    },
+    "rng_profiles": ["pcam.pcg32.v1"],
+    "network_profiles": [
+      {"id": "pcam.local.v1", "topology": "LOCAL_DETERMINISTIC"}
+    ],
+    "extensions": {}
+  },
+  "definitions": [
+    {
+      "id": "A_FIGHTER",
+      "rate_scale": 1,
+      "units_per_tick": 0,
+      "nodes": [{"id": "ACTIVE", "mode": "EVENT_DRIVEN"}],
+      "predicates": [{"id": "ACTIVE", "node_ids": ["ACTIVE"]}],
+      "semantic_facts": [
+        {
+          "fact": {
+            "fact_id": "strike",
+            "direction": "OFFENSE",
+            "effect_templates": [
+              {"effect_type": "combat.damage", "effect_class": "DAMAGE", "payload": 10, "reducer": "SUM"}
+            ]
+          },
+          "when_predicate": "ACTIVE",
+          "hit_policy": {"kind": "UNBOUNDED", "receipt_on": "ON_IMPACT"}
+        },
+        {
+          "fact": {"fact_id": "guard", "direction": "DEFENSE", "tags": []},
+          "when_predicate": "ACTIVE",
+          "hit_policy": {"kind": "UNBOUNDED", "receipt_on": "ON_CONTACT"}
+        }
+      ]
+    },
+    {
+      "id": "B_FIGHTER",
+      "rate_scale": 1,
+      "units_per_tick": 0,
+      "nodes": [{"id": "ACTIVE", "mode": "EVENT_DRIVEN"}],
+      "predicates": [{"id": "ACTIVE", "node_ids": ["ACTIVE"]}],
+      "semantic_facts": [
+        {
+          "fact": {
+            "fact_id": "strike",
+            "direction": "OFFENSE",
+            "effect_templates": [
+              {"effect_type": "combat.damage", "effect_class": "DAMAGE", "payload": 10, "reducer": "SUM"}
+            ]
+          },
+          "when_predicate": "ACTIVE",
+          "hit_policy": {"kind": "UNBOUNDED", "receipt_on": "ON_IMPACT"}
+        },
+        {
+          "fact": {"fact_id": "guard", "direction": "DEFENSE", "tags": []},
+          "when_predicate": "ACTIVE",
+          "hit_policy": {"kind": "UNBOUNDED", "receipt_on": "ON_CONTACT"}
+        }
+      ]
+    }
+  ],
+  "interaction_rules": [
+    {
+      "rule_id": "armor",
+      "stage": "MODIFICATION",
+      "order": 10,
+      "condition": {"op": "contains", "args": [{"ref": "defense.tags"}, {"literal": "ARMOR"}]},
+      "operations": [{"op": "SCALE_EFFECT_CLASS", "data": {"effect_class": "DAMAGE", "numerator": 1, "denominator": 2}}]
+    },
+    {
+      "rule_id": "materialize",
+      "stage": "MATERIALIZATION",
+      "order": 10,
+      "condition": {"literal": true},
+      "operations": [{"op": "MATERIALIZE"}]
+    }
+  ],
+  "effect_registry": {"combat.damage": ["hp", -1]},
+  "initial_state": {
+    "resource_banks": {"1": {"hp": 10}, "2": {"hp": 10}},
+    "slot_capacities": {}
+  },
+  "ticks": [
+    {
+      "inputs": [
+        {"input_id": "start-a", "source_entity_id": 1, "sequence": 0, "command_id": "START", "assigned_tick": 0, "action_definition_id": "A_FIGHTER"},
+        {"input_id": "start-b", "source_entity_id": 2, "sequence": 0, "command_id": "START", "assigned_tick": 0, "action_definition_id": "B_FIGHTER"}
+      ],
+      "contacts": [
+        {"candidate_id": "a-to-b", "source_instance_id": 1, "source_entity_id": 1, "target_entity_id": 2, "fact_id": "strike", "defense_fact_id": "guard", "contact_id": "a"},
+        {"candidate_id": "b-to-a", "source_instance_id": 2, "source_entity_id": 2, "target_entity_id": 1, "fact_id": "strike", "defense_fact_id": "guard", "contact_id": "b"}
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "id": "simultaneous-lethal-trade",
+      "a_defense_tags": [],
+      "final_state_digest": "f5ad87f018588f34d5b185e6fade3394679a1a54a113db8cf7bda21a353ad5dd",
+      "expected": {
+        "resources": {"1": {"hp": 0}, "2": {"hp": 0}},
+        "candidate_order": ["a-to-b", "b-to-a"],
+        "effects": [[1, 2, 10], [2, 1, 10]]
+      }
+    },
+    {
+      "id": "armor-preserves-outgoing",
+      "a_defense_tags": ["ARMOR"],
+      "final_state_digest": "91fda77a719af492dc1ac9ddf686557807d91c054fe04c5aa60e119778f4f468",
+      "expected": {
+        "resources": {"1": {"hp": 5}, "2": {"hp": 0}},
+        "candidate_order": ["a-to-b", "b-to-a"],
+        "effects": [[1, 2, 10], [2, 1, 5]]
+      }
+    }
+  ]
+}
