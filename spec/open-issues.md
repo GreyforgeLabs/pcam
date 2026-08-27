@@ -61,3 +61,7 @@ Resolved in §8.4. Direct-start bindings use the input payload's `parameters` ob
 ## Host-import binding
 
 Resolved in §8.6. Tick host snapshots supply an `imports` object, supplied and default values are type checked and deep captured, `FAULT` produces `INVALID_HOST_IMPORT`, and raw supplied imports are included in authoritative host state, snapshots, digests, and rollback history.
+
+## Owner-scoped references
+
+Resolved in §7.2. `owner.resource.<id>` reads the authoritative resource bank, `owner.register.<id>` reads `entity_registers`, and missing records or identifiers fail instead of supplying implicit values.

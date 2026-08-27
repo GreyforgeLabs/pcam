@@ -1596,6 +1596,23 @@ class TickExecutor:
         if reference.startswith("action.predicate."):
             name = reference.removeprefix("action.predicate.")
             return predicate_value(name)  # type: ignore[operator]
+        if reference.startswith("owner.resource."):
+            resource_id = reference.removeprefix("owner.resource.")
+            if state is None:
+                raise KeyError(reference)
+            bank = state.resource_banks.get(str(action.owner_entity_id), {})
+            if resource_id not in bank:
+                raise KeyError(reference)
+            return bank[resource_id]
+        if reference.startswith("owner.register."):
+            register_id = reference.removeprefix("owner.register.")
+            if state is None:
+                raise KeyError(reference)
+            entity = state.entity_records.get(str(action.owner_entity_id), {})
+            registers = entity.get("entity_registers", {})
+            if not isinstance(registers, dict) or register_id not in registers:
+                raise KeyError(reference)
+            return registers[register_id]
         if reference.startswith("host."):
             import_id = reference.removeprefix("host.")
             declaration = definition.import_declarations.get(import_id)

@@ -31,6 +31,7 @@ The audit compared every normative issue against the master text and the executa
 | Fault policies named scopes without containment semantics | §30.3 defines attribution, tick-start rollback, scope mutation, tick advancement, records, discarded output, and escalation |
 | Parameter declarations had no portable start binding | §8.4 defines direct-input bindings, validation timing, deep capture, and transition-target defaults |
 | Host imports had no exact snapshot binding | §8.6 defines the host `imports` object, supplied/default resolution, validation, capture, faulting, and serialization |
+| Owner references had no exact state paths or missing-value rule | §7.2 binds resource and register references to authoritative maps and fails missing identifiers |
 
 ## Gate conclusion
 

@@ -20,6 +20,8 @@ Parameter execution exposed that declarations had no portable direct-start bindi
 
 Host-import execution exposed that declarations had no exact tick-snapshot binding. §8.6 now defines the host `imports` object, typed supplied/default resolution, deep capture, fault behavior, and authoritative serialization.
 
+Owner-reference execution exposed that resource and register references had no exact state paths or missing-value rule. §7.2 now binds both families to authoritative entity state and rejects missing values.
+
 ## Required evidence
 
 - no unresolved normative contradictions

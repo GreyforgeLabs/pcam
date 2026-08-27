@@ -420,6 +420,8 @@ Entity identifiers MUST be stable unsigned integers or stable canonical identifi
 
 Memory addresses and transient engine object handles MUST NOT be used as canonical entity identifiers.
 
+`owner.resource.<id>` resolves the named value in the owning entity's authoritative resource bank. `owner.register.<id>` resolves the named value in the owning entity record's `entity_registers` map. A missing entity, bank, map, or identifier produces `MISSING_REFERENCE`; no implicit zero or null value is supplied. Both reference families observe the current ordered local mutations and committed values visible at their evaluation stage.
+
 ## 7.3 Action-Instance State
 
 A running action instance MUST contain:
