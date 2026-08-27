@@ -20,7 +20,7 @@
           "stage": {"enum": ["ADMISSION", "ROUTING", "MODIFICATION", "MATERIALIZATION", "REACTION"]},
           "order": {"$ref": "common.schema.json#/$defs/u64"},
           "condition": {"$ref": "common.schema.json#/$defs/expression"},
-          "operations": {"type": "array", "minItems": 1, "maxItems": 1024},
+          "operations": {"type": "array", "items": {"$ref": "#/$defs/operation"}, "minItems": 1, "maxItems": 1024},
           "stop_stage": {"type": "boolean"},
           "stop_pipeline": {"type": "boolean"},
           "extensions": {"$ref": "common.schema.json#/$defs/extensionMap"}
@@ -29,6 +29,125 @@
       }
     },
     "extensions": {"$ref": "common.schema.json#/$defs/extensionMap"}
+  },
+  "$defs": {
+    "operation": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["op", "reason"],
+          "properties": {
+            "op": {"const": "REJECT"},
+            "reason": {"$ref": "common.schema.json#/$defs/identifier"}
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["op", "target_entity_id"],
+          "properties": {
+            "op": {"const": "REDIRECT"},
+            "target_entity_id": {"$ref": "common.schema.json#/$defs/u64"}
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["op", "effect_class"],
+          "properties": {
+            "op": {"const": "REMOVE_EFFECT_CLASS"},
+            "effect_class": {"$ref": "common.schema.json#/$defs/identifier"}
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["op", "effect_class", "numerator", "denominator"],
+          "properties": {
+            "op": {"const": "SCALE_EFFECT_CLASS"},
+            "effect_class": {"$ref": "common.schema.json#/$defs/identifier"},
+            "numerator": {"$ref": "common.schema.json#/$defs/i64"},
+            "denominator": {"type": "integer", "minimum": 1, "maximum": 9223372036854775807}
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["op", "effect_class", "cap"],
+          "properties": {
+            "op": {"const": "CAP_EFFECT_CLASS"},
+            "effect_class": {"$ref": "common.schema.json#/$defs/identifier"},
+            "cap": {"$ref": "common.schema.json#/$defs/i64"}
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["op", "effect_class", "replacement"],
+          "properties": {
+            "op": {"const": "REPLACE_EFFECT_CLASS"},
+            "effect_class": {"$ref": "common.schema.json#/$defs/identifier"},
+            "replacement": {"$ref": "common.schema.json#/$defs/effectTemplate"}
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["op", "effect"],
+          "properties": {
+            "op": {"const": "APPEND_EFFECT_TEMPLATE"},
+            "effect": {"$ref": "common.schema.json#/$defs/effectTemplate"}
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["op"],
+          "properties": {
+            "op": {"const": "MATERIALIZE"},
+            "statuses": {
+              "type": "array",
+              "items": {"enum": ["ACCEPTED", "REJECTED"]},
+              "minItems": 1,
+              "maxItems": 2,
+              "uniqueItems": true
+            },
+            "effect_classes": {
+              "type": "array",
+              "items": {"$ref": "common.schema.json#/$defs/identifier"},
+              "minItems": 1,
+              "maxItems": 1024,
+              "uniqueItems": true
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["op", "tag"],
+          "properties": {
+            "op": {"const": "ADD_DECISION_TAG"},
+            "tag": {"$ref": "common.schema.json#/$defs/identifier"}
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["op", "condition"],
+          "properties": {
+            "op": {"const": "REQUEST_RECEIPT"},
+            "condition": {"enum": ["ON_CONTACT", "ON_ACCEPT", "ON_IMPACT"]}
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["op"],
+          "properties": {"op": {"enum": ["STOP_STAGE", "STOP_PIPELINE"]}},
+          "additionalProperties": false
+        }
+      ]
+    }
   },
   "additionalProperties": false
 }

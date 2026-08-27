@@ -146,6 +146,7 @@ def validate_document(document: Any, schema_dir: Path | None = None) -> list[Dia
     ]
     if not diagnostics:
         diagnostics.extend(_semantic_diagnostics(str(kind), document))
+        diagnostics.extend(_floating_point_diagnostics(document))
     return sorted(diagnostics)
 
 
@@ -264,7 +265,53 @@ def _action_diagnostics(document: dict[str, Any]) -> list[Diagnostic]:
                         PCAMFault.INVALID_NODE_DURATION.value,
                     )
                 )
+    for collection_name, initial_key in (("parameters", "default"), ("registers", "initial")):
+        for declaration_id, declaration in document.get(collection_name, {}).items():
+            minimum = declaration.get("minimum")
+            maximum = declaration.get("maximum")
+            if isinstance(minimum, int) and isinstance(maximum, int) and minimum > maximum:
+                diagnostics.append(
+                    Diagnostic(
+                        ResultCode.DEFINITION_REJECTED.value,
+                        f"$.{collection_name}.{declaration_id}.minimum",
+                        "minimum must not exceed maximum",
+                        PCAMFault.STATE_INVARIANT_FAILURE.value,
+                    )
+                )
+            initial = declaration.get(initial_key)
+            if type(initial) is int and (
+                (isinstance(minimum, int) and initial < minimum)
+                or (isinstance(maximum, int) and initial > maximum)
+            ):
+                diagnostics.append(
+                    Diagnostic(
+                        ResultCode.DEFINITION_REJECTED.value,
+                        f"$.{collection_name}.{declaration_id}.{initial_key}",
+                        f"{initial_key} is outside declared bounds",
+                        PCAMFault.STATE_INVARIANT_FAILURE.value,
+                    )
+                )
+            if declaration.get("type") == "U64" and type(initial) is int and initial < 0:
+                diagnostics.append(
+                    Diagnostic(
+                        ResultCode.DEFINITION_REJECTED.value,
+                        f"$.{collection_name}.{declaration_id}.{initial_key}",
+                        f"{initial_key} must be unsigned",
+                        PCAMFault.STATE_INVARIANT_FAILURE.value,
+                    )
+                )
+            allowed = declaration.get("allowed_values")
+            if allowed is not None and initial_key in declaration and initial not in allowed:
+                diagnostics.append(
+                    Diagnostic(
+                        ResultCode.DEFINITION_REJECTED.value,
+                        f"$.{collection_name}.{declaration_id}.{initial_key}",
+                        f"{initial_key} is not in allowed_values",
+                        PCAMFault.STATE_INVARIANT_FAILURE.value,
+                    )
+                )
     seen_priorities: set[tuple[str, str, int]] = set()
+    seen_transition_ids: set[str] = set()
     completion_sources: set[str] = set()
     for index, transition in enumerate(transitions):
         if not isinstance(transition, dict):
@@ -272,6 +319,17 @@ def _action_diagnostics(document: dict[str, Any]) -> list[Diagnostic]:
         source = transition.get("source_node")
         point = transition.get("evaluation_point")
         priority = transition.get("priority")
+        transition_id = str(transition.get("id"))
+        if transition_id in seen_transition_ids:
+            diagnostics.append(
+                Diagnostic(
+                    ResultCode.DEFINITION_REJECTED.value,
+                    f"$.transitions[{index}].id",
+                    "transition identifier must be unique",
+                    PCAMFault.DUPLICATE_IDENTIFIER.value,
+                )
+            )
+        seen_transition_ids.add(transition_id)
         if source not in nodes:
             diagnostics.append(
                 Diagnostic(
@@ -279,6 +337,15 @@ def _action_diagnostics(document: dict[str, Any]) -> list[Diagnostic]:
                     f"$.transitions[{index}].source_node",
                     f"unknown source node: {source!r}",
                     PCAMFault.MISSING_REFERENCE.value,
+                )
+            )
+        if point == "AFTER_QUANTUM" and transition.get("claims"):
+            diagnostics.append(
+                Diagnostic(
+                    ResultCode.DEFINITION_REJECTED.value,
+                    f"$.transitions[{index}].claims",
+                    "AFTER_QUANTUM transitions cannot contain contested claims",
+                    PCAMFault.STATE_INVARIANT_FAILURE.value,
                 )
             )
         if isinstance(priority, int):
@@ -305,6 +372,28 @@ def _action_diagnostics(document: dict[str, Any]) -> list[Diagnostic]:
                     PCAMFault.MISSING_REFERENCE.value,
                 )
             )
+        if isinstance(target, dict) and target.get("kind") == "NODE" and target.get("node") in nodes:
+            target_node = nodes[target["node"]]
+            target_step = int(target.get("target_step", 0))
+            if target_step > 0 and not target_node.get("seekable"):
+                diagnostics.append(
+                    Diagnostic(
+                        ResultCode.DEFINITION_REJECTED.value,
+                        f"$.transitions[{index}].target.target_step",
+                        "nonzero target step requires a seekable target node",
+                        PCAMFault.STATE_INVARIANT_FAILURE.value,
+                    )
+                )
+            duration = target_node.get("duration_quanta")
+            if target_node.get("mode") == "TIMED" and isinstance(duration, int) and target_step >= duration:
+                diagnostics.append(
+                    Diagnostic(
+                        ResultCode.DEFINITION_REJECTED.value,
+                        f"$.transitions[{index}].target.target_step",
+                        "target step must be less than the timed-node duration",
+                        PCAMFault.STATE_INVARIANT_FAILURE.value,
+                    )
+                )
     for node_name, node in nodes.items():
         if node.get("mode") == "TIMED" and node_name not in completion_sources:
             diagnostics.append(
@@ -326,13 +415,80 @@ def _action_diagnostics(document: dict[str, Any]) -> list[Diagnostic]:
                 PCAMFault.PREDICATE_CYCLE.value,
             )
         )
+    seen_fact_ids: set[str] = set()
+    for index, fact in enumerate(document.get("semantic_facts", [])):
+        fact_id = str(fact.get("id"))
+        if fact_id in seen_fact_ids:
+            diagnostics.append(
+                Diagnostic(
+                    ResultCode.DEFINITION_REJECTED.value,
+                    f"$.semantic_facts[{index}].id",
+                    "semantic-fact identifier must be unique",
+                    PCAMFault.DUPLICATE_IDENTIFIER.value,
+                )
+            )
+        seen_fact_ids.add(fact_id)
+        for reference in _expression_references(fact.get("when")):
+            prefix = "action.predicate."
+            if reference.startswith(prefix) and reference[len(prefix) :] not in predicates:
+                diagnostics.append(
+                    Diagnostic(
+                        ResultCode.DEFINITION_REJECTED.value,
+                        f"$.semantic_facts[{index}].when",
+                        f"unknown predicate reference: {reference}",
+                        PCAMFault.MISSING_REFERENCE.value,
+                    )
+                )
+        policy = fact.get("hit_policy", {})
+        if policy.get("kind") == "COOLDOWN_TICKS" and "cooldown_ticks" not in policy:
+            diagnostics.append(
+                Diagnostic(
+                    ResultCode.DEFINITION_REJECTED.value,
+                    f"$.semantic_facts[{index}].hit_policy.cooldown_ticks",
+                    "COOLDOWN_TICKS requires cooldown_ticks",
+                    PCAMFault.MISSING_REFERENCE.value,
+                )
+            )
+        if policy.get("kind") == "ONCE_PER_PREDICATE_ACTIVATION" and policy.get("predicate_id") not in predicates:
+            diagnostics.append(
+                Diagnostic(
+                    ResultCode.DEFINITION_REJECTED.value,
+                    f"$.semantic_facts[{index}].hit_policy.predicate_id",
+                    "predicate-activation policy requires a known predicate_id",
+                    PCAMFault.MISSING_REFERENCE.value,
+                )
+            )
+        if policy.get("kind") == "CUSTOM_LEDGER_KEY" and "custom_key_id" not in policy:
+            diagnostics.append(
+                Diagnostic(
+                    ResultCode.DEFINITION_REJECTED.value,
+                    f"$.semantic_facts[{index}].hit_policy.custom_key_id",
+                    "CUSTOM_LEDGER_KEY requires custom_key_id",
+                    PCAMFault.MISSING_REFERENCE.value,
+                )
+            )
+    profile = document.get("profiles", {}).get("pcam24")
+    if isinstance(profile, dict):
+        diagnostics.extend(_embedded_pcam24_diagnostics(profile, nodes))
     return diagnostics
 
 
 def _interaction_diagnostics(document: dict[str, Any]) -> list[Diagnostic]:
     diagnostics: list[Diagnostic] = []
     seen: set[tuple[str, int]] = set()
+    seen_ids: set[str] = set()
     for index, rule in enumerate(document.get("rules", [])):
+        rule_id = str(rule.get("id"))
+        if rule_id in seen_ids:
+            diagnostics.append(
+                Diagnostic(
+                    ResultCode.DEFINITION_REJECTED.value,
+                    f"$.rules[{index}].id",
+                    "interaction-rule identifier must be unique",
+                    PCAMFault.DUPLICATE_IDENTIFIER.value,
+                )
+            )
+        seen_ids.add(rule_id)
         key = (str(rule.get("stage")), int(rule.get("order", -1)))
         if key in seen:
             diagnostics.append(
@@ -344,6 +500,18 @@ def _interaction_diagnostics(document: dict[str, Any]) -> list[Diagnostic]:
                 )
             )
         seen.add(key)
+        for operation_index, operation in enumerate(rule.get("operations", [])):
+            if operation.get("op") != "MATERIALIZE" or "REJECTED" not in operation.get("statuses", []):
+                continue
+            if not operation.get("effect_classes"):
+                diagnostics.append(
+                    Diagnostic(
+                        ResultCode.DEFINITION_REJECTED.value,
+                        f"$.rules[{index}].operations[{operation_index}].effect_classes",
+                        "rejected materialization requires explicit effect_classes",
+                        PCAMFault.STATE_INVARIANT_FAILURE.value,
+                    )
+                )
     return diagnostics
 
 
@@ -379,6 +547,98 @@ def _pcam24_diagnostics(document: dict[str, Any]) -> list[Diagnostic]:
                     )
                 )
     return diagnostics
+
+
+def _embedded_pcam24_diagnostics(profile: dict[str, Any], nodes: dict[str, Any]) -> list[Diagnostic]:
+    diagnostics: list[Diagnostic] = []
+    phase_ranges: list[tuple[int, int]] = []
+    for index, projection in enumerate(profile.get("projection", [])):
+        node_id = projection.get("node")
+        if node_id not in nodes:
+            diagnostics.append(
+                Diagnostic(
+                    ResultCode.DEFINITION_REJECTED.value,
+                    f"$.profiles.pcam24.projection[{index}].node",
+                    f"unknown projection node: {node_id!r}",
+                    PCAMFault.MISSING_REFERENCE.value,
+                )
+            )
+        step_start, step_end = projection.get("step_range", (0, 0))
+        phase_start, phase_end = projection.get("phase_range", (0, 0))
+        if step_start >= step_end or phase_start >= phase_end:
+            diagnostics.append(
+                Diagnostic(
+                    ResultCode.DEFINITION_REJECTED.value,
+                    f"$.profiles.pcam24.projection[{index}]",
+                    "projection ranges must be nonempty half-open intervals",
+                    PCAMFault.INVALID_PROFILE_RANGE.value,
+                )
+            )
+        phase_ranges.append((phase_start, phase_end))
+    ordered = sorted(phase_ranges)
+    if ordered and (ordered[0][0] != 0 or ordered[-1][1] != 24 or any(a[1] != b[0] for a, b in zip(ordered, ordered[1:]))):
+        diagnostics.append(
+            Diagnostic(
+                ResultCode.DEFINITION_REJECTED.value,
+                "$.profiles.pcam24.projection",
+                "phase projection must cover [0,24) exactly without gaps or overlaps",
+                PCAMFault.INVALID_PROFILE_RANGE.value,
+            )
+        )
+    for tag, ranges in profile.get("tags", {}).items():
+        for index, (start, end) in enumerate(ranges):
+            if start >= end:
+                diagnostics.append(
+                    Diagnostic(
+                        ResultCode.DEFINITION_REJECTED.value,
+                        f"$.profiles.pcam24.tags.{tag}[{index}]",
+                        "PCAM-24 tag ranges must be nonempty half-open intervals",
+                        PCAMFault.INVALID_PROFILE_RANGE.value,
+                    )
+                )
+    return diagnostics
+
+
+def _floating_point_diagnostics(document: object) -> list[Diagnostic]:
+    diagnostics = []
+    for path, value in _walk_values(document):
+        if isinstance(value, float):
+            diagnostics.append(
+                Diagnostic(
+                    ResultCode.DEFINITION_REJECTED.value,
+                    path,
+                    "IEEE floating-point values are forbidden in authoritative documents",
+                    PCAMFault.CANONICALIZATION_FAILURE.value,
+                )
+            )
+        if type(value) is int and not (-(1 << 63) <= value <= (1 << 64) - 1):
+            diagnostics.append(
+                Diagnostic(
+                    ResultCode.DEFINITION_REJECTED.value,
+                    path,
+                    "integer is outside the Core I64/U64 representable range",
+                    PCAMFault.INTEGER_OVERFLOW.value,
+                )
+            )
+    return diagnostics
+
+
+def _walk_values(value: object, path: str = "$"):
+    yield path, value
+    if isinstance(value, dict):
+        for key, item in value.items():
+            yield from _walk_values(item, f"{path}.{key}")
+    elif isinstance(value, list):
+        for index, item in enumerate(value):
+            yield from _walk_values(item, f"{path}[{index}]")
+
+
+def _expression_references(expression: Any) -> set[str]:
+    return {
+        str(value)
+        for path, value in _walk_values(expression)
+        if path.endswith(".ref") and isinstance(value, str)
+    }
 
 
 def _predicate_dependencies(expression: Any, names: set[str]) -> set[str]:

@@ -11,29 +11,29 @@
     "scope": "one complete 60-tick replay from the declared initial state",
     "subjects": {
       "fixed-tick-fsm": {
-        "max_ns": 352139,
-        "median_ns": 319958,
-        "min_ns": 314917
+        "max_ns": 380006,
+        "median_ns": 318761,
+        "min_ns": 309754
       },
       "frame-data": {
-        "max_ns": 412443,
-        "median_ns": 359192,
-        "min_ns": 352079
+        "max_ns": 391157,
+        "median_ns": 353406,
+        "min_ns": 347655
       },
       "pcam-core": {
-        "max_ns": 172223946,
-        "median_ns": 150839514,
-        "min_ns": 149034347
+        "max_ns": 189768569,
+        "median_ns": 164607134,
+        "min_ns": 160766452
       },
       "pcam-core-pcam24": {
-        "max_ns": 205408651,
-        "median_ns": 177382529,
-        "min_ns": 166311077
+        "max_ns": 207117441,
+        "median_ns": 170069926,
+        "min_ns": 165562545
       },
       "statechart-local-counters": {
-        "max_ns": 358220,
-        "median_ns": 351337,
-        "min_ns": 349223
+        "max_ns": 389013,
+        "median_ns": 348537,
+        "min_ns": 340292
       }
     },
     "warning": "host timing is descriptive, environment-specific, and excluded from report_digest"
@@ -44,7 +44,7 @@
     "clarity": "declared trace-field coverage is a proxy, not a subjective quality score",
     "timing_status": "host timing is descriptive and committed separately from the deterministic report digest"
   },
-  "report_digest": "84ce13f38bae6f053bf98977e90746b68aeee296fc31888995bfd144f47bba65",
+  "report_digest": "4601bf31d3db19fdb5f4df49a993d5473ba85ccd0420849a2057a231d8df1595",
   "results": [
     {
       "ambiguous_interaction_cases": {
@@ -234,8 +234,8 @@
         "items": []
       },
       "authoring_effort_proxy": {
-        "canonical_definition_bytes": 6875,
-        "definition_leaf_values": 234,
+        "canonical_definition_bytes": 7619,
+        "definition_leaf_values": 248,
         "not_human_time": true
       },
       "debug_trace_clarity_proxy": {
@@ -257,8 +257,8 @@
         ]
       },
       "definition_complexity": {
-        "canonical_bytes": 6875,
-        "leaf_values": 234
+        "canonical_bytes": 7619,
+        "leaf_values": 248
       },
       "hidden_assumptions": {
         "count": 1,
@@ -301,8 +301,8 @@
         "items": []
       },
       "authoring_effort_proxy": {
-        "canonical_definition_bytes": 7242,
-        "definition_leaf_values": 259,
+        "canonical_definition_bytes": 7986,
+        "definition_leaf_values": 273,
         "not_human_time": true
       },
       "debug_trace_clarity_proxy": {
@@ -325,8 +325,8 @@
         ]
       },
       "definition_complexity": {
-        "canonical_bytes": 7242,
-        "leaf_values": 259
+        "canonical_bytes": 7986,
+        "leaf_values": 273
       },
       "hidden_assumptions": {
         "count": 1,

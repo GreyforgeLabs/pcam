@@ -40,3 +40,4 @@
 - Added a reproducible, claim-neutral §45.7 comparison across all five named subjects with six contact permutations, raw host evidence, deterministic report hashing, and explicit proxy limitations.
 - Added bounded retained rollback history, fault-atomic correction, explicit RNG draw effects, and direct late-input, misprediction, hit-stop, child, ledger, and presentation-reconciliation evidence for every §45.6 case.
 - Added a fail-closed documentation claims audit for every §45.8 prohibition, conformance-class token, stability label, and machine claim state.
+- Closed the draft schema gate with fully typed action and interaction structures, six-category coverage, nine positive documents, 23 negative mutations, semantic diagnostics, and canonical transition-field alignment.

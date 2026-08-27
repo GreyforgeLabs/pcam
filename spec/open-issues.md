@@ -44,4 +44,4 @@ Resolved in §17.2. `FREEZE_ALL_ACTION_LOGIC` expands to progression, PRE/POST t
 
 ## Adjacent audit corrections
 
-The audit also added `input_id` to the intent structure, added `target.<field>` to interaction references, and removed reliance on map insertion order for initial-node selection.
+The audit also added `input_id` to the intent structure, added `target.<field>` to interaction references, removed reliance on map insertion order for initial-node selection, and resolved canonical transition-field presence. Machine documents now encode absent matches as `null` and empty/default assignment, effect, cycle, and metadata fields explicitly; readable design listings may omit them only when they identify the machine artifact.

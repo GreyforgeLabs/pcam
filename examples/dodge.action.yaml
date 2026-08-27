@@ -32,9 +32,17 @@ transitions:
     evaluation_point: AFTER_QUANTUM
     priority: 100
     guard: {op: gte, args: [{ref: action.node_step}, {literal: 1}]}
+    input_match: null
+    event_match: null
     target: {kind: TERMINATE}
     claims: []
     consume_policy: NEVER
+    exit_assignments: []
+    assignments: []
+    entry_assignments: []
+    effects: []
+    cycle_delta: 0
+    metadata: {}
 slot_claims:
   - {slot: FULL_BODY, amount: 1}
 profiles: {}

@@ -1,0 +1,54 @@
+{
+  "pcam_version": "3.0",
+  "kind": "runtime_profile",
+  "id": "greyforge.test.networked_runtime",
+  "revision": 1,
+  "fault_policy": "ABORT_SIMULATION",
+  "limits": {
+    "max_actions_per_entity": 16,
+    "max_action_nesting_depth": 8,
+    "max_children_per_action": 8,
+    "max_quanta_per_action_per_tick": 64,
+    "max_internal_transitions_per_action_per_tick": 64,
+    "max_buffer_entries_per_action": 32,
+    "max_pending_events_per_entity": 256,
+    "max_candidates_per_tick": 4096,
+    "max_effects_per_tick": 8192,
+    "max_redirects_per_candidate": 8,
+    "max_definition_size_bytes": 1048576,
+    "max_snapshot_size_bytes": 16777216,
+    "max_extension_state_bytes": 1048576,
+    "max_expression_depth": 64,
+    "max_expression_nodes": 4096
+  },
+  "rng_profiles": ["pcam.pcg32.v1"],
+  "network_profiles": [
+    {
+      "id": "pcam.lockstep.v1",
+      "topology": "LOCKSTEP",
+      "input_availability_policy": "WAIT",
+      "digest_interval_ticks": 8,
+      "desynchronization_policy": "pcam.desync.abort",
+      "latency_mechanism": "pcam.latency.wait",
+      "max_latency_compensation_ticks": 8
+    },
+    {
+      "id": "pcam.rollback.v1",
+      "topology": "ROLLBACK",
+      "predictor_id": "pcam.predict.neutral",
+      "snapshot_interval_ticks": 1,
+      "retained_history_ticks": 120,
+      "effect_reconciliation_policy": "pcam.effects.stable_id",
+      "latency_mechanism": "pcam.latency.rollback",
+      "max_latency_compensation_ticks": 120
+    },
+    {
+      "id": "pcam.server_prediction.v1",
+      "topology": "SERVER_AUTHORITATIVE_PREDICTION",
+      "correction_policy": "pcam.correction.restore_resimulate",
+      "latency_mechanism": "pcam.latency.server",
+      "max_latency_compensation_ticks": 30
+    }
+  ],
+  "extensions": {}
+}

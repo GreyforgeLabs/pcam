@@ -26,7 +26,8 @@ The audit compared every normative issue against the master text and the executa
 | Intent ordering used an undeclared field | §15.2 includes `input_id` |
 | Canonical example used an undeclared reference family | §11.3 includes `target.<field>` |
 | Expression budgets were implementation defaults | §31 requires hashed depth and node limits |
+| Canonical transition list conflicted with omitted empty design fields | §14.1 requires explicit machine-document defaults while allowing labeled readable shorthand |
 
 ## Gate conclusion
 
-The current Normative Candidate text has no known internal contradiction. Its top-level sections are complete and uniquely ordered, Core and PCAM-24 claims are separated, and the issue ledger is closed. This closes only §45.1. It does not close schemas, runtime, independent implementation, cross-platform, rollback, experiments, or claims gates, and it does not permit a Stable, Normative label.
+The current Normative Candidate text has no known internal contradiction. Its top-level sections are complete and uniquely ordered, Core and PCAM-24 claims are separated, and the issue ledger is closed. This audit closes only §45.1; every other gate retains its own current evidence state, and this audit does not permit a Stable, Normative label.

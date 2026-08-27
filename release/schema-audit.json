@@ -1,0 +1,47 @@
+{
+  "audit_version": "1",
+  "normative_definition_types": {
+    "action_definition": {
+      "schema": "schemas/action.schema.json",
+      "positive": ["tests/valid/minimal-action.json", "examples/heavy-strike.action.yaml", "examples/dodge.action.yaml"]
+    },
+    "interaction_profile": {
+      "schema": "schemas/interaction-profile.schema.json",
+      "positive": ["tests/valid/minimal-interaction-profile.json", "examples/combat.interaction.yaml"]
+    },
+    "simulation_profile": {
+      "schema": "schemas/runtime-profile.schema.json",
+      "positive": ["tests/valid/minimal-runtime-profile.json", "tests/valid/networked-runtime-profile.json"]
+    },
+    "networking_profile": {
+      "schema": "schemas/network-profile.schema.json",
+      "positive": ["tests/valid/minimal-runtime-profile.json", "tests/valid/networked-runtime-profile.json"]
+    },
+    "compatibility_profile": {
+      "schema": "schemas/pcam24.schema.json",
+      "positive": ["tests/valid/minimal-pcam24.json", "examples/heavy-strike.action.yaml"]
+    },
+    "extension_declaration": {
+      "schema": "schemas/common.schema.json",
+      "positive": ["tests/valid/extension-action.json"]
+    }
+  },
+  "additional_machine_documents": {
+    "snapshot": "schemas/snapshot.schema.json",
+    "conformance_manifest": "schemas/conformance-manifest.schema.json"
+  },
+  "negative_corpus": "tests/invalid/schema-mutations.json",
+  "canonical_hash_corpus": [
+    "tests/vectors/pcam-cj1.json",
+    "tests/vectors/typed-strike.json",
+    "examples/heavy-strike.scenario.json"
+  ],
+  "version_vectors": [
+    "tests/invalid/action-wrong-version.json",
+    "tests/legacy/unsupported-v3.json"
+  ],
+  "extension_evidence": [
+    "reference/python/tests/test_extensions.py",
+    "reference/python/tests/test_schema.py"
+  ]
+}

@@ -1162,6 +1162,8 @@ cycle_delta
 metadata
 ```
 
+Canonical machine documents MUST encode an absent `input_match` or `event_match` as `null`, encode assignment and effect collections as arrays including when empty, encode `cycle_delta` as an integer including zero, and encode `metadata` as an object including when empty. Readable non-normative listings MAY omit these empty or default forms only when they identify the machine-valid repository artifact that supplies them.
+
 ## 14.2 Evaluation Points
 
 Core evaluation points are:

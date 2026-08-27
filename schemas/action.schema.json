@@ -45,9 +45,52 @@
           "default": {},
           "minimum": {"type": "integer"},
           "maximum": {"type": "integer"},
-          "allowed_values": {"type": "array", "maxItems": 1024},
+          "capacity": {"type": "integer", "minimum": 0, "maximum": 18446744073709551615},
+          "allowed_values": {"type": "array", "maxItems": 1024, "uniqueItems": true},
           "capture_policy": {"enum": ["CAPTURE_ON_START"]}
         },
+        "allOf": [
+          {
+            "if": {"properties": {"required": {"const": false}}, "required": ["required"]},
+            "then": {"required": ["default"]}
+          },
+          {
+            "if": {"properties": {"type": {"enum": ["I64", "U64"]}}, "required": ["type"]},
+            "then": {"required": ["minimum", "maximum"]}
+          },
+          {
+            "if": {"properties": {"type": {"const": "I64"}}, "required": ["type"]},
+            "then": {
+              "properties": {
+                "default": {"$ref": "common.schema.json#/$defs/i64"},
+                "minimum": {"$ref": "common.schema.json#/$defs/i64"},
+                "maximum": {"$ref": "common.schema.json#/$defs/i64"}
+              }
+            }
+          },
+          {
+            "if": {"properties": {"type": {"const": "U64"}}, "required": ["type"]},
+            "then": {
+              "properties": {
+                "default": {"$ref": "common.schema.json#/$defs/u64"},
+                "minimum": {"$ref": "common.schema.json#/$defs/u64"},
+                "maximum": {"$ref": "common.schema.json#/$defs/u64"}
+              }
+            }
+          },
+          {
+            "if": {"properties": {"type": {"const": "BOOL"}}, "required": ["type"]},
+            "then": {"properties": {"default": {"type": "boolean"}}}
+          },
+          {
+            "if": {"properties": {"type": {"const": "SYMBOL"}}, "required": ["type"]},
+            "then": {"properties": {"default": {"$ref": "common.schema.json#/$defs/identifier"}}}
+          },
+          {
+            "if": {"properties": {"type": {"enum": ["SET_SYMBOL", "FIXED_ARRAY", "BOUNDED_LIST"]}}, "required": ["type"]},
+            "then": {"required": ["capacity"]}
+          }
+        ],
         "additionalProperties": false
       }
     },
@@ -66,6 +109,44 @@
           "overflow": {"enum": ["FAULT", "SATURATE", "WRAP"]},
           "serialization_policy": {"enum": ["AUTHORITATIVE"]}
         },
+        "allOf": [
+          {
+            "if": {"properties": {"type": {"enum": ["I64", "U64"]}}, "required": ["type"]},
+            "then": {"required": ["minimum", "maximum"]}
+          },
+          {
+            "if": {"properties": {"type": {"const": "I64"}}, "required": ["type"]},
+            "then": {
+              "properties": {
+                "initial": {"$ref": "common.schema.json#/$defs/i64"},
+                "minimum": {"$ref": "common.schema.json#/$defs/i64"},
+                "maximum": {"$ref": "common.schema.json#/$defs/i64"}
+              }
+            }
+          },
+          {
+            "if": {"properties": {"type": {"const": "U64"}}, "required": ["type"]},
+            "then": {
+              "properties": {
+                "initial": {"$ref": "common.schema.json#/$defs/u64"},
+                "minimum": {"$ref": "common.schema.json#/$defs/u64"},
+                "maximum": {"$ref": "common.schema.json#/$defs/u64"}
+              }
+            }
+          },
+          {
+            "if": {"properties": {"type": {"const": "BOOL"}}, "required": ["type"]},
+            "then": {"properties": {"initial": {"type": "boolean"}}}
+          },
+          {
+            "if": {"properties": {"type": {"const": "SYMBOL"}}, "required": ["type"]},
+            "then": {"properties": {"initial": {"$ref": "common.schema.json#/$defs/identifier"}}}
+          },
+          {
+            "if": {"properties": {"type": {"enum": ["SET_SYMBOL", "FIXED_ARRAY", "BOUNDED_LIST"]}}, "required": ["type"]},
+            "then": {"required": ["capacity"]}
+          }
+        ],
         "additionalProperties": false
       }
     },
@@ -83,6 +164,12 @@
           "authoritative": {"type": "boolean"},
           "serialization_dependency": {"type": "boolean"}
         },
+        "allOf": [
+          {
+            "if": {"properties": {"failure_policy": {"const": "USE_DEFAULT"}}, "required": ["failure_policy"]},
+            "then": {"required": ["default"]}
+          }
+        ],
         "additionalProperties": false
       }
     },
@@ -99,10 +186,10 @@
           "mode": {"enum": ["TIMED", "EVENT_DRIVEN", "TERMINAL"]},
           "duration_quanta": {"type": "integer", "minimum": 1},
           "seekable": {"type": "boolean"},
-          "entry_assignments": {"type": "array", "maxItems": 1024},
-          "entry_effects": {"type": "array", "maxItems": 1024},
-          "exit_assignments": {"type": "array", "maxItems": 1024},
-          "exit_effects": {"type": "array", "maxItems": 1024},
+          "entry_assignments": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/assignment"}, "maxItems": 1024},
+          "entry_effects": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/effect"}, "maxItems": 1024},
+          "exit_assignments": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/assignment"}, "maxItems": 1024},
+          "exit_effects": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/effect"}, "maxItems": 1024},
           "tags": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/identifier"}, "uniqueItems": true},
           "extensions": {"$ref": "common.schema.json#/$defs/extensionMap"}
         },
@@ -110,6 +197,10 @@
           {
             "if": {"properties": {"mode": {"const": "TIMED"}}},
             "then": {"required": ["duration_quanta"]}
+          },
+          {
+            "if": {"properties": {"mode": {"enum": ["EVENT_DRIVEN", "TERMINAL"]}}, "required": ["mode"]},
+            "then": {"not": {"required": ["duration_quanta"]}}
           }
         ],
         "additionalProperties": false
@@ -129,10 +220,163 @@
         "additionalProperties": false
       }
     },
-    "semantic_facts": {"type": "array", "maxItems": 4096},
-    "transitions": {"type": "array", "maxItems": 4096},
-    "slot_claims": {"type": "array", "maxItems": 128},
-    "profiles": {"type": "object"},
+    "semantic_facts": {
+      "type": "array",
+      "maxItems": 4096,
+      "items": {
+        "type": "object",
+        "required": ["id", "direction", "when", "channels", "tags", "attributes", "hit_policy", "effect_templates", "extensions"],
+        "properties": {
+          "id": {"$ref": "common.schema.json#/$defs/identifier"},
+          "direction": {"enum": ["OFFENSE", "DEFENSE", "NEUTRAL"]},
+          "when": {"$ref": "common.schema.json#/$defs/expression"},
+          "channels": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/identifier"}, "maxItems": 1024, "uniqueItems": true},
+          "tags": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/identifier"}, "maxItems": 1024, "uniqueItems": true},
+          "attributes": {"type": "object", "maxProperties": 1024},
+          "hit_policy": {
+            "type": "object",
+            "required": ["kind", "receipt_on"],
+            "properties": {
+              "kind": {"enum": ["UNBOUNDED", "ONCE_PER_ACTION_INSTANCE", "ONCE_PER_CYCLE", "ONCE_PER_PREDICATE_ACTIVATION", "COOLDOWN_TICKS", "CUSTOM_LEDGER_KEY"]},
+              "receipt_on": {"enum": ["ON_CONTACT", "ON_ACCEPT", "ON_IMPACT"]},
+              "cooldown_ticks": {"type": "integer", "minimum": 1, "maximum": 18446744073709551615},
+              "predicate_id": {"$ref": "common.schema.json#/$defs/identifier"},
+              "custom_key_id": {"$ref": "common.schema.json#/$defs/identifier"}
+            },
+            "additionalProperties": false
+          },
+          "effect_templates": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/effectTemplate"}, "maxItems": 1024},
+          "extensions": {"$ref": "common.schema.json#/$defs/extensionMap"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "transitions": {
+      "type": "array",
+      "maxItems": 4096,
+      "items": {
+        "type": "object",
+        "required": [
+          "id", "source_node", "evaluation_point", "priority", "guard", "target",
+          "input_match", "event_match", "claims", "consume_policy", "exit_assignments",
+          "assignments", "entry_assignments", "effects", "cycle_delta", "metadata"
+        ],
+        "properties": {
+          "id": {"$ref": "common.schema.json#/$defs/identifier"},
+          "source_node": {"$ref": "common.schema.json#/$defs/identifier"},
+          "evaluation_point": {"enum": ["PRE_ADVANCE", "AFTER_QUANTUM", "POST_ADVANCE"]},
+          "priority": {"$ref": "common.schema.json#/$defs/i64"},
+          "guard": {"$ref": "common.schema.json#/$defs/expression"},
+          "input_match": {
+            "oneOf": [
+              {"type": "null"},
+              {
+                "type": "object",
+                "required": ["command_id"],
+                "properties": {"command_id": {"$ref": "common.schema.json#/$defs/identifier"}},
+                "additionalProperties": false
+              }
+            ]
+          },
+          "event_match": {
+            "oneOf": [
+              {"type": "null"},
+              {
+                "type": "object",
+                "required": ["event_type"],
+                "properties": {"event_type": {"$ref": "common.schema.json#/$defs/identifier"}},
+                "additionalProperties": false
+              }
+            ]
+          },
+          "target": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": ["kind", "node"],
+                "properties": {
+                  "kind": {"const": "NODE"},
+                  "node": {"$ref": "common.schema.json#/$defs/identifier"},
+                  "target_step": {"$ref": "common.schema.json#/$defs/u64"}
+                },
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "required": ["kind", "action", "source_disposition"],
+                "properties": {
+                  "kind": {"const": "ACTION"},
+                  "action": {"$ref": "common.schema.json#/$defs/identifier"},
+                  "source_disposition": {"enum": ["TERMINATE_SOURCE", "SUSPEND_SOURCE", "KEEP_SOURCE"]}
+                },
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "required": ["kind", "action", "child_slot_id", "parent_policy"],
+                "properties": {
+                  "kind": {"const": "CHILD_ACTION"},
+                  "action": {"$ref": "common.schema.json#/$defs/identifier"},
+                  "child_slot_id": {"$ref": "common.schema.json#/$defs/identifier"},
+                  "parent_policy": {"enum": ["CONTINUE", "FREEZE_PROGRESSION", "FREEZE_TRANSITIONS", "FREEZE_ALL_ACTION_LOGIC", "TERMINATE_PARENT"]}
+                },
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "required": ["kind"],
+                "properties": {"kind": {"const": "TERMINATE"}},
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "required": ["kind", "fault_code"],
+                "properties": {
+                  "kind": {"const": "FAULT"},
+                  "fault_code": {"$ref": "common.schema.json#/$defs/identifier"}
+                },
+                "additionalProperties": false
+              }
+            ]
+          },
+          "claims": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/claim"}, "maxItems": 128},
+          "consume_policy": {"enum": ["ON_ACCEPT", "ON_ATTEMPT", "NEVER"]},
+          "exit_assignments": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/assignment"}, "maxItems": 1024},
+          "assignments": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/assignment"}, "maxItems": 1024},
+          "entry_assignments": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/assignment"}, "maxItems": 1024},
+          "effects": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/effect"}, "maxItems": 1024},
+          "cycle_delta": {"$ref": "common.schema.json#/$defs/u64"},
+          "metadata": {"type": "object", "maxProperties": 1024},
+          "extensions": {"$ref": "common.schema.json#/$defs/extensionMap"}
+        },
+        "not": {
+          "properties": {
+            "input_match": {"type": "object"},
+            "event_match": {"type": "object"}
+          },
+          "required": ["input_match", "event_match"]
+        },
+        "additionalProperties": false
+      }
+    },
+    "slot_claims": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "required": ["slot", "amount"],
+        "properties": {
+          "slot": {"$ref": "common.schema.json#/$defs/identifier"},
+          "amount": {"type": "integer", "minimum": 1, "maximum": 18446744073709551615}
+        },
+        "additionalProperties": false
+      }
+    },
+    "profiles": {
+      "type": "object",
+      "properties": {"pcam24": {"$ref": "common.schema.json#/$defs/pcam24Profile"}},
+      "additionalProperties": false
+    },
     "extensions": {"$ref": "common.schema.json#/$defs/extensionMap"}
   },
   "additionalProperties": false

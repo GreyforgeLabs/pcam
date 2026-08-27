@@ -11,7 +11,7 @@
 | Gate | State | Evidence |
 |---|---|---|
 | Specification | closed | `release/specification-gate.md` |
-| Schemas | open | `release/schema-gate.md` |
+| Schemas | closed for draft.1 | `release/schema-gate.md` |
 | Reference runtime | open | `release/reference-runtime-gate.md` |
 | Independent implementation | open | `release/independent-implementation-gate.md` |
 | Cross-platform | open | `release/cross-platform-gate.md` |
@@ -19,4 +19,4 @@
 | Comparative experiments | closed for bounded draft experiment | `release/comparative-experiment-gate.md` |
 | Claims | closed for current documentation | `release/claims-gate.md` |
 
-The current Normative Candidate specification audit, rollback suite, bounded comparative experiment, and documentation claims audit are closed. Stable, Normative status remains prohibited until every other §45 gate closes.
+The current Normative Candidate specification, schema, rollback, bounded comparative experiment, and documentation claims audits are closed. Stable, Normative status remains prohibited until every other §45 gate closes.

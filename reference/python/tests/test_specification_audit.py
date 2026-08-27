@@ -25,6 +25,7 @@ def test_resolved_normative_contracts_remain_in_master_text():
         "the event is not visible or expired",
         "max_expression_depth",
         "max_expression_nodes",
+        "Canonical machine documents MUST encode an absent `input_match` or `event_match` as `null`",
         "Phase is an optional projection, never the whole state",
     )
     assert all(contract in specification for contract in required_contracts)

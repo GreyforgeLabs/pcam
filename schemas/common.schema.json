@@ -52,6 +52,120 @@
         }
       ]
     },
+    "assignment": {
+      "type": "object",
+      "required": ["target", "value"],
+      "properties": {
+        "target": {"type": "string", "minLength": 1, "maxLength": 256},
+        "value": {"$ref": "#/$defs/expression"}
+      },
+      "additionalProperties": false
+    },
+    "effect": {
+      "type": "object",
+      "required": ["effect_type", "authoritative", "payload"],
+      "properties": {
+        "effect_type": {"$ref": "#/$defs/identifier"},
+        "effect_class": {"$ref": "#/$defs/identifier"},
+        "authoritative": {"type": "boolean"},
+        "reducer": {"enum": ["SUM", "MIN", "MAX", "SET_UNION", "ORDERED", "FIRST", "LAST", "EXCLUSIVE", "CUSTOM_DETERMINISTIC"]},
+        "target": {"type": ["string", "integer"]},
+        "priority": {"$ref": "#/$defs/i64"},
+        "payload": {}
+      },
+      "additionalProperties": false
+    },
+    "effectTemplate": {
+      "allOf": [
+        {"$ref": "#/$defs/effect"},
+        {"required": ["effect_class", "reducer"]}
+      ]
+    },
+    "claim": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["kind", "resource", "amount"],
+          "properties": {
+            "kind": {"const": "RESOURCE"},
+            "resource": {"$ref": "#/$defs/identifier"},
+            "amount": {"type": "integer", "minimum": 0, "maximum": 18446744073709551615}
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["kind", "slot", "amount"],
+          "properties": {
+            "kind": {"enum": ["ACTION_SLOT", "CHILD_SLOT"]},
+            "slot": {"$ref": "#/$defs/identifier"},
+            "amount": {"type": "integer", "minimum": 1, "maximum": 18446744073709551615}
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["kind", "key", "amount"],
+          "properties": {
+            "kind": {"enum": ["CAPACITY", "EXCLUSIVE_KEY"]},
+            "key": {"$ref": "#/$defs/identifier"},
+            "amount": {"type": "integer", "minimum": 1, "maximum": 18446744073709551615}
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "phaseRange": {
+      "type": "array",
+      "prefixItems": [
+        {"type": "integer", "minimum": 0, "maximum": 23},
+        {"type": "integer", "minimum": 1, "maximum": 24}
+      ],
+      "items": false,
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "pcam24Profile": {
+      "type": "object",
+      "required": ["lifecycle", "projection", "tags"],
+      "properties": {
+        "lifecycle": {"enum": ["TERMINATE", "LOOP", "CLAMP"]},
+        "projection": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1024,
+          "items": {
+            "type": "object",
+            "required": ["node", "step_range", "phase_range"],
+            "properties": {
+              "node": {"$ref": "#/$defs/identifier"},
+              "step_range": {
+                "type": "array",
+                "prefixItems": [
+                  {"$ref": "#/$defs/u64"},
+                  {"$ref": "#/$defs/u64"}
+                ],
+                "items": false,
+                "minItems": 2,
+                "maxItems": 2
+              },
+              "phase_range": {"$ref": "#/$defs/phaseRange"}
+            },
+            "additionalProperties": false
+          }
+        },
+        "tags": {
+          "type": "object",
+          "propertyNames": {"$ref": "#/$defs/identifier"},
+          "additionalProperties": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/phaseRange"},
+            "maxItems": 24
+          }
+        }
+      },
+      "additionalProperties": false
+    },
     "extensionMap": {
       "type": "object",
       "propertyNames": {

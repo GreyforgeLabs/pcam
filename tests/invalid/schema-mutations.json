@@ -1,0 +1,162 @@
+{
+  "pcam_schema_corpus_version": "1",
+  "cases": [
+    {
+      "id": "action-transition-missing-canonical-field",
+      "base": "examples/heavy-strike.action.yaml",
+      "operations": [{"op": "remove", "path": "/transitions/0/metadata"}],
+      "expected_code": "SCHEMA_VALIDATION_FAILED"
+    },
+    {
+      "id": "action-fact-missing-extensions",
+      "base": "examples/heavy-strike.action.yaml",
+      "operations": [{"op": "remove", "path": "/semantic_facts/0/extensions"}],
+      "expected_code": "SCHEMA_VALIDATION_FAILED"
+    },
+    {
+      "id": "action-unknown-fact-predicate",
+      "base": "examples/heavy-strike.action.yaml",
+      "operations": [{"op": "replace", "path": "/semantic_facts/0/when/ref", "value": "action.predicate.UNKNOWN"}],
+      "expected_fault": "MISSING_REFERENCE"
+    },
+    {
+      "id": "action-duplicate-fact-id",
+      "base": "examples/heavy-strike.action.yaml",
+      "operations": [{"op": "append_copy", "path": "/semantic_facts", "source": "/semantic_facts/0"}],
+      "expected_fault": "DUPLICATE_IDENTIFIER"
+    },
+    {
+      "id": "action-invalid-nonseekable-target-step",
+      "base": "examples/heavy-strike.action.yaml",
+      "operations": [
+        {"op": "replace", "path": "/nodes/active/seekable", "value": false},
+        {"op": "add", "path": "/transitions/0/target/target_step", "value": 1}
+      ],
+      "expected_fault": "STATE_INVARIANT_FAILURE"
+    },
+    {
+      "id": "action-floating-metadata",
+      "base": "tests/valid/minimal-action.json",
+      "operations": [{"op": "add", "path": "/metadata/ratio", "value": 1.5}],
+      "expected_fault": "CANONICALIZATION_FAILURE"
+    },
+    {
+      "id": "action-parameter-default-outside-bounds",
+      "base": "examples/heavy-strike.action.yaml",
+      "operations": [{"op": "replace", "path": "/parameters/damage/default", "value": 10001}],
+      "expected_fault": "STATE_INVARIANT_FAILURE"
+    },
+    {
+      "id": "action-register-inverted-bounds",
+      "base": "examples/heavy-strike.action.yaml",
+      "operations": [{"op": "replace", "path": "/registers/charge_level/minimum", "value": 4}],
+      "expected_fault": "STATE_INVARIANT_FAILURE"
+    },
+    {
+      "id": "action-u64-negative-minimum",
+      "base": "examples/heavy-strike.action.yaml",
+      "operations": [{"op": "replace", "path": "/registers/charge_level/minimum", "value": -1}],
+      "expected_code": "SCHEMA_VALIDATION_FAILED"
+    },
+    {
+      "id": "action-integer-outside-core-range",
+      "base": "tests/valid/minimal-action.json",
+      "operations": [{"op": "add", "path": "/metadata/huge", "value": 18446744073709551616}],
+      "expected_fault": "INTEGER_OVERFLOW"
+    },
+    {
+      "id": "action-after-quantum-contested-claim",
+      "base": "examples/heavy-strike.action.yaml",
+      "operations": [{"op": "add", "path": "/transitions/0/claims/0", "value": {"kind": "RESOURCE", "resource": "STAMINA", "amount": 0}}],
+      "expected_fault": "STATE_INVARIANT_FAILURE"
+    },
+    {
+      "id": "action-embedded-phase-projection-gap",
+      "base": "examples/heavy-strike.action.yaml",
+      "operations": [{"op": "replace", "path": "/profiles/pcam24/projection/1/phase_range/0", "value": 11}],
+      "expected_fault": "INVALID_PROFILE_RANGE"
+    },
+    {
+      "id": "action-cooldown-policy-missing-duration",
+      "base": "examples/heavy-strike.action.yaml",
+      "operations": [{"op": "replace", "path": "/semantic_facts/0/hit_policy/kind", "value": "COOLDOWN_TICKS"}],
+      "expected_fault": "MISSING_REFERENCE"
+    },
+    {
+      "id": "action-input-and-event-match",
+      "base": "examples/heavy-strike.action.yaml",
+      "operations": [{"op": "replace", "path": "/transitions/3/event_match", "value": {"event_type": "DODGE_EVENT"}}],
+      "expected_code": "SCHEMA_VALIDATION_FAILED"
+    },
+    {
+      "id": "interaction-unknown-operation",
+      "base": "examples/combat.interaction.yaml",
+      "operations": [{"op": "replace", "path": "/rules/0/operations/0/op", "value": "UNKNOWN"}],
+      "expected_code": "SCHEMA_VALIDATION_FAILED"
+    },
+    {
+      "id": "interaction-duplicate-rule-id",
+      "base": "examples/combat.interaction.yaml",
+      "operations": [
+        {"op": "replace", "path": "/rules/1/order", "value": 11},
+        {"op": "replace", "path": "/rules/1/id", "value": "reject_invalid_target"}
+      ],
+      "expected_fault": "DUPLICATE_IDENTIFIER"
+    },
+    {
+      "id": "interaction-unsafe-rejected-materialization",
+      "base": "examples/combat.interaction.yaml",
+      "operations": [{"op": "add", "path": "/rules/3/operations/0/statuses", "value": ["REJECTED"]}],
+      "expected_fault": "STATE_INVARIANT_FAILURE"
+    },
+    {
+      "id": "runtime-duplicate-network-profile",
+      "base": "tests/valid/minimal-runtime-profile.json",
+      "operations": [{"op": "append_copy", "path": "/network_profiles", "source": "/network_profiles/0"}],
+      "expected_fault": "DUPLICATE_IDENTIFIER"
+    },
+    {
+      "id": "interaction-wrong-version",
+      "base": "tests/valid/minimal-interaction-profile.json",
+      "operations": [{"op": "replace", "path": "/pcam_version", "value": "2.0"}],
+      "expected_code": "SCHEMA_VALIDATION_FAILED"
+    },
+    {
+      "id": "runtime-wrong-version",
+      "base": "tests/valid/minimal-runtime-profile.json",
+      "operations": [{"op": "replace", "path": "/pcam_version", "value": "2.0"}],
+      "expected_code": "SCHEMA_VALIDATION_FAILED"
+    },
+    {
+      "id": "pcam24-wrong-version",
+      "base": "tests/valid/minimal-pcam24.json",
+      "operations": [{"op": "replace", "path": "/pcam_version", "value": "2.0"}],
+      "expected_code": "SCHEMA_VALIDATION_FAILED"
+    },
+    {
+      "id": "optional-authoritative-extension",
+      "base": "tests/valid/minimal-action.json",
+      "operations": [{
+        "op": "add",
+        "path": "/extensions/tech.greyforge.invalid",
+        "value": {
+          "requirement": "OPTIONAL",
+          "authoritative": true,
+          "omission_preserves_authority": true,
+          "payload": {}
+        }
+      }],
+      "expected_code": "SCHEMA_VALIDATION_FAILED"
+    },
+    {
+      "id": "incomplete-authoritative-extension",
+      "base": "tests/valid/minimal-action.json",
+      "operations": [{
+        "op": "add",
+        "path": "/extensions/tech.greyforge.invalid",
+        "value": {"requirement": "REQUIRED", "authoritative": true, "payload": {}}
+      }],
+      "expected_code": "SCHEMA_VALIDATION_FAILED"
+    }
+  ]
+}

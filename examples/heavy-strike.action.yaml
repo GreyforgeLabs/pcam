@@ -119,6 +119,7 @@ semantic_facts:
     when: {ref: action.predicate.ACTIVE}
     channels: [STRIKE]
     tags: [HEAVY]
+    attributes: {}
     hit_policy:
       kind: ONCE_PER_ACTION_INSTANCE
       receipt_on: ON_IMPACT
@@ -133,6 +134,7 @@ semantic_facts:
         authoritative: true
         reducer: SUM
         payload: {amount: 25}
+    extensions: {}
   - id: heavy_strike_armor
     direction: DEFENSE
     when: {ref: action.predicate.ARMOR}
@@ -143,40 +145,72 @@ semantic_facts:
       kind: UNBOUNDED
       receipt_on: ON_CONTACT
     effect_templates: []
+    extensions: {}
 transitions:
   - id: startup_to_active
     source_node: startup
     evaluation_point: AFTER_QUANTUM
     priority: 100
     guard: {op: gte, args: [{ref: action.node_step}, {literal: 10}]}
+    input_match: null
+    event_match: null
     target: {kind: NODE, node: active}
     claims: []
     consume_policy: NEVER
+    exit_assignments: []
+    assignments: []
+    entry_assignments: []
+    effects: []
+    cycle_delta: 0
+    metadata: {}
   - id: active_to_recovery
     source_node: active
     evaluation_point: AFTER_QUANTUM
     priority: 100
     guard: {op: gte, args: [{ref: action.node_step}, {literal: 4}]}
+    input_match: null
+    event_match: null
     target: {kind: NODE, node: recovery}
     claims: []
     consume_policy: NEVER
+    exit_assignments: []
+    assignments: []
+    entry_assignments: []
+    effects: []
+    cycle_delta: 0
+    metadata: {}
   - id: recovery_to_terminate
     source_node: recovery
     evaluation_point: AFTER_QUANTUM
     priority: 100
     guard: {op: gte, args: [{ref: action.node_step}, {literal: 10}]}
+    input_match: null
+    event_match: null
     target: {kind: TERMINATE}
     claims: []
     consume_policy: NEVER
+    exit_assignments: []
+    assignments: []
+    entry_assignments: []
+    effects: []
+    cycle_delta: 0
+    metadata: {}
   - id: recovery_cancel_to_dodge
     source_node: recovery
     evaluation_point: POST_ADVANCE
     priority: 200
     guard: {ref: action.predicate.LATE_CANCEL}
     input_match: {command_id: DODGE}
+    event_match: null
     claims:
       - {kind: RESOURCE, resource: STAMINA, amount: 20}
     consume_policy: ON_ACCEPT
+    exit_assignments: []
+    assignments: []
+    entry_assignments: []
+    effects: []
+    cycle_delta: 0
+    metadata: {}
     target:
       kind: ACTION
       action: greyforge.example.dodge

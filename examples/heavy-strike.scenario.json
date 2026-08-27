@@ -14,7 +14,7 @@
   "tick_count": 60,
   "contact_tick": 24,
   "expected": {
-    "heavy_strike_document_hash": "5a75c693e7075f877253633d4c4fd50152ea4c6667976d190d3a3de05abb8771",
+    "heavy_strike_document_hash": "caa61a0773db471dce8142c1fe86bfce56143992d12a167dcc2ed434b38cfdb5",
     "heavy_strike_runtime_hash": "2c7f20d040ce6e0196caf5f5a6d35d9451adc5dc2bbfa9ef683b1a828f2e0364",
     "interaction_document_hash": "7675dab973b71d447cdb55b622c73d86da03e05577dbc4676beb2a071639f5d9",
     "definition_set_hash": "9b585f3d8b8acec3cd8c8e8277faa5d8cc94d6da1e7e91b40e648eb4897c2382",
