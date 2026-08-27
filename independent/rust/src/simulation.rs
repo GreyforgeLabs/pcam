@@ -64,6 +64,9 @@ struct Definition {
     predicates: Vec<Predicate>,
     facts: Vec<FactBinding>,
     transitions: Vec<SimulationTransition>,
+    buffer_capacity: usize,
+    buffer_overflow_policy: String,
+    default_buffer_lifetime: u64,
     child_slot_capacities: BTreeMap<String, u64>,
     child_termination_policies: BTreeMap<String, String>,
     start_claims: Vec<ArbitrationClaim>,
@@ -87,6 +90,7 @@ struct SimulationTransition {
     source_disposition: String,
     event_type: Option<String>,
     input_command: Option<String>,
+    consume_policy: String,
     effects: Vec<RuntimeEffect>,
 }
 
@@ -658,7 +662,8 @@ impl SimulationRuntime {
         let contacts = canonical_contacts(array(tick, "contacts")?)?;
         work.host_state = json!({"contacts": contacts, "imports": {}});
 
-        let inputs = canonical_inputs(array(tick, "inputs")?)?;
+        let inputs = canonical_inputs(array(tick, "inputs")?, work.tick)?;
+        self.capture_inputs(&mut work, &inputs)?;
         let mut runtime_effects = Vec::new();
         let input_order = inputs
             .iter()
@@ -917,6 +922,7 @@ impl SimulationRuntime {
             }
         }
         self.finalize_children(&mut work)?;
+        self.expire_input_buffers(&mut work)?;
         for action in &mut work.action_instances {
             action.event_inbox.clear();
         }
@@ -1051,6 +1057,114 @@ impl SimulationRuntime {
         Ok(rng_draws)
     }
 
+    fn capture_inputs(
+        &self,
+        state: &mut SimulationState,
+        inputs: &[Value],
+    ) -> Result<(), SimulationError> {
+        let action_ids = state
+            .action_instances
+            .iter()
+            .map(|action| action.instance_id)
+            .collect::<Vec<_>>();
+        for action_id in action_ids {
+            let index = state
+                .action_instances
+                .iter()
+                .position(|action| action.instance_id == action_id)
+                .ok_or(SimulationError::RuntimeFault)?;
+            if !matches!(
+                state.action_instances[index].lifecycle_state.as_str(),
+                "RUNNING" | "SUSPENDED"
+            ) || domain_frozen(state, action_id, "INPUT_CAPTURE")
+            {
+                continue;
+            }
+            let definition = self
+                .definitions
+                .values()
+                .find(|definition| definition.hash == state.action_instances[index].definition_hash)
+                .ok_or(SimulationError::RuntimeFault)?;
+            if definition.default_buffer_lifetime == 0 {
+                return Err(SimulationError::RuntimeFault);
+            }
+            let owner = state.action_instances[index].owner_entity_id;
+            let mut entries = state.action_instances[index].input_buffer.clone();
+            for input in inputs {
+                if u64_field(input, "source_entity_id")? != owner {
+                    continue;
+                }
+                let input_id = string_field(input, "input_id")?;
+                if entries
+                    .iter()
+                    .any(|entry| entry["input_id"].as_str() == Some(input_id))
+                {
+                    continue;
+                }
+                let entry = json!({
+                    "buffer_entry_id": format!("buffer:{input_id}"),
+                    "captured_tick": u64_field(input, "assigned_tick")?,
+                    "command_id": string_field(input, "command_id")?,
+                    "input_id": input_id,
+                    "payload": input.get("payload").cloned().unwrap_or_else(|| json!({})),
+                    "priority": 0,
+                    "remaining_eligibility_ticks": definition.default_buffer_lifetime,
+                    "sequence": u64_field(input, "sequence")?,
+                });
+                if entries.len() < definition.buffer_capacity {
+                    entries.push(entry);
+                } else if definition.buffer_capacity == 0
+                    || definition.buffer_overflow_policy == "DROP_NEWEST"
+                {
+                    continue;
+                } else if definition.buffer_overflow_policy == "FAULT" {
+                    return Err(SimulationError::Fault(FaultContext {
+                        code: "RUNTIME_FAULT".to_owned(),
+                        fault: "STATE_INVARIANT_FAILURE".to_owned(),
+                        message: "input buffer capacity exceeded".to_owned(),
+                        action_instance_id: Some(action_id),
+                        owner_entity_id: Some(owner),
+                    }));
+                } else {
+                    let oldest = entries
+                        .iter()
+                        .enumerate()
+                        .min_by(|(_, left), (_, right)| {
+                            buffer_age_key(left).cmp(&buffer_age_key(right))
+                        })
+                        .map(|(entry_index, _)| entry_index)
+                        .ok_or(SimulationError::RuntimeFault)?;
+                    entries.remove(oldest);
+                    entries.push(entry);
+                }
+            }
+            entries.sort_by(|left, right| buffer_order_key(left).cmp(&buffer_order_key(right)));
+            state.action_instances[index].input_buffer = entries;
+        }
+        Ok(())
+    }
+
+    fn expire_input_buffers(&self, state: &mut SimulationState) -> Result<(), SimulationError> {
+        for index in 0..state.action_instances.len() {
+            let action_id = state.action_instances[index].instance_id;
+            if domain_frozen(state, action_id, "BUFFER_EXPIRY") {
+                continue;
+            }
+            let mut updated = Vec::new();
+            for entry in &state.action_instances[index].input_buffer {
+                let remaining = u64_field(entry, "remaining_eligibility_ticks")?;
+                if remaining > 1 {
+                    let mut entry = entry.clone();
+                    entry["remaining_eligibility_ticks"] = json!(remaining - 1);
+                    updated.push(entry);
+                }
+            }
+            updated.sort_by(|left, right| buffer_order_key(left).cmp(&buffer_order_key(right)));
+            state.action_instances[index].input_buffer = updated;
+        }
+        Ok(())
+    }
+
     fn arbitrate_transition_stage(
         &self,
         state: &mut SimulationState,
@@ -1097,14 +1211,7 @@ impl SimulationRuntime {
                 })
                 .filter(|transition| {
                     transition.input_command.as_ref().is_none_or(|command| {
-                        inputs.iter().any(|input| {
-                            input
-                                .get("command_id")
-                                .and_then(Value::as_str)
-                                .is_some_and(|value| value == command)
-                                && input.get("source_entity_id").and_then(Value::as_u64)
-                                    == Some(action.owner_entity_id)
-                        })
+                        select_buffer_input(&action.input_buffer, command).is_some()
                     })
                 })
                 .filter(|transition| {
@@ -1126,26 +1233,20 @@ impl SimulationRuntime {
             let Some(transition) = eligible.into_iter().next() else {
                 continue;
             };
-            let matched_input = transition.input_command.as_ref().and_then(|command| {
-                inputs.iter().find(|input| {
-                    input.get("command_id").and_then(Value::as_str) == Some(command.as_str())
-                        && input.get("source_entity_id").and_then(Value::as_u64)
-                            == Some(action.owner_entity_id)
-                })
-            });
-            proposals.push((
-                action,
-                transition,
-                matched_input
-                    .and_then(|input| input.get("sequence"))
-                    .and_then(Value::as_u64)
-                    .unwrap_or(0),
-                matched_input
-                    .and_then(|input| input.get("input_id"))
-                    .and_then(Value::as_str)
-                    .map(str::to_owned)
-                    .unwrap_or_else(|| format!("internal:{}:{action_id}", state.tick)),
-            ));
+            let matched_input = transition
+                .input_command
+                .as_ref()
+                .and_then(|command| select_buffer_input(&action.input_buffer, command));
+            let input_sequence = matched_input
+                .and_then(|input| input.get("sequence"))
+                .and_then(Value::as_u64)
+                .unwrap_or(0);
+            let input_id = matched_input
+                .and_then(|input| input.get("input_id"))
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+                .unwrap_or_else(|| format!("internal:{}:{action_id}", state.tick));
+            proposals.push((action, transition, input_sequence, input_id));
         }
         let mut arbitration = self.arbitration_state(state)?;
         let mut intents = Vec::new();
@@ -1327,9 +1428,6 @@ impl SimulationRuntime {
             arbitrate_intents(&intents, &arbitration).map_err(|_| SimulationError::RuntimeFault)?;
         self.commit_reserved_resources(state, reserved.resource_banks)?;
         for decision in decisions {
-            if !decision.accepted {
-                continue;
-            }
             match decision.intent.intent_kind.as_str() {
                 "TRANSITION" => {
                     let (_, transition, _, _) = proposals
@@ -1339,6 +1437,25 @@ impl SimulationRuntime {
                                 && transition.id == decision.intent.transition_id
                         })
                         .ok_or(SimulationError::RuntimeFault)?;
+                    if !decision.accepted {
+                        if transition.input_command.is_some()
+                            && transition.consume_policy == "ON_ATTEMPT"
+                        {
+                            remove_buffer_input(
+                                state,
+                                decision.intent.source_action_instance_id,
+                                &decision.intent.input_id,
+                            )?;
+                        }
+                        continue;
+                    }
+                    if transition.input_command.is_some() && transition.consume_policy != "NEVER" {
+                        remove_buffer_input(
+                            state,
+                            decision.intent.source_action_instance_id,
+                            &decision.intent.input_id,
+                        )?;
+                    }
                     self.apply_simulation_transition(
                         state,
                         decision.intent.source_action_instance_id,
@@ -1346,11 +1463,15 @@ impl SimulationRuntime {
                         runtime_effects,
                     )?;
                 }
-                "ACTION_START" => self.start_direct_action(
-                    state,
-                    &decision.intent.transition_id,
-                    decision.intent.owner_entity_id,
-                )?,
+                "ACTION_START" => {
+                    if decision.accepted {
+                        self.start_direct_action(
+                            state,
+                            &decision.intent.transition_id,
+                            decision.intent.owner_entity_id,
+                        )?;
+                    }
+                }
                 _ => return Err(SimulationError::RuntimeFault),
             }
         }
@@ -2703,6 +2824,17 @@ fn parse_definition(raw: &Value, hash: String) -> Result<Definition, SimulationE
         .unwrap_or_default()
         .iter()
         .map(|transition| {
+            let consume_policy = transition
+                .get("consume_policy")
+                .and_then(Value::as_str)
+                .unwrap_or("ON_ACCEPT")
+                .to_owned();
+            if !matches!(
+                consume_policy.as_str(),
+                "ON_ACCEPT" | "ON_ATTEMPT" | "NEVER"
+            ) {
+                return Err(SimulationError::InvalidVector);
+            }
             Ok(SimulationTransition {
                 id: string_field(transition, "id")?.to_owned(),
                 source_node: string_field(transition, "source_node")?.to_owned(),
@@ -2763,6 +2895,7 @@ fn parse_definition(raw: &Value, hash: String) -> Result<Definition, SimulationE
                     .get("input_command")
                     .and_then(Value::as_str)
                     .map(str::to_owned),
+                consume_policy,
                 effects: transition
                     .get("effects")
                     .and_then(Value::as_array)
@@ -2783,6 +2916,29 @@ fn parse_definition(raw: &Value, hash: String) -> Result<Definition, SimulationE
         .cloned()
         .unwrap_or_else(|| json!([]));
     let slot_claims = raw.get("slot_claims").cloned().unwrap_or_else(|| json!([]));
+    let buffer_capacity = match raw.get("buffer_capacity") {
+        Some(value) => usize::try_from(value.as_u64().ok_or(SimulationError::InvalidVector)?)
+            .map_err(|_| SimulationError::InvalidVector)?,
+        None => 8,
+    };
+    let buffer_overflow_policy = raw
+        .get("buffer_overflow_policy")
+        .and_then(Value::as_str)
+        .unwrap_or("DROP_OLDEST")
+        .to_owned();
+    if !matches!(
+        buffer_overflow_policy.as_str(),
+        "DROP_OLDEST" | "DROP_NEWEST" | "FAULT"
+    ) {
+        return Err(SimulationError::InvalidVector);
+    }
+    let default_buffer_lifetime = match raw.get("default_buffer_lifetime") {
+        Some(value) => value.as_u64().ok_or(SimulationError::InvalidVector)?,
+        None => 1,
+    };
+    if default_buffer_lifetime == 0 {
+        return Err(SimulationError::InvalidVector);
+    }
     Ok(Definition {
         id: string_field(raw, "id")?.to_owned(),
         hash,
@@ -2797,6 +2953,9 @@ fn parse_definition(raw: &Value, hash: String) -> Result<Definition, SimulationE
         predicates,
         facts,
         transitions,
+        buffer_capacity,
+        buffer_overflow_policy,
+        default_buffer_lifetime,
         child_slot_capacities: serde_json::from_value(child_slot_capacities)
             .map_err(|_| SimulationError::InvalidVector)?,
         child_termination_policies: serde_json::from_value(
@@ -2812,9 +2971,12 @@ fn parse_definition(raw: &Value, hash: String) -> Result<Definition, SimulationE
     })
 }
 
-fn canonical_inputs(raw: &[Value]) -> Result<Vec<Value>, SimulationError> {
+fn canonical_inputs(raw: &[Value], tick: u64) -> Result<Vec<Value>, SimulationError> {
     let mut deduplicated = BTreeMap::new();
     for input in raw {
+        if u64_field(input, "assigned_tick")? != tick {
+            continue;
+        }
         deduplicated
             .entry(string_field(input, "input_id")?.to_owned())
             .or_insert_with(|| input.clone());
@@ -2851,6 +3013,77 @@ fn canonical_inputs(raw: &[Value]) -> Result<Vec<Value>, SimulationError> {
             })
     });
     Ok(values)
+}
+
+fn buffer_age_key(value: &Value) -> (u64, u64, String) {
+    (
+        u64_field(value, "captured_tick").unwrap_or_default(),
+        u64_field(value, "sequence").unwrap_or_default(),
+        string_field(value, "buffer_entry_id")
+            .unwrap_or_default()
+            .to_owned(),
+    )
+}
+
+fn buffer_order_key(value: &Value) -> (u64, u64, String, String) {
+    (
+        u64_field(value, "captured_tick").unwrap_or_default(),
+        u64_field(value, "sequence").unwrap_or_default(),
+        string_field(value, "command_id")
+            .unwrap_or_default()
+            .to_owned(),
+        string_field(value, "input_id")
+            .unwrap_or_default()
+            .to_owned(),
+    )
+}
+
+fn select_buffer_input<'a>(entries: &'a [Value], command_id: &str) -> Option<&'a Value> {
+    entries
+        .iter()
+        .filter(|entry| entry.get("command_id").and_then(Value::as_str) == Some(command_id))
+        .min_by(|left, right| {
+            right["priority"]
+                .as_i64()
+                .unwrap_or_default()
+                .cmp(&left["priority"].as_i64().unwrap_or_default())
+                .then_with(|| {
+                    u64_field(left, "captured_tick")
+                        .unwrap_or_default()
+                        .cmp(&u64_field(right, "captured_tick").unwrap_or_default())
+                })
+                .then_with(|| {
+                    u64_field(left, "sequence")
+                        .unwrap_or_default()
+                        .cmp(&u64_field(right, "sequence").unwrap_or_default())
+                })
+                .then_with(|| {
+                    string_field(left, "input_id")
+                        .unwrap_or_default()
+                        .as_bytes()
+                        .cmp(
+                            string_field(right, "input_id")
+                                .unwrap_or_default()
+                                .as_bytes(),
+                        )
+                })
+        })
+}
+
+fn remove_buffer_input(
+    state: &mut SimulationState,
+    action_id: u64,
+    input_id: &str,
+) -> Result<(), SimulationError> {
+    let action = state
+        .action_instances
+        .iter_mut()
+        .find(|action| action.instance_id == action_id)
+        .ok_or(SimulationError::RuntimeFault)?;
+    action
+        .input_buffer
+        .retain(|entry| entry.get("input_id").and_then(Value::as_str) != Some(input_id));
+    Ok(())
 }
 
 fn canonical_contacts(raw: &[Value]) -> Result<Vec<Value>, SimulationError> {

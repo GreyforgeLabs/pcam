@@ -16,6 +16,8 @@ fn independent_transition_replacement_matches_shared_atomic_outcomes() {
     for case in vector["cases"].as_array().unwrap() {
         let mut document = vector.clone();
         document["initial_state"]["resource_banks"]["1"]["STAMINA"] = case["stamina"].clone();
+        document["definitions"][0]["transitions"][0]["consume_policy"] =
+            case["consume_policy"].clone();
         let runtime = SimulationRuntime::from_vector(&document).unwrap();
         let mut state = runtime.initial_state(&document).unwrap();
         let mut digests = Vec::new();
@@ -28,6 +30,7 @@ fn independent_transition_replacement_matches_shared_atomic_outcomes() {
             "lifecycle": state.action_instances.iter().map(|action| (action.instance_id.to_string(), json!(action.lifecycle_state))).collect::<serde_json::Map<_, _>>(),
             "definitions": state.action_instances.iter().map(|action| (action.instance_id.to_string(), json!(action.definition_hash))).collect::<serde_json::Map<_, _>>(),
             "transition_serials": state.action_instances.iter().map(|action| (action.instance_id.to_string(), json!(action.transition_serial))).collect::<serde_json::Map<_, _>>(),
+            "input_buffers": state.action_instances.iter().map(|action| (action.instance_id.to_string(), json!(action.input_buffer))).collect::<serde_json::Map<_, _>>(),
             "stamina": state.resource_banks["1"]["STAMINA"],
             "slot": state.action_slots["1"]["FULL_BODY"],
             "next_action_instance_id": state.next_action_instance_id,

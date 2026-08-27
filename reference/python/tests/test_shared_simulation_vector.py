@@ -279,6 +279,9 @@ def test_python_transition_replacement_matches_shared_atomic_outcomes():
     for case in vector["cases"]:
         document = json.loads(json.dumps(vector))
         document["initial_state"]["resource_banks"]["1"]["STAMINA"] = case["stamina"]
+        document["definitions"][0]["transitions"][0]["consume_policy"] = case[
+            "consume_policy"
+        ]
         run = run_vector(document)
         state = run.final_state
         summary = {
@@ -291,6 +294,10 @@ def test_python_transition_replacement_matches_shared_atomic_outcomes():
             },
             "transition_serials": {
                 key: action.transition_serial for key, action in state.action_instances.items()
+            },
+            "input_buffers": {
+                key: [entry.__dict__ for entry in action.input_buffer]
+                for key, action in state.action_instances.items()
             },
             "stamina": state.resource_banks["1"]["STAMINA"],
             "slot": state.action_slots["1"]["FULL_BODY"],

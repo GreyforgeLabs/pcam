@@ -34,6 +34,7 @@
       "id": "SOURCE",
       "rate_scale": 1,
       "units_per_tick": 0,
+      "default_buffer_lifetime": 3,
       "nodes": [{"id": "WAIT", "mode": "EVENT_DRIVEN"}],
       "slot_claims": [{"kind": "ACTION_SLOT", "key": "FULL_BODY", "amount": 1}],
       "transitions": [
@@ -74,7 +75,10 @@
       "contacts": []
     },
     {
-      "inputs": [{"input_id": "replace", "source_entity_id": 1, "sequence": 1, "command_id": "REPLACE", "assigned_tick": 1}],
+      "inputs": [
+        {"input_id": "replace", "source_entity_id": 1, "sequence": 1, "command_id": "REPLACE", "assigned_tick": 1},
+        {"input_id": "replace", "source_entity_id": 1, "sequence": 2, "command_id": "IGNORED_DUPLICATE", "assigned_tick": 1}
+      ],
       "contacts": []
     }
   ],
@@ -82,16 +86,26 @@
     {
       "id": "replacement-accepted",
       "stamina": 5,
-      "tick_state_digests": ["009954916f92724501fc6b22b6c5318ea80d24b8d46aedebaf3f968ad370bb73", "0b0b583f116e68437302b878e94ed97ca24dd3a4bfdf2ddd972d63ef3ad00302"],
-      "final_state_digest": "0b0b583f116e68437302b878e94ed97ca24dd3a4bfdf2ddd972d63ef3ad00302",
-      "expected": {"tick": 2, "lifecycle": {"1": "TERMINATED", "2": "RUNNING"}, "definitions": {"1": "3f9216b1cfe2dc752e172a23331c6d7fd09c5e82e4e96fd26d62d13f13ba15a3", "2": "6272d59782d71b7dbf48e58c57002542878c7de96496620070a6a5c3c319fe74"}, "transition_serials": {"1": 1, "2": 0}, "stamina": 0, "slot": {"capacity": 1, "instance_ids": [2], "usage": 1}, "next_action_instance_id": 3}
+      "consume_policy": "ON_ACCEPT",
+      "tick_state_digests": ["4e03acfd673e749b8615f40bac4ab8640a6090a7d3b075b8fc4fbfbe151251d2", "33d5b79bd76b0c08e02047b9903c452ff3e2504db5fea2504fa4f740e5fa5a15"],
+      "final_state_digest": "33d5b79bd76b0c08e02047b9903c452ff3e2504db5fea2504fa4f740e5fa5a15",
+      "expected": {"tick": 2, "lifecycle": {"1": "TERMINATED", "2": "RUNNING"}, "definitions": {"1": "e589f19550a5b278ce6a555316d0ee4c82bac448bdd043c61b05d78b9a964ecb", "2": "6272d59782d71b7dbf48e58c57002542878c7de96496620070a6a5c3c319fe74"}, "transition_serials": {"1": 1, "2": 0}, "input_buffers": {"1": [], "2": []}, "stamina": 0, "slot": {"capacity": 1, "instance_ids": [2], "usage": 1}, "next_action_instance_id": 3}
     },
     {
       "id": "replacement-rejected-atomically",
       "stamina": 4,
-      "tick_state_digests": ["2e77689de3cd8fd5f57fe449ce501af24b223504cadd74eaa3f15ce40e0a147b", "beaaf9f0ed6de25ef2b12b0d6727734968dd6663d4def2ceb2bee7c9de2b1791"],
-      "final_state_digest": "beaaf9f0ed6de25ef2b12b0d6727734968dd6663d4def2ceb2bee7c9de2b1791",
-      "expected": {"tick": 2, "lifecycle": {"1": "RUNNING"}, "definitions": {"1": "3f9216b1cfe2dc752e172a23331c6d7fd09c5e82e4e96fd26d62d13f13ba15a3"}, "transition_serials": {"1": 0}, "stamina": 4, "slot": {"capacity": 1, "instance_ids": [1], "usage": 1}, "next_action_instance_id": 2}
+      "consume_policy": "ON_ATTEMPT",
+      "tick_state_digests": ["4e05b45caebe7c539c9701fa4f16a3c5e231b756612459021bdbc7af4c028245", "0b8300d7ce52aa3cde9d03787584565f81658eafd6aa3306903d8c8815b18503"],
+      "final_state_digest": "0b8300d7ce52aa3cde9d03787584565f81658eafd6aa3306903d8c8815b18503",
+      "expected": {"tick": 2, "lifecycle": {"1": "RUNNING"}, "definitions": {"1": "022ab9cd7dcabc6bf72b742ca04c00d6ad5886f3b9d02272a11184f15fdb14ba"}, "transition_serials": {"1": 0}, "input_buffers": {"1": []}, "stamina": 4, "slot": {"capacity": 1, "instance_ids": [1], "usage": 1}, "next_action_instance_id": 2}
+    },
+    {
+      "id": "replacement-rejected-on-accept-retains-input",
+      "stamina": 4,
+      "consume_policy": "ON_ACCEPT",
+      "tick_state_digests": ["93c7bf3f0ff86cf341573e259acd823b42e2e1efbeea6c4f5f9a19b29a6fc8c2", "8442b38bd1f48a028df508c832cd6e8fd4711e63ae3b765b30b2e4e4d686da38"],
+      "final_state_digest": "8442b38bd1f48a028df508c832cd6e8fd4711e63ae3b765b30b2e4e4d686da38",
+      "expected": {"tick": 2, "lifecycle": {"1": "RUNNING"}, "definitions": {"1": "e589f19550a5b278ce6a555316d0ee4c82bac448bdd043c61b05d78b9a964ecb"}, "transition_serials": {"1": 0}, "input_buffers": {"1": [{"buffer_entry_id": "buffer:replace", "captured_tick": 1, "command_id": "REPLACE", "input_id": "replace", "payload": {}, "priority": 0, "remaining_eligibility_ticks": 2, "sequence": 1}]}, "stamina": 4, "slot": {"capacity": 1, "instance_ids": [1], "usage": 1}, "next_action_instance_id": 2}
     }
   ]
 }
