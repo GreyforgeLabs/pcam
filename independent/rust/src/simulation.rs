@@ -693,7 +693,7 @@ impl SimulationRuntime {
                 .get("defense_fact_id")
                 .and_then(Value::as_str)
                 .map(str::to_owned);
-            let defenses = self.defense_map(&work, target_entity_id, defense_fact_id.as_deref())?;
+            let defenses = self.defense_map(&work, defense_fact_id.as_deref())?;
             let candidate = InteractionCandidate {
                 tick: state.tick,
                 candidate_id: candidate_id.to_owned(),
@@ -1131,12 +1131,13 @@ impl SimulationRuntime {
     fn defense_map(
         &self,
         state: &SimulationState,
-        target_entity_id: u64,
         required_fact_id: Option<&str>,
     ) -> Result<BTreeMap<u64, Option<SemanticFact>>, SimulationError> {
-        let mut options = Vec::new();
+        let mut by_target = BTreeMap::<u64, Vec<(u64, SemanticFact)>>::new();
         for action in &state.action_instances {
-            if action.owner_entity_id != target_entity_id || action.lifecycle_state != "RUNNING" {
+            if action.lifecycle_state != "RUNNING"
+                || domain_frozen(state, action.instance_id, "INTERACTION_RECEPTION")
+            {
                 continue;
             }
             let definition = self
@@ -1155,7 +1156,7 @@ impl SimulationRuntime {
                 {
                     continue;
                 }
-                options.push((
+                by_target.entry(action.owner_entity_id).or_default().push((
                     action.instance_id,
                     SemanticFact {
                         fact_id: binding.fact_id.clone(),
@@ -1168,18 +1169,22 @@ impl SimulationRuntime {
                 ));
             }
         }
-        options.sort_by(|left, right| {
-            left.0
-                .cmp(&right.0)
-                .then_with(|| left.1.fact_id.as_bytes().cmp(right.1.fact_id.as_bytes()))
-        });
-        if options.len() > 1 {
-            return Err(SimulationError::RuntimeFault);
+        let mut defenses = BTreeMap::new();
+        for (target_entity_id, mut options) in by_target {
+            options.sort_by(|left, right| {
+                left.0
+                    .cmp(&right.0)
+                    .then_with(|| left.1.fact_id.as_bytes().cmp(right.1.fact_id.as_bytes()))
+            });
+            if options.len() > 1 {
+                return Err(SimulationError::RuntimeFault);
+            }
+            defenses.insert(
+                target_entity_id,
+                options.into_iter().next().map(|(_, fact)| fact),
+            );
         }
-        Ok(BTreeMap::from([(
-            target_entity_id,
-            options.into_iter().next().map(|(_, fact)| fact),
-        )]))
+        Ok(defenses)
     }
 
     fn arbitration_state(

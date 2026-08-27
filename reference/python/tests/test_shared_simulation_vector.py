@@ -70,6 +70,10 @@ def _post_stage_arbitration_document():
     )
 
 
+def _redirect_runtime_document():
+    return json.loads((ROOT / "tests/vectors/redirect-runtime.json").read_text(encoding="utf-8"))
+
+
 def test_python_typed_strike_matches_shared_full_state_identity_and_tick_digests():
     document = _document()
     expected = document["expected"]
@@ -472,5 +476,35 @@ def test_python_post_stage_arbitrates_transitions_and_defers_target_progression(
     assert run.executor.definition_set_hash == document["definition_set_hash"]
     assert [item["state_digest"] for item in run.traces] == document["tick_state_digests"]
     assert target_steps == document["target_steps_after_each_tick"]
+    assert state.state_hash() == document["final_state_digest"]
+    assert summary == document["expected"]
+
+
+def test_python_redirect_rebinds_each_target_defense_and_commits_to_final_target():
+    document = _redirect_runtime_document()
+    run = run_vector(document)
+    state = run.final_state
+    trace = run.traces[0]
+    summary = {
+        "resources": state.resource_banks,
+        "ledger_count": len(state.interaction_ledgers),
+        "effects": [
+            [
+                effect["effect_class"],
+                effect["effect_id"],
+                effect["payload"],
+                effect["target_entity_id"],
+            ]
+            for effect in trace["typed_effects_emitted"]
+        ],
+        "decision": trace["decision_record_mutations"],
+        "reduced": trace["effect_reduction"],
+    }
+    assert {
+        identifier: definition.definition_hash
+        for identifier, definition in run.executor.definitions_by_id.items()
+    } == document["definition_hashes"]
+    assert run.executor.definition_set_hash == document["definition_set_hash"]
+    assert [item["state_digest"] for item in run.traces] == document["tick_state_digests"]
     assert state.state_hash() == document["final_state_digest"]
     assert summary == document["expected"]

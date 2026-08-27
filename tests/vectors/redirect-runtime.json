@@ -1,0 +1,267 @@
+{
+  "pcam_vector_version": "1",
+  "kind": "runtime_vector",
+  "id": "redirect-runtime",
+  "runtime_profile": {
+    "pcam_version": "3.0",
+    "kind": "runtime_profile",
+    "id": "pcam.reference.redirect-runtime.v1",
+    "revision": 1,
+    "fault_policy": "ABORT_SIMULATION",
+    "limits": {
+      "max_actions_per_entity": 8,
+      "max_action_nesting_depth": 4,
+      "max_children_per_action": 4,
+      "max_quanta_per_action_per_tick": 8,
+      "max_internal_transitions_per_action_per_tick": 8,
+      "max_buffer_entries_per_action": 8,
+      "max_pending_events_per_entity": 8,
+      "max_candidates_per_tick": 32,
+      "max_effects_per_tick": 32,
+      "max_redirects_per_candidate": 4,
+      "max_definition_size_bytes": 65536,
+      "max_snapshot_size_bytes": 262144,
+      "max_extension_state_bytes": 4096,
+      "max_expression_depth": 64,
+      "max_expression_nodes": 4096
+    },
+    "rng_profiles": ["pcam.pcg32.v1"],
+    "network_profiles": [
+      {"id": "pcam.local.v1", "topology": "LOCAL_DETERMINISTIC"}
+    ],
+    "extensions": {}
+  },
+  "definitions": [
+    {
+      "id": "STRIKER",
+      "rate_scale": 1,
+      "units_per_tick": 0,
+      "nodes": [{"id": "ACTIVE", "mode": "EVENT_DRIVEN"}],
+      "predicates": [{"id": "ACTIVE", "node_ids": ["ACTIVE"]}],
+      "semantic_facts": [
+        {
+          "fact": {
+            "fact_id": "strike",
+            "direction": "OFFENSE",
+            "channels": ["STRIKE"],
+            "effect_templates": [
+              {
+                "effect_type": "combat.damage",
+                "effect_class": "DAMAGE",
+                "payload": 30,
+                "reducer": "SUM"
+              }
+            ]
+          },
+          "when_predicate": "ACTIVE",
+          "hit_policy": {
+            "kind": "ONCE_PER_ACTION_INSTANCE",
+            "receipt_on": "ON_IMPACT"
+          }
+        }
+      ]
+    },
+    {
+      "id": "REDIRECTOR_THREE",
+      "rate_scale": 1,
+      "units_per_tick": 0,
+      "nodes": [{"id": "ACTIVE", "mode": "EVENT_DRIVEN"}],
+      "predicates": [{"id": "ACTIVE", "node_ids": ["ACTIVE"]}],
+      "semantic_facts": [
+        {
+          "fact": {
+            "fact_id": "guard",
+            "direction": "DEFENSE",
+            "tags": ["REDIRECT_3"]
+          },
+          "when_predicate": "ACTIVE",
+          "hit_policy": {"kind": "UNBOUNDED", "receipt_on": "ON_CONTACT"}
+        }
+      ]
+    },
+    {
+      "id": "REDIRECTOR_FOUR",
+      "rate_scale": 1,
+      "units_per_tick": 0,
+      "nodes": [{"id": "ACTIVE", "mode": "EVENT_DRIVEN"}],
+      "predicates": [{"id": "ACTIVE", "node_ids": ["ACTIVE"]}],
+      "semantic_facts": [
+        {
+          "fact": {
+            "fact_id": "guard",
+            "direction": "DEFENSE",
+            "tags": ["REDIRECT_4"]
+          },
+          "when_predicate": "ACTIVE",
+          "hit_policy": {"kind": "UNBOUNDED", "receipt_on": "ON_CONTACT"}
+        }
+      ]
+    },
+    {
+      "id": "ARMORED_TARGET",
+      "rate_scale": 1,
+      "units_per_tick": 0,
+      "nodes": [{"id": "ACTIVE", "mode": "EVENT_DRIVEN"}],
+      "predicates": [{"id": "ACTIVE", "node_ids": ["ACTIVE"]}],
+      "semantic_facts": [
+        {
+          "fact": {
+            "fact_id": "guard",
+            "direction": "DEFENSE",
+            "tags": ["ARMOR"]
+          },
+          "when_predicate": "ACTIVE",
+          "hit_policy": {"kind": "UNBOUNDED", "receipt_on": "ON_CONTACT"}
+        }
+      ]
+    }
+  ],
+  "interaction_rules": [
+    {
+      "rule_id": "redirect-three",
+      "stage": "ROUTING",
+      "order": 10,
+      "condition": {
+        "op": "contains",
+        "args": [{"ref": "defense.tags"}, {"literal": "REDIRECT_3"}]
+      },
+      "operations": [{"op": "REDIRECT", "data": {"target_entity_id": 3}}]
+    },
+    {
+      "rule_id": "redirect-four",
+      "stage": "ROUTING",
+      "order": 20,
+      "condition": {
+        "op": "contains",
+        "args": [{"ref": "defense.tags"}, {"literal": "REDIRECT_4"}]
+      },
+      "operations": [{"op": "REDIRECT", "data": {"target_entity_id": 4}}]
+    },
+    {
+      "rule_id": "armor",
+      "stage": "MODIFICATION",
+      "order": 10,
+      "condition": {
+        "op": "contains",
+        "args": [{"ref": "defense.tags"}, {"literal": "ARMOR"}]
+      },
+      "operations": [
+        {
+          "op": "SCALE_EFFECT_CLASS",
+          "data": {"effect_class": "DAMAGE", "numerator": 1, "denominator": 2}
+        }
+      ]
+    },
+    {
+      "rule_id": "materialize",
+      "stage": "MATERIALIZATION",
+      "order": 10,
+      "condition": {"literal": true},
+      "operations": [{"op": "MATERIALIZE"}]
+    }
+  ],
+  "effect_registry": {"combat.damage": ["hp", -1]},
+  "initial_state": {
+    "resource_banks": {
+      "2": {"hp": 100},
+      "3": {"hp": 100},
+      "4": {"hp": 100}
+    },
+    "slot_capacities": {}
+  },
+  "ticks": [
+    {
+      "inputs": [
+        {
+          "input_id": "start-striker",
+          "source_entity_id": 1,
+          "sequence": 0,
+          "command_id": "START",
+          "assigned_tick": 0,
+          "action_definition_id": "STRIKER"
+        },
+        {
+          "input_id": "start-three",
+          "source_entity_id": 2,
+          "sequence": 0,
+          "command_id": "START",
+          "assigned_tick": 0,
+          "action_definition_id": "REDIRECTOR_THREE"
+        },
+        {
+          "input_id": "start-four",
+          "source_entity_id": 3,
+          "sequence": 0,
+          "command_id": "START",
+          "assigned_tick": 0,
+          "action_definition_id": "REDIRECTOR_FOUR"
+        },
+        {
+          "input_id": "start-armored",
+          "source_entity_id": 4,
+          "sequence": 0,
+          "command_id": "START",
+          "assigned_tick": 0,
+          "action_definition_id": "ARMORED_TARGET"
+        }
+      ],
+      "contacts": [
+        {
+          "candidate_id": "redirected-strike",
+          "source_instance_id": 1,
+          "source_entity_id": 1,
+          "target_entity_id": 2,
+          "fact_id": "strike",
+          "defense_fact_id": "guard",
+          "contact_id": "contact"
+        }
+      ]
+    }
+  ],
+  "definition_hashes": {
+    "STRIKER": "b8d1b04a6fa4b4e17d8c046201d0b3bb777923c5bd2d9aac605a47d92cabe269",
+    "REDIRECTOR_THREE": "7626c2af9a3b14255b732810fee73acc4981507277675bb1b757eabe41d819a5",
+    "REDIRECTOR_FOUR": "7bb6287cfe1d27b1bb5a73dae7242aea250af92be6dd7b99769fb4187ab85f4d",
+    "ARMORED_TARGET": "5f7640dd412fe7bdccd169f3599ec0abdef8c2612a4e2735873de945d36be1fc"
+  },
+  "definition_set_hash": "69d364d14faf0c90da2944dcdf67c2ed4ce7a6684669d99252c789e3857469bc",
+  "tick_state_digests": [
+    "05a1c9e47aed8bf5e24cd0037c5fef6a6f4f3890fcc4185b32f35b0358b25284"
+  ],
+  "final_state_digest": "05a1c9e47aed8bf5e24cd0037c5fef6a6f4f3890fcc4185b32f35b0358b25284",
+  "expected": {
+    "resources": {
+      "2": {"hp": 100},
+      "3": {"hp": 100},
+      "4": {"hp": 85}
+    },
+    "ledger_count": 1,
+    "effects": [
+      ["DAMAGE", "0:1:redirected-strike:materialize:0:0", 15, 4]
+    ],
+    "decision": [
+      {
+        "accepted": true,
+        "candidate_id": "redirected-strike",
+        "decision_tags": [],
+        "receipt_written": true,
+        "redirect_count": 2,
+        "rules_fired": [
+          {"rule_id": "redirect-three", "stage": "ROUTING", "order": 10},
+          {"rule_id": "redirect-four", "stage": "ROUTING", "order": 20},
+          {"rule_id": "armor", "stage": "MODIFICATION", "order": 10},
+          {"rule_id": "materialize", "stage": "MATERIALIZATION", "order": 10}
+        ]
+      }
+    ],
+    "reduced": [
+      {
+        "effect_type": "combat.damage",
+        "reducer": "SUM",
+        "source_effect_ids": ["0:1:redirected-strike:materialize:0:0"],
+        "target_entity_id": 4,
+        "value": 15
+      }
+    ]
+  }
+}
