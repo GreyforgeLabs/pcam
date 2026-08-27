@@ -4,9 +4,12 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+from .buffers import BufferEntry, apply_consumption, capture_entry, end_tick as expire_buffers, select_entry
 from .canonical import canonical_hash
 from .errors import PCAMError, PCAMFault, ResultCode
+from .freezes import end_tick as expire_freezes, is_frozen, progression_accrual
 from .model import ActionDefinition, Contact, Effect, HostSnapshot, RuntimeProfile, TickInput, TransitionDefinition, validate_definition
+from .numeric import apply_u64
 from .state import ActionInstance, SimulationState
 
 
@@ -60,10 +63,11 @@ class TickExecutor:
 
         self._stage(trace, 2, "input_ingestion")
         start_inputs = self._eligible_inputs(work.tick, inputs)
+        work = self._capture_inputs(work, start_inputs)
         trace["input_order"] = [item.input_id for item in start_inputs]
 
         self._stage(trace, 3, "pre_advance_intent_evaluation")
-        pre_intents = self._evaluate_transitions(work, "PRE_ADVANCE", start_inputs)
+        pre_intents = self._evaluate_transitions(work, "PRE_ADVANCE")
 
         self._stage(trace, 4, "pre_advance_arbitration")
         for instance_id, intent in pre_intents:
@@ -86,7 +90,7 @@ class TickExecutor:
                 trace.setdefault("node_changes", []).extend(node_changes)  # type: ignore[union-attr]
 
         self._stage(trace, 6, "post_advance_intent_evaluation_and_arbitration")
-        for instance_id, intent in self._evaluate_transitions(work, "POST_ADVANCE", start_inputs):
+        for instance_id, intent in self._evaluate_transitions(work, "POST_ADVANCE"):
             work, emitted = self._apply_transition(work, instance_id, intent)
             effects.extend(emitted)
 
@@ -120,6 +124,7 @@ class TickExecutor:
         trace["effects_emitted"] = [effect.__dict__ for effect in effects]
 
         self._stage(trace, 11, "maintenance")
+        work = self._maintenance(work)
         self._validate_limits(work, len(candidates), len(effects))
 
         self._stage(trace, 12, "snapshot_and_digest")
@@ -172,27 +177,57 @@ class TickExecutor:
         actions[str(instance_id)] = action
         return replace(state, action_instances=actions, next_action_instance_id=instance_id + 1)
 
+    def _capture_inputs(self, state: SimulationState, inputs: list[TickInput]) -> SimulationState:
+        for key in sorted(state.action_instances, key=int):
+            action = state.action_instances[key]
+            if action.lifecycle_state not in {"RUNNING", "SUSPENDED"}:
+                continue
+            if is_frozen(state.freeze_tokens, state.tick, action.instance_id, "INPUT_CAPTURE"):
+                continue
+            definition = self.definitions_by_hash[action.definition_hash]
+            entries = action.input_buffer
+            for tick_input in inputs:
+                if tick_input.source_entity_id != action.owner_entity_id:
+                    continue
+                entry = BufferEntry.capture(tick_input, lifetime=definition.default_buffer_lifetime)
+                entries = capture_entry(
+                    entries,
+                    entry,
+                    capacity=definition.buffer_capacity,
+                    overflow_policy=definition.buffer_overflow_policy,
+                )
+            state = _put_action(state, replace(action, input_buffer=entries))
+        return state
+
     def _progress_action(
         self,
         state: SimulationState,
         action: ActionInstance,
         definition: ActionDefinition,
     ) -> tuple[SimulationState, list[Effect], int, list[dict[str, object]]]:
-        accumulator = action.quantum_accumulator + action.current_rate_units
-        quanta = accumulator // definition.rate_scale
+        freeze_policy = progression_accrual(state.freeze_tokens, state.tick, action.instance_id)
+        if freeze_policy == "HOLD":
+            return state, [], 0, []
+        accumulator = apply_u64(action.quantum_accumulator + action.current_rate_units)
+        generated_quanta = accumulator // definition.rate_scale
         accumulator = accumulator % definition.rate_scale
+        if freeze_policy == "ACCRUE":
+            deferred = apply_u64(action.deferred_quanta + generated_quanta)
+            frozen = replace(action, quantum_accumulator=accumulator, deferred_quanta=deferred)
+            return _put_action(state, frozen), [], 0, []
+        quanta = apply_u64(generated_quanta + action.deferred_quanta)
         if quanta > self.profile.max_quanta_per_action_per_tick:
             raise PCAMError(ResultCode.RUNTIME_FAULT, PCAMFault.QUANTUM_LIMIT_EXCEEDED, str(action.instance_id))
         effects: list[Effect] = []
         changes: list[dict[str, object]] = []
-        current = replace(action, quantum_accumulator=accumulator)
+        current = replace(action, quantum_accumulator=accumulator, deferred_quanta=0)
         transition_count = 0
         for _ in range(quanta):
             if current.lifecycle_state != "RUNNING":
                 break
             current = replace(current, local_step=current.local_step + 1, node_step=current.node_step + 1)
             state = _put_action(state, current)
-            transition = self._select_transition(current, definition, "AFTER_QUANTUM", ())
+            transition = self._select_transition(current, definition, "AFTER_QUANTUM")
             if transition:
                 transition_count += 1
                 if transition_count > self.profile.max_internal_transitions_per_action_per_tick:
@@ -208,14 +243,16 @@ class TickExecutor:
         self,
         state: SimulationState,
         point: str,
-        inputs: tuple[TickInput, ...] | list[TickInput],
     ) -> list[tuple[int, TransitionDefinition]]:
         selected: list[tuple[int, TransitionDefinition]] = []
         for key in sorted(state.action_instances, key=lambda item: int(item)):
             action = state.action_instances[key]
             if action.lifecycle_state == "RUNNING":
+                domain = "PRE_ADVANCE_TRANSITIONS" if point == "PRE_ADVANCE" else "POST_ADVANCE_TRANSITIONS"
+                if is_frozen(state.freeze_tokens, state.tick, action.instance_id, domain):
+                    continue
                 definition = self.definitions_by_hash[action.definition_hash]
-                transition = self._select_transition(action, definition, point, inputs)
+                transition = self._select_transition(action, definition, point)
                 if transition:
                     selected.append((action.instance_id, transition))
         return sorted(selected, key=lambda item: item[0])
@@ -225,14 +262,12 @@ class TickExecutor:
         action: ActionInstance,
         definition: ActionDefinition,
         point: str,
-        inputs: tuple[TickInput, ...] | list[TickInput],
     ) -> TransitionDefinition | None:
         eligible = []
-        input_commands = {item.command_id for item in inputs}
         for transition in definition.transitions:
             if transition.source_node != action.current_node_id or transition.evaluation_point != point:
                 continue
-            if transition.input_command and transition.input_command not in input_commands:
+            if transition.input_command and select_entry(action.input_buffer, transition.input_command) is None:
                 continue
             if transition.guard_predicate and not action.predicate_truth_state.get(transition.guard_predicate, False):
                 continue
@@ -248,6 +283,7 @@ class TickExecutor:
         action = state.action_instances.get(str(instance_id))
         if action is None or action.current_node_id != transition.source_node or action.lifecycle_state != "RUNNING":
             return state, []
+        matched_input = select_entry(action.input_buffer, transition.input_command) if transition.input_command else None
         if transition.target_kind == "TERMINATE":
             action = replace(action, lifecycle_state="TERMINATED", transition_serial=action.transition_serial + 1)
         elif transition.target_kind == "FAULT":
@@ -260,6 +296,16 @@ class TickExecutor:
                 node_step=transition.target_step,
                 transition_serial=action.transition_serial + 1,
             )
+        action = replace(
+            action,
+            input_buffer=apply_consumption(
+                action.input_buffer,
+                matched_input,
+                transition.consume_policy,
+                accepted=True,
+                attempted=True,
+            ),
+        )
         return _put_action(state, action), list(transition.effects)
 
     def _semantic_snapshot(self, state: SimulationState) -> tuple[SimulationState, list[dict[str, object]], list[str]]:
@@ -328,6 +374,16 @@ class TickExecutor:
     def _validate_limits(self, state: SimulationState, candidate_count: int, effect_count: int) -> None:
         if candidate_count > self.profile.max_candidates_per_tick or effect_count > self.profile.max_effects_per_tick:
             raise PCAMError(ResultCode.RUNTIME_FAULT, PCAMFault.STATE_INVARIANT_FAILURE, str(state.tick))
+
+    def _maintenance(self, state: SimulationState) -> SimulationState:
+        for key in sorted(state.action_instances, key=int):
+            action = state.action_instances[key]
+            expiry_frozen = is_frozen(state.freeze_tokens, state.tick, action.instance_id, "BUFFER_EXPIRY")
+            state = _put_action(
+                state,
+                replace(action, input_buffer=expire_buffers(action.input_buffer, expiry_frozen)),
+            )
+        return replace(state, freeze_tokens=expire_freezes(state.freeze_tokens, state.tick))
 
     @staticmethod
     def _stage(trace: dict[str, object], index: int, name: str) -> None:

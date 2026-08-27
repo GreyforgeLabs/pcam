@@ -1,7 +1,10 @@
+from dataclasses import replace
+
 from pcam_runtime import (
     ActionDefinition,
     Contact,
     Effect,
+    FreezeToken,
     HostSnapshot,
     NodeDefinition,
     PredicateDefinition,
@@ -105,6 +108,7 @@ def test_once_per_action_ledger_effect_commit_snapshot_restore_and_digest_equiva
     assert [receipt["accepted"] for receipt in trace["decision_record_mutations"]] == [True, False]
 
     snapshot = executor.save(state)
+    assert snapshot["pcam_version"] == "3.0"
     restored = executor.restore(snapshot)
     assert restored.to_snapshot() == state.to_snapshot()
     assert restored.state_hash() == state.state_hash()
@@ -131,3 +135,69 @@ def test_rollback_correction_matches_direct_correct_execution():
     )
     assert traces[-1]["state_digest"] == direct.state_hash()
     assert corrected.to_snapshot() == direct.to_snapshot()
+
+
+def test_buffered_pre_advance_input_is_consumed_on_transition_accept():
+    definition = ActionDefinition(
+        id="BUFFERED",
+        rate_scale=1,
+        units_per_tick=0,
+        nodes=(NodeDefinition(id="WAIT"), NodeDefinition(id="DONE")),
+        transitions=(
+            TransitionDefinition(
+                id="accept_dodge",
+                source_node="WAIT",
+                evaluation_point="PRE_ADVANCE",
+                priority=10,
+                input_command="DODGE",
+                target_node="DONE",
+            ),
+        ),
+        default_buffer_lifetime=2,
+    )
+    executor = TickExecutor((definition,))
+    state = executor.initial_state()
+    start = TickInput("start", 1, 0, "START", 0, action_definition_id="BUFFERED")
+    state, _ = executor.tick(state, (start,))
+    dodge = TickInput("dodge", 1, 1, "DODGE", 1)
+    state, _ = executor.tick(state, (dodge,))
+    action = state.action_instances["1"]
+    assert action.current_node_id == "DONE"
+    assert action.input_buffer == ()
+
+
+def test_progression_freeze_hold_and_accrue_are_authoritative():
+    definition = ActionDefinition(
+        id="FREEZE",
+        rate_scale=1,
+        units_per_tick=1,
+        nodes=(NodeDefinition(id="RUN"),),
+    )
+    executor = TickExecutor((definition,))
+    state = executor.initial_state()
+    start = TickInput("start", 1, 0, "START", 0, action_definition_id="FREEZE")
+    state, _ = executor.tick(state, (start,))
+    assert state.action_instances["1"].local_step == 1
+
+    hold = FreezeToken.created(1, 1, 1, creation_tick=0, duration=1, domains=("PROGRESSION",))
+    state = replace(state, freeze_tokens=(hold,))
+    state, _ = executor.tick(state)
+    assert state.action_instances["1"].local_step == 1
+    assert state.freeze_tokens == ()
+
+    accrue = FreezeToken.created(
+        2,
+        1,
+        1,
+        creation_tick=1,
+        duration=1,
+        domains=("PROGRESSION",),
+        accrual_policy="ACCRUE",
+    )
+    state = replace(state, freeze_tokens=(accrue,))
+    state, _ = executor.tick(state)
+    assert state.action_instances["1"].local_step == 1
+    assert state.action_instances["1"].deferred_quanta == 1
+    state, _ = executor.tick(state)
+    assert state.action_instances["1"].local_step == 3
+    assert state.action_instances["1"].deferred_quanta == 0

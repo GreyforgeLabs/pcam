@@ -5,7 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from typing import Literal
 
+from .buffers import BufferEntry
 from .canonical import canonical_hash
+from .freezes import FreezeToken
 
 
 @dataclass(frozen=True)
@@ -21,9 +23,10 @@ class ActionInstance:
     cycle: int = 0
     transition_serial: int = 0
     quantum_accumulator: int = 0
+    deferred_quanta: int = 0
     current_rate_units: int = 0
     captured_parameters: dict[str, object] = field(default_factory=dict)
-    input_buffer: tuple[dict[str, object], ...] = ()
+    input_buffer: tuple[BufferEntry, ...] = ()
     event_inbox: tuple[dict[str, object], ...] = ()
     freeze_token_references: tuple[int, ...] = ()
     parent_instance_id: int | None = None
@@ -51,7 +54,7 @@ class SimulationState:
     pending_inputs: tuple[dict[str, object], ...] = ()
     input_buffers: dict[str, object] = field(default_factory=dict)
     pending_events: tuple[dict[str, object], ...] = ()
-    freeze_tokens: tuple[dict[str, object], ...] = ()
+    freeze_tokens: tuple[FreezeToken, ...] = ()
     interaction_ledgers: dict[str, dict[str, object]] = field(default_factory=dict)
     rng_streams: dict[str, object] = field(default_factory=dict)
     next_action_instance_id: int = 1
@@ -74,7 +77,7 @@ class SimulationState:
             "entity_records": self.entity_records,
             "extension_state": self.extension_state,
             "fault_state": self.fault_state,
-            "freeze_tokens": list(self.freeze_tokens),
+            "freeze_tokens": [_freeze_snapshot(token) for token in self.freeze_tokens],
             "host_state": self.host_state,
             "input_buffers": self.input_buffers,
             "interaction_ledgers": self.interaction_ledgers,
@@ -98,7 +101,17 @@ class SimulationState:
         for value in action_values:
             if not isinstance(value, dict):
                 raise ValueError("snapshot action instance must be an object")
-            action = ActionInstance(**value)  # type: ignore[arg-type]
+            normalized = dict(value)
+            normalized["input_buffer"] = tuple(BufferEntry(**item) for item in value.get("input_buffer", ()))
+            for tuple_field in (
+                "slot_claims",
+                "event_inbox",
+                "freeze_token_references",
+                "child_instance_ids",
+                "rng_stream_ids",
+            ):
+                normalized[tuple_field] = tuple(value.get(tuple_field, ()))
+            action = ActionInstance(**normalized)  # type: ignore[arg-type]
             actions[str(action.instance_id)] = action
         return cls(
             tick=int(snapshot["tick"]),
@@ -110,7 +123,10 @@ class SimulationState:
             pending_inputs=tuple(snapshot.get("pending_inputs", ())),  # type: ignore[arg-type]
             input_buffers=dict(snapshot.get("input_buffers", {})),
             pending_events=tuple(snapshot.get("pending_events", ())),  # type: ignore[arg-type]
-            freeze_tokens=tuple(snapshot.get("freeze_tokens", ())),  # type: ignore[arg-type]
+            freeze_tokens=tuple(
+                FreezeToken(**{**item, "domains": tuple(item["domains"])})
+                for item in snapshot.get("freeze_tokens", ())
+            ),  # type: ignore[arg-type]
             interaction_ledgers=dict(snapshot.get("interaction_ledgers", {})),
             rng_streams=dict(snapshot.get("rng_streams", {})),
             next_action_instance_id=int(snapshot.get("next_action_instance_id", 1)),
@@ -135,6 +151,7 @@ def _instance_snapshot(instance: ActionInstance) -> dict[str, object]:
         "child_instance_ids": list(instance.child_instance_ids),
         "cycle": instance.cycle,
         "definition_hash": instance.definition_hash,
+        "deferred_quanta": instance.deferred_quanta,
         "emission_serial": instance.emission_serial,
         "event_inbox": list(instance.event_inbox),
         "extension_state": instance.extension_state,
@@ -154,7 +171,35 @@ def _instance_snapshot(instance: ActionInstance) -> dict[str, object]:
         "registers": instance.registers,
         "rng_stream_ids": list(instance.rng_stream_ids),
         "slot_claims": list(instance.slot_claims),
-        "input_buffer": list(instance.input_buffer),
+        "input_buffer": [_buffer_snapshot(item) for item in instance.input_buffer],
         "interaction_ledger_partition": instance.interaction_ledger_partition,
         "transition_serial": instance.transition_serial,
+    }
+
+
+def _buffer_snapshot(entry: BufferEntry) -> dict[str, object]:
+    return {
+        "buffer_entry_id": entry.buffer_entry_id,
+        "captured_tick": entry.captured_tick,
+        "command_id": entry.command_id,
+        "input_id": entry.input_id,
+        "payload": entry.payload,
+        "priority": entry.priority,
+        "remaining_eligibility_ticks": entry.remaining_eligibility_ticks,
+        "sequence": entry.sequence,
+    }
+
+
+def _freeze_snapshot(token: FreezeToken) -> dict[str, object]:
+    return {
+        "accrual_policy": token.accrual_policy,
+        "activation_tick": token.activation_tick,
+        "domains": list(token.domains),
+        "metadata": token.metadata,
+        "remaining_ticks": token.remaining_ticks,
+        "source_id": token.source_id,
+        "stack_group": token.stack_group,
+        "stack_policy": token.stack_policy,
+        "target_id": token.target_id,
+        "token_id": token.token_id,
     }

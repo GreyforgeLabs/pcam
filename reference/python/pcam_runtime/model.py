@@ -58,6 +58,7 @@ class TransitionDefinition:
     target_step: int = 0
     guard_predicate: str | None = None
     input_command: str | None = None
+    consume_policy: Literal["ON_ACCEPT", "ON_ATTEMPT", "NEVER"] = "ON_ACCEPT"
     effects: tuple["Effect", ...] = ()
 
 
@@ -83,6 +84,9 @@ class ActionDefinition:
     nodes: tuple[NodeDefinition, ...]
     predicates: tuple[PredicateDefinition, ...] = ()
     transitions: tuple[TransitionDefinition, ...] = ()
+    buffer_capacity: int = 8
+    buffer_overflow_policy: Literal["DROP_OLDEST", "DROP_NEWEST", "FAULT"] = "DROP_OLDEST"
+    default_buffer_lifetime: int = 1
     metadata: dict[str, object] = field(default_factory=dict)
 
     @property
@@ -96,6 +100,11 @@ class ActionDefinition:
             "nodes": [node.__dict__ for node in self.nodes],
             "predicates": [predicate.__dict__ for predicate in self.predicates],
             "rate": {"scale": self.rate_scale, "units_per_tick": self.units_per_tick},
+            "buffer": {
+                "capacity": self.buffer_capacity,
+                "default_lifetime": self.default_buffer_lifetime,
+                "overflow_policy": self.buffer_overflow_policy,
+            },
             "transitions": [
                 {
                     **transition.__dict__,
@@ -152,6 +161,8 @@ def validate_definition(definition: ActionDefinition) -> None:
         raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.DIVISION_BY_ZERO, definition.id)
     if definition.units_per_tick < 0:
         raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.INTEGER_OVERFLOW, definition.id)
+    if definition.buffer_capacity < 0 or definition.default_buffer_lifetime <= 0:
+        raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.STATE_INVARIANT_FAILURE, definition.id)
     node_ids = {node.id for node in definition.nodes}
     predicate_ids = {predicate.id for predicate in definition.predicates}
     if not definition.nodes:

@@ -84,7 +84,8 @@ def add_token(tokens: tuple[FreezeToken, ...], token: FreezeToken) -> tuple[Free
     if token.stack_policy in {"MAX_DURATION", "SUM_DURATION"} and group:
         _require_compatible_group(group, token)
         if token.stack_policy == "SUM_DURATION":
-            latest_expiration = max(item.expiration_tick for item in group)
+            current_tick = token.activation_tick - 1
+            latest_expiration = max(_expiration_exclusive(item, current_tick) for item in group)
             token = replace(token, activation_tick=max(token.activation_tick, latest_expiration))
     return canonical_tokens((*tokens, token))
 
@@ -122,7 +123,7 @@ def end_tick(tokens: tuple[FreezeToken, ...], tick: int) -> tuple[FreezeToken, .
         if token.activation_tick <= tick:
             remaining = token.remaining_ticks - 1
             if remaining > 0:
-                updated.append(replace(token, remaining_ticks=remaining, activation_tick=tick + 1))
+                updated.append(replace(token, remaining_ticks=remaining))
         else:
             updated.append(token)
     return canonical_tokens(tuple(updated))
@@ -144,3 +145,9 @@ def _require_compatible_group(group: tuple[FreezeToken, ...], token: FreezeToken
                 PCAMFault.STATE_INVARIANT_FAILURE,
                 "MAX_DURATION and SUM_DURATION groups require identical domains, accrual, and stack policy",
             )
+
+
+def _expiration_exclusive(token: FreezeToken, current_tick: int) -> int:
+    if token.activation_tick > current_tick:
+        return token.activation_tick + token.remaining_ticks
+    return current_tick + token.remaining_ticks

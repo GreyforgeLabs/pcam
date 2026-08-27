@@ -20,4 +20,4 @@ The Python reference currently uses `(target_id, stack_group)` as the group key,
 
 ## Deferred progression state
 
-Section 10.3 requires generated quanta under `ACCRUE` to remain authoritative state. The §7.3 minimum action-instance field list does not name a deferred-quanta field. The implementation must serialize such state, and the specification should name it explicitly.
+Section 10.3 requires generated quanta under `ACCRUE` to remain authoritative state. The §7.3 minimum action-instance field list does not name a deferred-quanta field. The Python reference now serializes `deferred_quanta`; the specification should still name it explicitly before the issue closes.

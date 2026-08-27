@@ -21,6 +21,7 @@ def test_freeze_activates_next_tick_for_exact_duration():
     assert not is_frozen((token,), tick=4, target_id=20, domain="PROGRESSION")
     assert is_frozen((token,), tick=5, target_id=20, domain="PROGRESSION")
     after_first = expire_freeze_tokens((token,), tick=5)
+    assert after_first[0].activation_tick == 5
     assert is_frozen(after_first, tick=6, target_id=20, domain="PROGRESSION")
     assert expire_freeze_tokens(after_first, tick=6) == ()
 
