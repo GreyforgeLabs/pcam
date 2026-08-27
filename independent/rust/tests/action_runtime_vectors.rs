@@ -1,6 +1,6 @@
 use pcam_independent::action::{
-    ActionDefinition, ActionError, RuntimeLimits, TickInput, start, tick_with_inputs,
-    validate_definition,
+    ActionDefinition, ActionError, FreezeControls, RuntimeLimits, TickInput, start,
+    tick_with_controls, validate_definition,
 };
 use serde::Deserialize;
 use serde_json::Value;
@@ -37,6 +37,8 @@ struct Case {
     ticks: usize,
     #[serde(default)]
     inputs: Vec<Vec<TickInput>>,
+    #[serde(default)]
+    freezes: Vec<FreezeControls>,
     expected: Vec<Value>,
 }
 
@@ -90,7 +92,8 @@ fn independent_runtime_matches_shared_progression_and_transition_vectors() {
         assert_eq!(case.ticks, case.expected.len(), "{}", case.id);
         let mut action = start(&case.definition).unwrap();
         for (tick_index, expected) in case.expected.iter().enumerate() {
-            tick_with_inputs(
+            let default_freezes = FreezeControls::default();
+            tick_with_controls(
                 &mut action,
                 &case.definition,
                 vectors.limits.clone().into(),
@@ -100,6 +103,7 @@ fn independent_runtime_matches_shared_progression_and_transition_vectors() {
                     .get(tick_index)
                     .map(Vec::as_slice)
                     .unwrap_or(&[]),
+                case.freezes.get(tick_index).unwrap_or(&default_freezes),
             )
             .unwrap();
             assert_expected(&serde_json::to_value(&action).unwrap(), expected, &case.id);
@@ -114,7 +118,7 @@ fn independent_runtime_matches_shared_limit_faults() {
         let mut error = None;
         for tick_index in 0..=case.fault_tick {
             let before = action.clone();
-            error = tick_with_inputs(
+            error = tick_with_controls(
                 &mut action,
                 &case.definition,
                 case.limits.clone().into(),
@@ -124,6 +128,7 @@ fn independent_runtime_matches_shared_limit_faults() {
                     .get(tick_index)
                     .map(Vec::as_slice)
                     .unwrap_or(&[]),
+                &FreezeControls::default(),
             )
             .err();
             if error.is_some() {

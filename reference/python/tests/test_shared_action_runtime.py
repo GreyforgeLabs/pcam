@@ -1,10 +1,12 @@
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
 from pcam_runtime import (
     ActionDefinition,
+    FreezeToken,
     NodeDefinition,
     PCAMError,
     PredicateDefinition,
@@ -47,6 +49,7 @@ def _projection(action):
         "local_step": action.local_step,
         "transition_serial": action.transition_serial,
         "quantum_accumulator": action.quantum_accumulator,
+        "deferred_quanta": action.deferred_quanta,
         "predicate_truth_state": action.predicate_truth_state,
         "predicate_entry_serials": action.predicate_entry_serials,
         "predicate_exit_serials": action.predicate_exit_serials,
@@ -58,6 +61,32 @@ def _vectors():
     return json.loads((ROOT / "tests/vectors/action-runtime.json").read_text(encoding="utf-8"))
 
 
+def _apply_freezes(state, directive, tick_index):
+    domains = []
+    if directive.get("progression"):
+        domains.append("PROGRESSION")
+    if directive.get("pre_advance_transitions"):
+        domains.append("PRE_ADVANCE_TRANSITIONS")
+    if directive.get("post_advance_transitions"):
+        domains.append("POST_ADVANCE_TRANSITIONS")
+    if directive.get("input_capture"):
+        domains.append("INPUT_CAPTURE")
+    if directive.get("buffer_expiry"):
+        domains.append("BUFFER_EXPIRY")
+    if not domains:
+        return replace(state, freeze_tokens=())
+    token = FreezeToken.created(
+        token_id=1000 + tick_index,
+        source_id=99,
+        target_id=1,
+        creation_tick=tick_index - 1,
+        duration=1,
+        domains=tuple(domains),
+        accrual_policy=directive.get("progression", "HOLD"),
+    )
+    return replace(state, freeze_tokens=(token,))
+
+
 def test_python_runtime_matches_shared_progression_and_transition_vectors():
     vectors = _vectors()
     for case in vectors["cases"]:
@@ -65,6 +94,7 @@ def test_python_runtime_matches_shared_progression_and_transition_vectors():
         executor = TickExecutor((definition,), profile=_profile(vectors["limits"]))
         state = executor.initial_state()
         for tick_index, expected in enumerate(case["expected"]):
+            state = _apply_freezes(state, case.get("freezes", [{}] * case["ticks"])[tick_index], tick_index)
             inputs = tuple(TickInput(**item) for item in case.get("inputs", [])[tick_index]) if case.get("inputs") else ()
             if tick_index == 0:
                 inputs = (*inputs,

@@ -195,6 +195,77 @@
         {"input_buffer": [{"buffer_entry_id": "buffer:a", "input_id": "a", "command_id": "A", "payload": {}, "captured_tick": 1, "remaining_eligibility_ticks": 1, "priority": 0, "sequence": 1}]},
         {"input_buffer": []}
       ]
+    },
+    {
+      "id": "progression-freeze-hold-and-accrue",
+      "definition": {
+        "id": "FREEZE_PROGRESSION",
+        "rate": {"scale": 1, "units_per_tick": 1},
+        "initial_node": "RUN",
+        "nodes": [{"id": "RUN", "mode": "EVENT_DRIVEN"}],
+        "transitions": []
+      },
+      "ticks": 4,
+      "freezes": [{}, {"progression": "HOLD"}, {"progression": "ACCRUE"}, {}],
+      "expected": [
+        {"local_step": 1, "quantum_accumulator": 0, "deferred_quanta": 0},
+        {"local_step": 1, "quantum_accumulator": 0, "deferred_quanta": 0},
+        {"local_step": 1, "quantum_accumulator": 0, "deferred_quanta": 1},
+        {"local_step": 3, "quantum_accumulator": 0, "deferred_quanta": 0}
+      ]
+    },
+    {
+      "id": "transition-domain-freezes",
+      "definition": {
+        "id": "FREEZE_TRANSITIONS",
+        "rate": {"scale": 1, "units_per_tick": 0},
+        "initial_node": "WAIT",
+        "default_buffer_lifetime": 3,
+        "nodes": [{"id": "WAIT", "mode": "EVENT_DRIVEN"}, {"id": "MIDDLE", "mode": "EVENT_DRIVEN"}, {"id": "DONE", "mode": "EVENT_DRIVEN"}],
+        "transitions": [
+          {"id": "pre", "source_node": "WAIT", "evaluation_point": "PRE_ADVANCE", "priority": 1, "target_kind": "NODE", "target_node": "MIDDLE", "input_command": "GO"},
+          {"id": "post", "source_node": "MIDDLE", "evaluation_point": "POST_ADVANCE", "priority": 1, "target_kind": "NODE", "target_node": "DONE"}
+        ]
+      },
+      "ticks": 4,
+      "inputs": [
+        [],
+        [{"assigned_tick": 1, "source_entity_id": 1, "sequence": 1, "command_id": "GO", "payload": {}, "input_id": "go"}],
+        [],
+        []
+      ],
+      "freezes": [{}, {"pre_advance_transitions": true}, {"post_advance_transitions": true}, {}],
+      "expected": [
+        {"current_node_id": "WAIT", "transition_serial": 0, "input_buffer": []},
+        {"current_node_id": "WAIT", "transition_serial": 0, "input_buffer": [{"buffer_entry_id": "buffer:go", "input_id": "go", "command_id": "GO", "payload": {}, "captured_tick": 1, "remaining_eligibility_ticks": 2, "priority": 0, "sequence": 1}]},
+        {"current_node_id": "MIDDLE", "transition_serial": 1, "input_buffer": []},
+        {"current_node_id": "DONE", "transition_serial": 2, "input_buffer": []}
+      ]
+    },
+    {
+      "id": "input-capture-and-buffer-expiry-freezes",
+      "definition": {
+        "id": "FREEZE_BUFFERS",
+        "rate": {"scale": 1, "units_per_tick": 0},
+        "initial_node": "WAIT",
+        "default_buffer_lifetime": 1,
+        "nodes": [{"id": "WAIT", "mode": "EVENT_DRIVEN"}],
+        "transitions": []
+      },
+      "ticks": 4,
+      "inputs": [
+        [],
+        [{"assigned_tick": 1, "source_entity_id": 1, "sequence": 1, "command_id": "BLOCKED", "payload": {}, "input_id": "blocked"}],
+        [{"assigned_tick": 2, "source_entity_id": 1, "sequence": 2, "command_id": "KEPT", "payload": {}, "input_id": "kept"}],
+        []
+      ],
+      "freezes": [{}, {"input_capture": true}, {"buffer_expiry": true}, {}],
+      "expected": [
+        {"input_buffer": []},
+        {"input_buffer": []},
+        {"input_buffer": [{"buffer_entry_id": "buffer:kept", "input_id": "kept", "command_id": "KEPT", "payload": {}, "captured_tick": 2, "remaining_eligibility_ticks": 1, "priority": 0, "sequence": 2}]},
+        {"input_buffer": []}
+      ]
     }
   ],
   "definition_fault_cases": [

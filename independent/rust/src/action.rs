@@ -100,6 +100,19 @@ pub struct RuntimeLimits {
     pub max_internal_transitions_per_tick: u64,
 }
 
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct FreezeControls {
+    pub progression: Option<String>,
+    #[serde(default)]
+    pub pre_advance_transitions: bool,
+    #[serde(default)]
+    pub post_advance_transitions: bool,
+    #[serde(default)]
+    pub input_capture: bool,
+    #[serde(default)]
+    pub buffer_expiry: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ActionInstance {
     pub owner_entity_id: u64,
@@ -110,6 +123,7 @@ pub struct ActionInstance {
     pub cycle: u64,
     pub transition_serial: u64,
     pub quantum_accumulator: u64,
+    pub deferred_quanta: u64,
     pub current_rate_units: u64,
     pub predicate_truth_state: BTreeMap<String, bool>,
     pub predicate_entry_serials: BTreeMap<String, u64>,
@@ -221,6 +235,7 @@ pub fn start_owned(
         cycle: 0,
         transition_serial: 0,
         quantum_accumulator: 0,
+        deferred_quanta: 0,
         current_rate_units: definition.rate.units_per_tick,
         predicate_truth_state: BTreeMap::new(),
         predicate_entry_serials: BTreeMap::new(),
@@ -247,6 +262,26 @@ pub fn tick_with_inputs(
     current_tick: u64,
     inputs: &[TickInput],
 ) -> Result<TickResult, ActionError> {
+    tick_with_controls(
+        action,
+        definition,
+        limits,
+        include_pre_advance,
+        current_tick,
+        inputs,
+        &FreezeControls::default(),
+    )
+}
+
+pub fn tick_with_controls(
+    action: &mut ActionInstance,
+    definition: &ActionDefinition,
+    limits: RuntimeLimits,
+    include_pre_advance: bool,
+    current_tick: u64,
+    inputs: &[TickInput],
+    freezes: &FreezeControls,
+) -> Result<TickResult, ActionError> {
     let mut work = action.clone();
     let result = tick_inner(
         &mut work,
@@ -255,6 +290,7 @@ pub fn tick_with_inputs(
         include_pre_advance,
         current_tick,
         inputs,
+        freezes,
     )?;
     *action = work;
     Ok(result)
@@ -267,7 +303,14 @@ fn tick_inner(
     include_pre_advance: bool,
     current_tick: u64,
     inputs: &[TickInput],
+    freezes: &FreezeControls,
 ) -> Result<TickResult, ActionError> {
+    if !matches!(
+        freezes.progression.as_deref(),
+        None | Some("HOLD" | "ACCRUE")
+    ) {
+        return Err(ActionError::StateInvariant);
+    }
     if action.lifecycle_state != "RUNNING" {
         return Ok(TickResult {
             quanta: 0,
@@ -276,8 +319,12 @@ fn tick_inner(
     }
     let mut applied = Vec::new();
     if include_pre_advance {
-        capture_inputs(action, definition, current_tick, inputs)?;
-        apply_selected(action, definition, "PRE_ADVANCE", &mut applied)?;
+        if !freezes.input_capture {
+            capture_inputs(action, definition, current_tick, inputs)?;
+        }
+        if !freezes.pre_advance_transitions {
+            apply_selected(action, definition, "PRE_ADVANCE", &mut applied)?;
+        }
     }
     if action.lifecycle_state != "RUNNING" {
         return Ok(TickResult {
@@ -285,15 +332,32 @@ fn tick_inner(
             transitions: applied,
         });
     }
-    let accumulated = action
-        .quantum_accumulator
-        .checked_add(action.current_rate_units)
-        .ok_or(ActionError::IntegerOverflow)?;
-    let quanta = accumulated / definition.rate.scale;
-    if quanta > limits.max_quanta_per_action_per_tick {
-        return Err(ActionError::QuantumLimitExceeded);
-    }
-    action.quantum_accumulator = accumulated % definition.rate.scale;
+    let quanta = if freezes.progression.as_deref() == Some("HOLD") {
+        0
+    } else {
+        let accumulated = action
+            .quantum_accumulator
+            .checked_add(action.current_rate_units)
+            .ok_or(ActionError::IntegerOverflow)?;
+        let generated = accumulated / definition.rate.scale;
+        action.quantum_accumulator = accumulated % definition.rate.scale;
+        if freezes.progression.as_deref() == Some("ACCRUE") {
+            action.deferred_quanta = action
+                .deferred_quanta
+                .checked_add(generated)
+                .ok_or(ActionError::IntegerOverflow)?;
+            0
+        } else {
+            let available = generated
+                .checked_add(action.deferred_quanta)
+                .ok_or(ActionError::IntegerOverflow)?;
+            if available > limits.max_quanta_per_action_per_tick {
+                return Err(ActionError::QuantumLimitExceeded);
+            }
+            action.deferred_quanta = 0;
+            available
+        }
+    };
     let mut internal_transitions = 0_u64;
     for _ in 0..quanta {
         if action.lifecycle_state != "RUNNING" {
@@ -320,11 +384,13 @@ fn tick_inner(
                 .ok_or(ActionError::IntegerOverflow)?;
         }
     }
-    if action.lifecycle_state == "RUNNING" {
+    if action.lifecycle_state == "RUNNING" && !freezes.post_advance_transitions {
         apply_selected(action, definition, "POST_ADVANCE", &mut applied)?;
     }
     semantic_snapshot(action, definition)?;
-    expire_buffer(&mut action.input_buffer);
+    if !freezes.buffer_expiry {
+        expire_buffer(&mut action.input_buffer);
+    }
     Ok(TickResult {
         quanta,
         transitions: applied,
