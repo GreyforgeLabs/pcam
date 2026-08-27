@@ -1,0 +1,23 @@
+{
+  "profile": "pcam.security-robustness.v1",
+  "untrusted_inputs": ["definitions", "snapshots", "replays", "network_inputs"],
+  "bounds": {
+    "collection_lengths": ["reference/python/tests/test_schema.py", "reference/python/tests/test_security_limits.py"],
+    "recursion_depth": ["reference/python/tests/test_expressions.py", "independent/rust/tests/expression_vectors.rs"],
+    "definition_size": ["reference/python/tests/test_security_limits.py"],
+    "snapshot_size": ["reference/python/tests/test_security_limits.py"],
+    "integer_bounds": ["reference/python/tests/test_numeric.py", "independent/rust/tests/numeric_rng_vectors.rs"],
+    "identifier_syntax": ["reference/python/tests/test_schema.py"],
+    "extension_declarations": ["reference/python/tests/test_extensions.py"],
+    "event_counts": ["reference/python/tests/test_security_limits.py"],
+    "candidate_counts": ["reference/python/tests/test_security_limits.py"],
+    "effect_counts": ["reference/python/tests/test_security_limits.py"],
+    "redirect_counts": ["reference/python/tests/test_interactions.py"],
+    "buffer_counts": ["reference/python/tests/test_security_limits.py", "tests/vectors/action-runtime.json"],
+    "child_counts": ["reference/python/tests/test_security_limits.py", "reference/python/tests/test_generated_properties.py"]
+  },
+  "non_claims": {
+    "canonical_hashes_authenticate_messages": false,
+    "definition_hashes_sandbox_extension_code": false
+  }
+}

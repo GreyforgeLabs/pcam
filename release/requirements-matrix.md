@@ -39,7 +39,7 @@ This matrix preserves the complete target. A row is complete only when its named
 | §41 repository | required structure and documentation | complete: every normative file and directory lane exists, packaged implementations have explicit stable adapters, archive lanes are non-authoritative, and a machine-checked layout manifest pins the inventory |
 | §42 tooling | all eleven commands with stable machine-readable result codes | partial: all eleven command paths execute with JSON envelopes; broader normative vectors and diagnostics remain open |
 | §43 licenses | CC BY 4.0 spec, Apache-2.0 or MIT code, vector permissions, trademark separation | complete: per-path license map, full CC BY 4.0, MIT, and CC0 1.0 texts, attribution, separate trademark policy, and explicit patent statement |
-| §44 security | bounded untrusted-data validation and adversarial vectors | partial: document/tick/expression/runtime bounds and schema checks; exhaustive hostile corpus pending |
+| §44 security | bounded untrusted-data validation and adversarial vectors | complete: machine-checked evidence covers every listed untrusted surface and bound, including pre-ingestion tick-input bytes, definition/snapshot bytes, runtime collections, nesting and parent cycles, candidates/effects/redirects, identifiers, integers, recursion, and extensions; hash authentication and extension sandboxing are explicitly disclaimed |
 | §45 release gates | eight evidence reports with no unresolved requirement | partial: independent-language PCAM-CJ1 evidence exists; the independent runtime, cross-architecture manifests, experiments, audits, and remaining gates are open |
 
 ## Completion rule

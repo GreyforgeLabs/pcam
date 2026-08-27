@@ -40,6 +40,27 @@ class TickExecutor:
         }
         for definition in definitions:
             validate_definition(definition)
+            if len(canonical_dumps(definition.to_canonical())) > self.profile.max_definition_size_bytes:
+                raise PCAMError(
+                    ResultCode.DEFINITION_REJECTED,
+                    PCAMFault.STATE_INVARIANT_FAILURE,
+                    f"definition exceeds max_definition_size_bytes: {definition.id}",
+                )
+            if definition.buffer_capacity > self.profile.max_buffer_entries_per_action:
+                raise PCAMError(
+                    ResultCode.DEFINITION_REJECTED,
+                    PCAMFault.STATE_INVARIANT_FAILURE,
+                    f"buffer capacity exceeds runtime profile: {definition.id}",
+                )
+            if any(
+                capacity > self.profile.max_children_per_action
+                for capacity in definition.child_slot_capacities.values()
+            ):
+                raise PCAMError(
+                    ResultCode.DEFINITION_REJECTED,
+                    PCAMFault.STATE_INVARIANT_FAILURE,
+                    f"child slot capacity exceeds runtime profile: {definition.id}",
+                )
             self.extension_registry.validate(definition.extensions, self.profile.max_extension_state_bytes)
         self.definitions_by_id = {definition.id: definition for definition in definitions}
         self.definitions_by_hash = {definition.definition_hash: definition for definition in definitions}
@@ -97,6 +118,13 @@ class TickExecutor:
                 PCAMFault.SNAPSHOT_DEFINITION_MISMATCH,
                 state.definition_set_hash,
             )
+        if len(canonical_dumps(inputs)) > self.profile.max_snapshot_size_bytes:
+            raise PCAMError(
+                ResultCode.RUNTIME_FAULT,
+                PCAMFault.STATE_INVARIANT_FAILURE,
+                "tick input batch exceeds the bounded authoritative payload budget",
+            )
+        self._validate_limits(state, 0, 0)
         host = host or HostSnapshot()
         trace: dict[str, object] = {"tick": state.tick, "stages": []}
         work = state
@@ -192,9 +220,16 @@ class TickExecutor:
         ))
 
     def save(self, state: SimulationState) -> dict[str, object]:
+        self._validate_limits(state, 0, 0)
         return state.to_snapshot()
 
     def restore(self, snapshot: dict[str, object]) -> SimulationState:
+        if len(canonical_dumps(snapshot)) > self.profile.max_snapshot_size_bytes:
+            raise PCAMError(
+                ResultCode.RUNTIME_FAULT,
+                PCAMFault.STATE_INVARIANT_FAILURE,
+                "snapshot exceeds max_snapshot_size_bytes",
+            )
         state = SimulationState.from_snapshot(snapshot)
         if state.definition_set_hash != self.definition_set_hash:
             raise PCAMError(
@@ -1081,6 +1116,70 @@ class TickExecutor:
     def _validate_limits(self, state: SimulationState, candidate_count: int, effect_count: int) -> None:
         if candidate_count > self.profile.max_candidates_per_tick or effect_count > self.profile.max_effects_per_tick:
             raise PCAMError(ResultCode.RUNTIME_FAULT, PCAMFault.STATE_INVARIANT_FAILURE, str(state.tick))
+        snapshot_size = len(canonical_dumps(state.to_snapshot()))
+        if snapshot_size > self.profile.max_snapshot_size_bytes:
+            raise PCAMError(
+                ResultCode.RUNTIME_FAULT,
+                PCAMFault.STATE_INVARIANT_FAILURE,
+                "snapshot exceeds max_snapshot_size_bytes",
+            )
+        active_by_owner: dict[int, int] = {}
+        event_counts: dict[int, int] = {}
+        for raw_event in state.pending_events:
+            target_id = int(raw_event["target_id"])
+            event_counts[target_id] = event_counts.get(target_id, 0) + 1
+        if any(count > self.profile.max_pending_events_per_entity for count in event_counts.values()):
+            raise PCAMError(
+                ResultCode.RUNTIME_FAULT,
+                PCAMFault.STATE_INVARIANT_FAILURE,
+                "pending event count exceeds runtime profile",
+            )
+        for action in state.action_instances.values():
+            if len(action.input_buffer) > self.profile.max_buffer_entries_per_action:
+                raise PCAMError(
+                    ResultCode.RUNTIME_FAULT,
+                    PCAMFault.STATE_INVARIANT_FAILURE,
+                    f"input buffer exceeds runtime profile: {action.instance_id}",
+                )
+            active_children = sum(
+                1
+                for child_id in action.child_instance_ids
+                if str(child_id) in state.action_instances
+                and state.action_instances[str(child_id)].lifecycle_state not in {"TERMINATED", "FAULTED"}
+            )
+            if active_children > self.profile.max_children_per_action:
+                raise PCAMError(
+                    ResultCode.RUNTIME_FAULT,
+                    PCAMFault.STATE_INVARIANT_FAILURE,
+                    f"child count exceeds runtime profile: {action.instance_id}",
+                )
+            if action.lifecycle_state not in {"TERMINATED", "FAULTED"}:
+                active_by_owner[action.owner_entity_id] = active_by_owner.get(action.owner_entity_id, 0) + 1
+            depth = 0
+            cursor = action
+            visited: set[int] = set()
+            while cursor.parent_instance_id is not None:
+                if cursor.instance_id in visited or str(cursor.parent_instance_id) not in state.action_instances:
+                    raise PCAMError(
+                        ResultCode.RUNTIME_FAULT,
+                        PCAMFault.STATE_INVARIANT_FAILURE,
+                        f"invalid parent chain: {action.instance_id}",
+                    )
+                visited.add(cursor.instance_id)
+                depth += 1
+                cursor = state.action_instances[str(cursor.parent_instance_id)]
+            if depth > self.profile.max_action_nesting_depth:
+                raise PCAMError(
+                    ResultCode.RUNTIME_FAULT,
+                    PCAMFault.NESTING_LIMIT_EXCEEDED,
+                    str(action.instance_id),
+                )
+        if any(count > self.profile.max_actions_per_entity for count in active_by_owner.values()):
+            raise PCAMError(
+                ResultCode.RUNTIME_FAULT,
+                PCAMFault.STATE_INVARIANT_FAILURE,
+                "action count exceeds runtime profile",
+            )
         extension_state = {
             "actions": {
                 key: action.extension_state

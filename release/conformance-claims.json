@@ -11,7 +11,7 @@
         "graph_validation": {"status": "OPEN", "evidence": ["reference/python/pcam_runtime/schema.py"]},
         "predicate_cycle_detection": {"status": "PASS", "evidence": ["reference/python/tests/test_schema.py", "independent/rust/src/action.rs"]},
         "priority_validation": {"status": "PASS", "evidence": ["tests/vectors/action-runtime.json"]},
-        "limit_validation": {"status": "OPEN", "evidence": ["schemas/runtime-profile.schema.json"]},
+        "limit_validation": {"status": "PASS", "evidence": ["schemas/runtime-profile.schema.json", "reference/python/tests/test_security_limits.py"]},
         "canonical_hashing": {"status": "PASS", "evidence": ["tests/vectors/pcam-cj1.json", "independent/rust/tests/shared_vectors.rs"]},
         "meaningful_diagnostics": {"status": "OPEN", "evidence": ["reference/python/pcam_runtime/schema.py"]}
       }

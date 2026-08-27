@@ -35,3 +35,4 @@
 - Added canonical cross-language action-state projection hashes plus restore-and-continue digest vectors for every shared runtime case.
 - Added a schema-valid conformance claim manifest with exact §37 requirement sets, evidence-path validation, dependency enforcement, and fail-closed premature-claim tests.
 - Completed the normative §41 repository lanes with a machine-checked layout manifest and explicit adapters to the packaged reference implementation.
+- Completed the §44 robustness inventory with definition, snapshot, tick-input, action, event, buffer, child, nesting, candidate, and effect bounds plus a machine-checked evidence map.

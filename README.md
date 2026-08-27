@@ -37,6 +37,8 @@ The Rust lane currently covers independent PCAM-CJ1 canonicalization and hashing
 
 `release/conformance-claims.json` is the machine-readable source for conformance-class claims. It currently claims no §37 class. `pcam validate release/conformance-claims.json` rejects incomplete requirement sets, missing or unsafe evidence paths, OPEN requirements in a claimed class, and unmet class dependencies.
 
+Definitions, snapshots, replay vectors, and tick inputs are untrusted data. The reference runtime enforces declared byte and collection limits before or at authoritative boundaries; `release/security-robustness.json` maps every §44 bound to executable evidence. Canonical hashes compare integrity but do not authenticate messages or sandbox extension code.
+
 ## Authority
 
 - Specification: `spec/PCAM-v3.md`
