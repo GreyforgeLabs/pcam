@@ -67,6 +67,45 @@ def _transition_guard_cases(generator: random.Random) -> list[dict[str, object]]
     ]
 
 
+def _input_order_cases(generator: random.Random) -> list[dict[str, object]]:
+    cases = []
+    for case_index in range(24):
+        input_count = generator.randint(3, 7)
+        sequences = generator.sample(range(1, 1000), input_count)
+        inputs = [
+            {
+                "assigned_tick": 1,
+                "source_entity_id": 1,
+                "sequence": sequence,
+                "command_id": generator.choice(["CMD_A", "CMD_B", "CMD_C"]),
+                "payload": {"value": generator.randint(0, 100)},
+                "input_id": f"input-{case_index:03d}-{index:02d}",
+            }
+            for index, sequence in enumerate(sequences)
+        ]
+        generator.shuffle(inputs)
+        shuffled = [dict(value) for value in inputs]
+        generator.shuffle(shuffled)
+        expected = sorted(
+            inputs,
+            key=lambda value: (
+                int(value["source_entity_id"]),
+                int(value["sequence"]),
+                str(value["command_id"]).encode(),
+                str(value["input_id"]).encode(),
+            ),
+        )
+        cases.append(
+            {
+                "id": f"input-order-{case_index:03d}",
+                "inputs": inputs,
+                "shuffled_inputs": shuffled,
+                "expected_input_ids": [value["input_id"] for value in expected],
+            }
+        )
+    return cases
+
+
 def _effect_key(effect: dict[str, object]) -> tuple[object, ...]:
     return (
         effect["target_entity_id"],
@@ -218,6 +257,7 @@ def build_corpus() -> dict[str, object]:
     interaction_rule_cases = _rule_cases(generator)
     action_graph_cases = _action_graph_cases(generator)
     transition_guard_cases = _transition_guard_cases(generator)
+    input_order_cases = _input_order_cases(generator)
     return {
         "pcam_generated_corpus_version": "1",
         "kind": "generated_core_properties",
@@ -227,6 +267,7 @@ def build_corpus() -> dict[str, object]:
         "rate_restore_cases": rate_restore_cases,
         "action_graph_cases": action_graph_cases,
         "transition_guard_cases": transition_guard_cases,
+        "input_order_cases": input_order_cases,
         "effect_aggregation_cases": effect_aggregation_cases,
         "candidate_permutation_cases": candidate_permutation_cases,
         "interaction_rule_cases": interaction_rule_cases,

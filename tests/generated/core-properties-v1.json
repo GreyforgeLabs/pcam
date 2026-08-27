@@ -9575,6 +9575,2534 @@
   ],
   "generator": "experiments/generate_core_properties.py",
   "id": "pcam.generated.core.v1",
+  "input_order_cases": [
+    {
+      "expected_input_ids": [
+        "input-000-03",
+        "input-000-04",
+        "input-000-01",
+        "input-000-02",
+        "input-000-00"
+      ],
+      "id": "input-order-000",
+      "inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-000-04",
+          "payload": {
+            "value": 90
+          },
+          "sequence": 479,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-000-00",
+          "payload": {
+            "value": 90
+          },
+          "sequence": 950,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-000-03",
+          "payload": {
+            "value": 82
+          },
+          "sequence": 99,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-000-02",
+          "payload": {
+            "value": 66
+          },
+          "sequence": 640,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-000-01",
+          "payload": {
+            "value": 99
+          },
+          "sequence": 508,
+          "source_entity_id": 1
+        }
+      ],
+      "shuffled_inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-000-03",
+          "payload": {
+            "value": 82
+          },
+          "sequence": 99,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-000-01",
+          "payload": {
+            "value": 99
+          },
+          "sequence": 508,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-000-04",
+          "payload": {
+            "value": 90
+          },
+          "sequence": 479,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-000-00",
+          "payload": {
+            "value": 90
+          },
+          "sequence": 950,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-000-02",
+          "payload": {
+            "value": 66
+          },
+          "sequence": 640,
+          "source_entity_id": 1
+        }
+      ]
+    },
+    {
+      "expected_input_ids": [
+        "input-001-01",
+        "input-001-00",
+        "input-001-02"
+      ],
+      "id": "input-order-001",
+      "inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-001-00",
+          "payload": {
+            "value": 40
+          },
+          "sequence": 173,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-001-01",
+          "payload": {
+            "value": 91
+          },
+          "sequence": 87,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-001-02",
+          "payload": {
+            "value": 98
+          },
+          "sequence": 950,
+          "source_entity_id": 1
+        }
+      ],
+      "shuffled_inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-001-00",
+          "payload": {
+            "value": 40
+          },
+          "sequence": 173,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-001-02",
+          "payload": {
+            "value": 98
+          },
+          "sequence": 950,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-001-01",
+          "payload": {
+            "value": 91
+          },
+          "sequence": 87,
+          "source_entity_id": 1
+        }
+      ]
+    },
+    {
+      "expected_input_ids": [
+        "input-002-02",
+        "input-002-01",
+        "input-002-00"
+      ],
+      "id": "input-order-002",
+      "inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-002-01",
+          "payload": {
+            "value": 24
+          },
+          "sequence": 428,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-002-00",
+          "payload": {
+            "value": 17
+          },
+          "sequence": 587,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-002-02",
+          "payload": {
+            "value": 66
+          },
+          "sequence": 344,
+          "source_entity_id": 1
+        }
+      ],
+      "shuffled_inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-002-00",
+          "payload": {
+            "value": 17
+          },
+          "sequence": 587,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-002-01",
+          "payload": {
+            "value": 24
+          },
+          "sequence": 428,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-002-02",
+          "payload": {
+            "value": 66
+          },
+          "sequence": 344,
+          "source_entity_id": 1
+        }
+      ]
+    },
+    {
+      "expected_input_ids": [
+        "input-003-02",
+        "input-003-00",
+        "input-003-01"
+      ],
+      "id": "input-order-003",
+      "inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-003-02",
+          "payload": {
+            "value": 2
+          },
+          "sequence": 217,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-003-01",
+          "payload": {
+            "value": 85
+          },
+          "sequence": 836,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-003-00",
+          "payload": {
+            "value": 47
+          },
+          "sequence": 729,
+          "source_entity_id": 1
+        }
+      ],
+      "shuffled_inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-003-02",
+          "payload": {
+            "value": 2
+          },
+          "sequence": 217,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-003-00",
+          "payload": {
+            "value": 47
+          },
+          "sequence": 729,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-003-01",
+          "payload": {
+            "value": 85
+          },
+          "sequence": 836,
+          "source_entity_id": 1
+        }
+      ]
+    },
+    {
+      "expected_input_ids": [
+        "input-004-02",
+        "input-004-04",
+        "input-004-00",
+        "input-004-03",
+        "input-004-01",
+        "input-004-05"
+      ],
+      "id": "input-order-004",
+      "inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-004-02",
+          "payload": {
+            "value": 6
+          },
+          "sequence": 39,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-004-01",
+          "payload": {
+            "value": 44
+          },
+          "sequence": 755,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-004-04",
+          "payload": {
+            "value": 46
+          },
+          "sequence": 153,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-004-05",
+          "payload": {
+            "value": 33
+          },
+          "sequence": 957,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-004-00",
+          "payload": {
+            "value": 61
+          },
+          "sequence": 211,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-004-03",
+          "payload": {
+            "value": 82
+          },
+          "sequence": 465,
+          "source_entity_id": 1
+        }
+      ],
+      "shuffled_inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-004-00",
+          "payload": {
+            "value": 61
+          },
+          "sequence": 211,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-004-02",
+          "payload": {
+            "value": 6
+          },
+          "sequence": 39,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-004-01",
+          "payload": {
+            "value": 44
+          },
+          "sequence": 755,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-004-03",
+          "payload": {
+            "value": 82
+          },
+          "sequence": 465,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-004-04",
+          "payload": {
+            "value": 46
+          },
+          "sequence": 153,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-004-05",
+          "payload": {
+            "value": 33
+          },
+          "sequence": 957,
+          "source_entity_id": 1
+        }
+      ]
+    },
+    {
+      "expected_input_ids": [
+        "input-005-01",
+        "input-005-02",
+        "input-005-00",
+        "input-005-04",
+        "input-005-03"
+      ],
+      "id": "input-order-005",
+      "inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-005-04",
+          "payload": {
+            "value": 16
+          },
+          "sequence": 772,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-005-00",
+          "payload": {
+            "value": 10
+          },
+          "sequence": 517,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-005-02",
+          "payload": {
+            "value": 97
+          },
+          "sequence": 94,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-005-03",
+          "payload": {
+            "value": 44
+          },
+          "sequence": 985,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-005-01",
+          "payload": {
+            "value": 68
+          },
+          "sequence": 21,
+          "source_entity_id": 1
+        }
+      ],
+      "shuffled_inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-005-04",
+          "payload": {
+            "value": 16
+          },
+          "sequence": 772,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-005-01",
+          "payload": {
+            "value": 68
+          },
+          "sequence": 21,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-005-00",
+          "payload": {
+            "value": 10
+          },
+          "sequence": 517,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-005-02",
+          "payload": {
+            "value": 97
+          },
+          "sequence": 94,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-005-03",
+          "payload": {
+            "value": 44
+          },
+          "sequence": 985,
+          "source_entity_id": 1
+        }
+      ]
+    },
+    {
+      "expected_input_ids": [
+        "input-006-02",
+        "input-006-00",
+        "input-006-03",
+        "input-006-01"
+      ],
+      "id": "input-order-006",
+      "inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-006-03",
+          "payload": {
+            "value": 34
+          },
+          "sequence": 787,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-006-01",
+          "payload": {
+            "value": 75
+          },
+          "sequence": 913,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-006-00",
+          "payload": {
+            "value": 4
+          },
+          "sequence": 682,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-006-02",
+          "payload": {
+            "value": 48
+          },
+          "sequence": 405,
+          "source_entity_id": 1
+        }
+      ],
+      "shuffled_inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-006-01",
+          "payload": {
+            "value": 75
+          },
+          "sequence": 913,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-006-03",
+          "payload": {
+            "value": 34
+          },
+          "sequence": 787,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-006-02",
+          "payload": {
+            "value": 48
+          },
+          "sequence": 405,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-006-00",
+          "payload": {
+            "value": 4
+          },
+          "sequence": 682,
+          "source_entity_id": 1
+        }
+      ]
+    },
+    {
+      "expected_input_ids": [
+        "input-007-04",
+        "input-007-00",
+        "input-007-02",
+        "input-007-03",
+        "input-007-01",
+        "input-007-05"
+      ],
+      "id": "input-order-007",
+      "inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-007-05",
+          "payload": {
+            "value": 33
+          },
+          "sequence": 679,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-007-04",
+          "payload": {
+            "value": 39
+          },
+          "sequence": 152,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-007-03",
+          "payload": {
+            "value": 88
+          },
+          "sequence": 472,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-007-02",
+          "payload": {
+            "value": 53
+          },
+          "sequence": 367,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-007-01",
+          "payload": {
+            "value": 16
+          },
+          "sequence": 652,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-007-00",
+          "payload": {
+            "value": 2
+          },
+          "sequence": 172,
+          "source_entity_id": 1
+        }
+      ],
+      "shuffled_inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-007-00",
+          "payload": {
+            "value": 2
+          },
+          "sequence": 172,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-007-02",
+          "payload": {
+            "value": 53
+          },
+          "sequence": 367,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-007-03",
+          "payload": {
+            "value": 88
+          },
+          "sequence": 472,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-007-04",
+          "payload": {
+            "value": 39
+          },
+          "sequence": 152,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-007-01",
+          "payload": {
+            "value": 16
+          },
+          "sequence": 652,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-007-05",
+          "payload": {
+            "value": 33
+          },
+          "sequence": 679,
+          "source_entity_id": 1
+        }
+      ]
+    },
+    {
+      "expected_input_ids": [
+        "input-008-01",
+        "input-008-03",
+        "input-008-00",
+        "input-008-04",
+        "input-008-02"
+      ],
+      "id": "input-order-008",
+      "inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-008-04",
+          "payload": {
+            "value": 90
+          },
+          "sequence": 479,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-008-01",
+          "payload": {
+            "value": 77
+          },
+          "sequence": 327,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-008-03",
+          "payload": {
+            "value": 24
+          },
+          "sequence": 393,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-008-02",
+          "payload": {
+            "value": 64
+          },
+          "sequence": 910,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-008-00",
+          "payload": {
+            "value": 60
+          },
+          "sequence": 467,
+          "source_entity_id": 1
+        }
+      ],
+      "shuffled_inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-008-03",
+          "payload": {
+            "value": 24
+          },
+          "sequence": 393,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-008-02",
+          "payload": {
+            "value": 64
+          },
+          "sequence": 910,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-008-04",
+          "payload": {
+            "value": 90
+          },
+          "sequence": 479,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-008-00",
+          "payload": {
+            "value": 60
+          },
+          "sequence": 467,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-008-01",
+          "payload": {
+            "value": 77
+          },
+          "sequence": 327,
+          "source_entity_id": 1
+        }
+      ]
+    },
+    {
+      "expected_input_ids": [
+        "input-009-00",
+        "input-009-01",
+        "input-009-02"
+      ],
+      "id": "input-order-009",
+      "inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-009-00",
+          "payload": {
+            "value": 79
+          },
+          "sequence": 244,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-009-01",
+          "payload": {
+            "value": 97
+          },
+          "sequence": 415,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-009-02",
+          "payload": {
+            "value": 42
+          },
+          "sequence": 442,
+          "source_entity_id": 1
+        }
+      ],
+      "shuffled_inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-009-00",
+          "payload": {
+            "value": 79
+          },
+          "sequence": 244,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-009-01",
+          "payload": {
+            "value": 97
+          },
+          "sequence": 415,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-009-02",
+          "payload": {
+            "value": 42
+          },
+          "sequence": 442,
+          "source_entity_id": 1
+        }
+      ]
+    },
+    {
+      "expected_input_ids": [
+        "input-010-01",
+        "input-010-02",
+        "input-010-00"
+      ],
+      "id": "input-order-010",
+      "inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-010-01",
+          "payload": {
+            "value": 18
+          },
+          "sequence": 110,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-010-00",
+          "payload": {
+            "value": 41
+          },
+          "sequence": 247,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-010-02",
+          "payload": {
+            "value": 30
+          },
+          "sequence": 157,
+          "source_entity_id": 1
+        }
+      ],
+      "shuffled_inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-010-02",
+          "payload": {
+            "value": 30
+          },
+          "sequence": 157,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-010-01",
+          "payload": {
+            "value": 18
+          },
+          "sequence": 110,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-010-00",
+          "payload": {
+            "value": 41
+          },
+          "sequence": 247,
+          "source_entity_id": 1
+        }
+      ]
+    },
+    {
+      "expected_input_ids": [
+        "input-011-01",
+        "input-011-02",
+        "input-011-00",
+        "input-011-04",
+        "input-011-03"
+      ],
+      "id": "input-order-011",
+      "inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-011-00",
+          "payload": {
+            "value": 0
+          },
+          "sequence": 254,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-011-03",
+          "payload": {
+            "value": 41
+          },
+          "sequence": 874,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-011-01",
+          "payload": {
+            "value": 36
+          },
+          "sequence": 109,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-011-04",
+          "payload": {
+            "value": 34
+          },
+          "sequence": 777,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-011-02",
+          "payload": {
+            "value": 44
+          },
+          "sequence": 165,
+          "source_entity_id": 1
+        }
+      ],
+      "shuffled_inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-011-00",
+          "payload": {
+            "value": 0
+          },
+          "sequence": 254,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-011-01",
+          "payload": {
+            "value": 36
+          },
+          "sequence": 109,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-011-03",
+          "payload": {
+            "value": 41
+          },
+          "sequence": 874,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-011-02",
+          "payload": {
+            "value": 44
+          },
+          "sequence": 165,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-011-04",
+          "payload": {
+            "value": 34
+          },
+          "sequence": 777,
+          "source_entity_id": 1
+        }
+      ]
+    },
+    {
+      "expected_input_ids": [
+        "input-012-01",
+        "input-012-04",
+        "input-012-03",
+        "input-012-02",
+        "input-012-00"
+      ],
+      "id": "input-order-012",
+      "inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-012-02",
+          "payload": {
+            "value": 68
+          },
+          "sequence": 891,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-012-04",
+          "payload": {
+            "value": 10
+          },
+          "sequence": 639,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-012-00",
+          "payload": {
+            "value": 33
+          },
+          "sequence": 978,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-012-01",
+          "payload": {
+            "value": 78
+          },
+          "sequence": 419,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-012-03",
+          "payload": {
+            "value": 48
+          },
+          "sequence": 802,
+          "source_entity_id": 1
+        }
+      ],
+      "shuffled_inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-012-00",
+          "payload": {
+            "value": 33
+          },
+          "sequence": 978,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-012-04",
+          "payload": {
+            "value": 10
+          },
+          "sequence": 639,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-012-03",
+          "payload": {
+            "value": 48
+          },
+          "sequence": 802,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-012-02",
+          "payload": {
+            "value": 68
+          },
+          "sequence": 891,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-012-01",
+          "payload": {
+            "value": 78
+          },
+          "sequence": 419,
+          "source_entity_id": 1
+        }
+      ]
+    },
+    {
+      "expected_input_ids": [
+        "input-013-01",
+        "input-013-04",
+        "input-013-02",
+        "input-013-03",
+        "input-013-00",
+        "input-013-05"
+      ],
+      "id": "input-order-013",
+      "inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-013-00",
+          "payload": {
+            "value": 75
+          },
+          "sequence": 416,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-013-04",
+          "payload": {
+            "value": 45
+          },
+          "sequence": 123,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-013-01",
+          "payload": {
+            "value": 32
+          },
+          "sequence": 85,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-013-05",
+          "payload": {
+            "value": 45
+          },
+          "sequence": 482,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-013-03",
+          "payload": {
+            "value": 11
+          },
+          "sequence": 344,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-013-02",
+          "payload": {
+            "value": 23
+          },
+          "sequence": 342,
+          "source_entity_id": 1
+        }
+      ],
+      "shuffled_inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-013-05",
+          "payload": {
+            "value": 45
+          },
+          "sequence": 482,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-013-01",
+          "payload": {
+            "value": 32
+          },
+          "sequence": 85,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-013-02",
+          "payload": {
+            "value": 23
+          },
+          "sequence": 342,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-013-04",
+          "payload": {
+            "value": 45
+          },
+          "sequence": 123,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-013-03",
+          "payload": {
+            "value": 11
+          },
+          "sequence": 344,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-013-00",
+          "payload": {
+            "value": 75
+          },
+          "sequence": 416,
+          "source_entity_id": 1
+        }
+      ]
+    },
+    {
+      "expected_input_ids": [
+        "input-014-02",
+        "input-014-03",
+        "input-014-00",
+        "input-014-01"
+      ],
+      "id": "input-order-014",
+      "inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-014-00",
+          "payload": {
+            "value": 34
+          },
+          "sequence": 761,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-014-03",
+          "payload": {
+            "value": 21
+          },
+          "sequence": 561,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-014-02",
+          "payload": {
+            "value": 30
+          },
+          "sequence": 557,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-014-01",
+          "payload": {
+            "value": 32
+          },
+          "sequence": 809,
+          "source_entity_id": 1
+        }
+      ],
+      "shuffled_inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-014-00",
+          "payload": {
+            "value": 34
+          },
+          "sequence": 761,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-014-02",
+          "payload": {
+            "value": 30
+          },
+          "sequence": 557,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-014-01",
+          "payload": {
+            "value": 32
+          },
+          "sequence": 809,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-014-03",
+          "payload": {
+            "value": 21
+          },
+          "sequence": 561,
+          "source_entity_id": 1
+        }
+      ]
+    },
+    {
+      "expected_input_ids": [
+        "input-015-01",
+        "input-015-02",
+        "input-015-00",
+        "input-015-04",
+        "input-015-03"
+      ],
+      "id": "input-order-015",
+      "inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-015-01",
+          "payload": {
+            "value": 49
+          },
+          "sequence": 261,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-015-02",
+          "payload": {
+            "value": 78
+          },
+          "sequence": 311,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-015-03",
+          "payload": {
+            "value": 22
+          },
+          "sequence": 844,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-015-00",
+          "payload": {
+            "value": 27
+          },
+          "sequence": 384,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-015-04",
+          "payload": {
+            "value": 11
+          },
+          "sequence": 637,
+          "source_entity_id": 1
+        }
+      ],
+      "shuffled_inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-015-03",
+          "payload": {
+            "value": 22
+          },
+          "sequence": 844,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-015-02",
+          "payload": {
+            "value": 78
+          },
+          "sequence": 311,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-015-01",
+          "payload": {
+            "value": 49
+          },
+          "sequence": 261,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-015-00",
+          "payload": {
+            "value": 27
+          },
+          "sequence": 384,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-015-04",
+          "payload": {
+            "value": 11
+          },
+          "sequence": 637,
+          "source_entity_id": 1
+        }
+      ]
+    },
+    {
+      "expected_input_ids": [
+        "input-016-00",
+        "input-016-02",
+        "input-016-01"
+      ],
+      "id": "input-order-016",
+      "inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-016-02",
+          "payload": {
+            "value": 41
+          },
+          "sequence": 155,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-016-01",
+          "payload": {
+            "value": 95
+          },
+          "sequence": 848,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-016-00",
+          "payload": {
+            "value": 75
+          },
+          "sequence": 42,
+          "source_entity_id": 1
+        }
+      ],
+      "shuffled_inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-016-02",
+          "payload": {
+            "value": 41
+          },
+          "sequence": 155,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-016-00",
+          "payload": {
+            "value": 75
+          },
+          "sequence": 42,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-016-01",
+          "payload": {
+            "value": 95
+          },
+          "sequence": 848,
+          "source_entity_id": 1
+        }
+      ]
+    },
+    {
+      "expected_input_ids": [
+        "input-017-02",
+        "input-017-00",
+        "input-017-01"
+      ],
+      "id": "input-order-017",
+      "inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-017-02",
+          "payload": {
+            "value": 63
+          },
+          "sequence": 496,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-017-01",
+          "payload": {
+            "value": 41
+          },
+          "sequence": 964,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-017-00",
+          "payload": {
+            "value": 71
+          },
+          "sequence": 573,
+          "source_entity_id": 1
+        }
+      ],
+      "shuffled_inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-017-01",
+          "payload": {
+            "value": 41
+          },
+          "sequence": 964,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-017-00",
+          "payload": {
+            "value": 71
+          },
+          "sequence": 573,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-017-02",
+          "payload": {
+            "value": 63
+          },
+          "sequence": 496,
+          "source_entity_id": 1
+        }
+      ]
+    },
+    {
+      "expected_input_ids": [
+        "input-018-02",
+        "input-018-00",
+        "input-018-01"
+      ],
+      "id": "input-order-018",
+      "inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-018-02",
+          "payload": {
+            "value": 91
+          },
+          "sequence": 61,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-018-01",
+          "payload": {
+            "value": 99
+          },
+          "sequence": 421,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-018-00",
+          "payload": {
+            "value": 18
+          },
+          "sequence": 319,
+          "source_entity_id": 1
+        }
+      ],
+      "shuffled_inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-018-01",
+          "payload": {
+            "value": 99
+          },
+          "sequence": 421,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-018-00",
+          "payload": {
+            "value": 18
+          },
+          "sequence": 319,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-018-02",
+          "payload": {
+            "value": 91
+          },
+          "sequence": 61,
+          "source_entity_id": 1
+        }
+      ]
+    },
+    {
+      "expected_input_ids": [
+        "input-019-04",
+        "input-019-00",
+        "input-019-02",
+        "input-019-01",
+        "input-019-03",
+        "input-019-06",
+        "input-019-05"
+      ],
+      "id": "input-order-019",
+      "inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-019-05",
+          "payload": {
+            "value": 98
+          },
+          "sequence": 905,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-019-04",
+          "payload": {
+            "value": 68
+          },
+          "sequence": 262,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-019-06",
+          "payload": {
+            "value": 59
+          },
+          "sequence": 738,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-019-00",
+          "payload": {
+            "value": 34
+          },
+          "sequence": 404,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-019-02",
+          "payload": {
+            "value": 41
+          },
+          "sequence": 441,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-019-03",
+          "payload": {
+            "value": 13
+          },
+          "sequence": 692,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-019-01",
+          "payload": {
+            "value": 68
+          },
+          "sequence": 622,
+          "source_entity_id": 1
+        }
+      ],
+      "shuffled_inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-019-02",
+          "payload": {
+            "value": 41
+          },
+          "sequence": 441,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-019-06",
+          "payload": {
+            "value": 59
+          },
+          "sequence": 738,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-019-01",
+          "payload": {
+            "value": 68
+          },
+          "sequence": 622,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-019-04",
+          "payload": {
+            "value": 68
+          },
+          "sequence": 262,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-019-00",
+          "payload": {
+            "value": 34
+          },
+          "sequence": 404,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-019-05",
+          "payload": {
+            "value": 98
+          },
+          "sequence": 905,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-019-03",
+          "payload": {
+            "value": 13
+          },
+          "sequence": 692,
+          "source_entity_id": 1
+        }
+      ]
+    },
+    {
+      "expected_input_ids": [
+        "input-020-04",
+        "input-020-03",
+        "input-020-06",
+        "input-020-05",
+        "input-020-01",
+        "input-020-00",
+        "input-020-02"
+      ],
+      "id": "input-order-020",
+      "inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-020-01",
+          "payload": {
+            "value": 23
+          },
+          "sequence": 565,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-020-04",
+          "payload": {
+            "value": 3
+          },
+          "sequence": 328,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-020-05",
+          "payload": {
+            "value": 93
+          },
+          "sequence": 561,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-020-03",
+          "payload": {
+            "value": 80
+          },
+          "sequence": 501,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-020-06",
+          "payload": {
+            "value": 24
+          },
+          "sequence": 559,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-020-00",
+          "payload": {
+            "value": 47
+          },
+          "sequence": 650,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-020-02",
+          "payload": {
+            "value": 35
+          },
+          "sequence": 991,
+          "source_entity_id": 1
+        }
+      ],
+      "shuffled_inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-020-04",
+          "payload": {
+            "value": 3
+          },
+          "sequence": 328,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-020-05",
+          "payload": {
+            "value": 93
+          },
+          "sequence": 561,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-020-00",
+          "payload": {
+            "value": 47
+          },
+          "sequence": 650,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-020-02",
+          "payload": {
+            "value": 35
+          },
+          "sequence": 991,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-020-01",
+          "payload": {
+            "value": 23
+          },
+          "sequence": 565,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-020-03",
+          "payload": {
+            "value": 80
+          },
+          "sequence": 501,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-020-06",
+          "payload": {
+            "value": 24
+          },
+          "sequence": 559,
+          "source_entity_id": 1
+        }
+      ]
+    },
+    {
+      "expected_input_ids": [
+        "input-021-04",
+        "input-021-03",
+        "input-021-00",
+        "input-021-02",
+        "input-021-01"
+      ],
+      "id": "input-order-021",
+      "inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-021-00",
+          "payload": {
+            "value": 75
+          },
+          "sequence": 477,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-021-04",
+          "payload": {
+            "value": 26
+          },
+          "sequence": 249,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-021-01",
+          "payload": {
+            "value": 68
+          },
+          "sequence": 964,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-021-02",
+          "payload": {
+            "value": 77
+          },
+          "sequence": 658,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-021-03",
+          "payload": {
+            "value": 64
+          },
+          "sequence": 468,
+          "source_entity_id": 1
+        }
+      ],
+      "shuffled_inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-021-03",
+          "payload": {
+            "value": 64
+          },
+          "sequence": 468,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-021-02",
+          "payload": {
+            "value": 77
+          },
+          "sequence": 658,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-021-00",
+          "payload": {
+            "value": 75
+          },
+          "sequence": 477,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-021-01",
+          "payload": {
+            "value": 68
+          },
+          "sequence": 964,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-021-04",
+          "payload": {
+            "value": 26
+          },
+          "sequence": 249,
+          "source_entity_id": 1
+        }
+      ]
+    },
+    {
+      "expected_input_ids": [
+        "input-022-05",
+        "input-022-00",
+        "input-022-03",
+        "input-022-04",
+        "input-022-02",
+        "input-022-01"
+      ],
+      "id": "input-order-022",
+      "inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-022-00",
+          "payload": {
+            "value": 24
+          },
+          "sequence": 395,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-022-04",
+          "payload": {
+            "value": 98
+          },
+          "sequence": 537,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-022-05",
+          "payload": {
+            "value": 99
+          },
+          "sequence": 256,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-022-01",
+          "payload": {
+            "value": 71
+          },
+          "sequence": 641,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-022-02",
+          "payload": {
+            "value": 43
+          },
+          "sequence": 574,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-022-03",
+          "payload": {
+            "value": 43
+          },
+          "sequence": 439,
+          "source_entity_id": 1
+        }
+      ],
+      "shuffled_inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-022-02",
+          "payload": {
+            "value": 43
+          },
+          "sequence": 574,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-022-05",
+          "payload": {
+            "value": 99
+          },
+          "sequence": 256,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-022-03",
+          "payload": {
+            "value": 43
+          },
+          "sequence": 439,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-022-00",
+          "payload": {
+            "value": 24
+          },
+          "sequence": 395,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-022-01",
+          "payload": {
+            "value": 71
+          },
+          "sequence": 641,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-022-04",
+          "payload": {
+            "value": 98
+          },
+          "sequence": 537,
+          "source_entity_id": 1
+        }
+      ]
+    },
+    {
+      "expected_input_ids": [
+        "input-023-02",
+        "input-023-04",
+        "input-023-03",
+        "input-023-01",
+        "input-023-00"
+      ],
+      "id": "input-order-023",
+      "inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-023-02",
+          "payload": {
+            "value": 22
+          },
+          "sequence": 83,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-023-00",
+          "payload": {
+            "value": 20
+          },
+          "sequence": 895,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-023-04",
+          "payload": {
+            "value": 53
+          },
+          "sequence": 376,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-023-03",
+          "payload": {
+            "value": 86
+          },
+          "sequence": 538,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-023-01",
+          "payload": {
+            "value": 96
+          },
+          "sequence": 630,
+          "source_entity_id": 1
+        }
+      ],
+      "shuffled_inputs": [
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-023-02",
+          "payload": {
+            "value": 22
+          },
+          "sequence": 83,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_A",
+          "input_id": "input-023-01",
+          "payload": {
+            "value": 96
+          },
+          "sequence": 630,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-023-00",
+          "payload": {
+            "value": 20
+          },
+          "sequence": 895,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_C",
+          "input_id": "input-023-04",
+          "payload": {
+            "value": 53
+          },
+          "sequence": 376,
+          "source_entity_id": 1
+        },
+        {
+          "assigned_tick": 1,
+          "command_id": "CMD_B",
+          "input_id": "input-023-03",
+          "payload": {
+            "value": 86
+          },
+          "sequence": 538,
+          "source_entity_id": 1
+        }
+      ]
+    }
+  ],
   "interaction_rule_cases": [
     {
       "candidate": {

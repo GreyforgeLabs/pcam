@@ -221,6 +221,45 @@ def test_python_shared_generated_transition_guards_repeat_and_fire():
         assert action.transition_serial == case["expected_transition_serial"], case["id"]
 
 
+def test_python_shared_generated_input_orders_produce_one_buffer_snapshot():
+    for case in _corpus()["input_order_cases"]:
+        definition = ActionDefinition(
+            id=f"GENERATED_INPUT_{case['id'].removeprefix('input-order-')}",
+            rate_scale=1,
+            units_per_tick=0,
+            nodes=(NodeDefinition("RUN"),),
+            buffer_capacity=8,
+            default_buffer_lifetime=3,
+        )
+        executor = TickExecutor((definition,))
+        states = []
+        for values in (
+            case["inputs"],
+            case["shuffled_inputs"],
+            list(reversed(case["inputs"])),
+        ):
+            state = executor.initial_state()
+            state, _ = executor.tick(
+                state,
+                (
+                    TickInput(
+                        input_id=f"start-{case['id']}",
+                        source_entity_id=1,
+                        sequence=0,
+                        command_id="START",
+                        assigned_tick=0,
+                        action_definition_id=definition.id,
+                    ),
+                ),
+            )
+            state, _ = executor.tick(state, tuple(TickInput(**value) for value in values))
+            states.append(state)
+        assert states[0].to_snapshot() == states[1].to_snapshot() == states[2].to_snapshot()
+        entries = states[0].action_instances["1"].input_buffer
+        assert [entry.input_id for entry in entries] == case["expected_input_ids"], case["id"]
+        assert all(entry.remaining_eligibility_ticks == 2 for entry in entries), case["id"]
+
+
 def test_python_shared_generated_effect_aggregation_is_permutation_invariant():
     for case in _corpus()["effect_aggregation_cases"]:
         results = []

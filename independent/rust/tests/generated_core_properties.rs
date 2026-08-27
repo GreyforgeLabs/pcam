@@ -1,5 +1,6 @@
 use pcam_independent::action::{
-    ActionDefinition, FreezeControls, RuntimeLimits, restore, snapshot, start, tick_with_controls,
+    ActionDefinition, FreezeControls, RuntimeLimits, TickInput, restore, snapshot, start,
+    tick_with_controls,
 };
 use pcam_independent::effects::{EffectEnvelope, reduce_effects};
 use pcam_independent::interactions::{
@@ -208,6 +209,80 @@ fn independent_shared_generated_transition_guards_repeat_and_fire() {
             first.transition_serial,
             case["expected_transition_serial"].as_u64().unwrap(),
             "{}:transition-serial",
+            case["id"]
+        );
+    }
+}
+
+#[test]
+fn independent_shared_generated_input_orders_produce_one_buffer_snapshot() {
+    let corpus = corpus();
+    for case in corpus["input_order_cases"].as_array().unwrap() {
+        let definition: ActionDefinition = serde_json::from_value(json!({
+            "id": format!(
+                "GENERATED_INPUT_{}",
+                case["id"]
+                    .as_str()
+                    .unwrap()
+                    .trim_start_matches("input-order-")
+            ),
+            "rate": {"scale": 1, "units_per_tick": 0},
+            "initial_node": "RUN",
+            "nodes": [{"id": "RUN", "mode": "EVENT_DRIVEN"}],
+            "transitions": [],
+            "buffer_capacity": 8,
+            "default_buffer_lifetime": 3,
+        }))
+        .unwrap();
+        let original: Vec<TickInput> = serde_json::from_value(case["inputs"].clone()).unwrap();
+        let shuffled: Vec<TickInput> =
+            serde_json::from_value(case["shuffled_inputs"].clone()).unwrap();
+        let mut reversed = original.clone();
+        reversed.reverse();
+        let mut states = Vec::new();
+        for inputs in [&original, &shuffled, &reversed] {
+            let mut action = start(&definition).unwrap();
+            tick_with_controls(
+                &mut action,
+                &definition,
+                rate_limits(),
+                false,
+                0,
+                &[],
+                &FreezeControls::default(),
+            )
+            .unwrap();
+            tick_with_controls(
+                &mut action,
+                &definition,
+                rate_limits(),
+                true,
+                1,
+                inputs,
+                &FreezeControls::default(),
+            )
+            .unwrap();
+            states.push(action);
+        }
+        assert_eq!(states[0], states[1], "{}:shuffled", case["id"]);
+        assert_eq!(states[0], states[2], "{}:reversed", case["id"]);
+        let input_ids = states[0]
+            .input_buffer
+            .iter()
+            .map(|entry| entry.input_id.clone())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            serde_json::to_value(input_ids).unwrap(),
+            case["expected_input_ids"],
+            "{}:order",
+            case["id"]
+        );
+        assert!(
+            states[0]
+                .input_buffer
+                .iter()
+                .all(|entry| entry.remaining_eligibility_ticks == 2),
+            "{}:ttl",
             case["id"]
         );
     }
