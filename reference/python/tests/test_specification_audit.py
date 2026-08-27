@@ -34,6 +34,7 @@ def test_resolved_normative_contracts_remain_in_master_text():
         "A direct action-start input supplies bindings in its payload's `parameters` object",
         "The tick host snapshot supplies imports in an `imports` object",
         "`owner.resource.<id>` resolves the named value",
+        "For a transition with `input_match`, the runtime selects one canonical buffer entry",
         "Phase is an optional projection, never the whole state",
     )
     assert all(contract in specification for contract in required_contracts)

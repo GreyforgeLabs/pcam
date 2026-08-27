@@ -32,6 +32,7 @@ The audit compared every normative issue against the master text and the executa
 | Parameter declarations had no portable start binding | §8.4 defines direct-input bindings, validation timing, deep capture, and transition-target defaults |
 | Host imports had no exact snapshot binding | §8.6 defines the host `imports` object, supplied/default resolution, validation, capture, faulting, and serialization |
 | Owner references had no exact state paths or missing-value rule | §7.2 binds resource and register references to authoritative maps and fails missing identifiers |
+| Input and event references had no match lifetime | §11.3 defines canonical one-time selection, dotted fields, operation lifetime, and missing-context failure |
 
 ## Gate conclusion
 

@@ -22,6 +22,8 @@ Host-import execution exposed that declarations had no exact tick-snapshot bindi
 
 Owner-reference execution exposed that resource and register references had no exact state paths or missing-value rule. §7.2 now binds both families to authoritative entity state and rejects missing values.
 
+Transition-context execution exposed that input and event references had no selection lifetime. §11.3 now defines one canonical immutable match reused from guard through accepted operations, dotted payload access, and missing-context failure.
+
 ## Required evidence
 
 - no unresolved normative contradictions

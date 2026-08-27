@@ -65,3 +65,7 @@ Resolved in §8.6. Tick host snapshots supply an `imports` object, supplied and 
 ## Owner-scoped references
 
 Resolved in §7.2. `owner.resource.<id>` reads the authoritative resource bank, `owner.register.<id>` reads `entity_registers`, and missing records or identifiers fail instead of supplying implicit values.
+
+## Transition contextual references
+
+Resolved in §11.3. Input and event matches select one canonical immutable record before guard evaluation, dotted payload fields use that same record through every transition operation, missing context fails, and mutation never triggers reselection.

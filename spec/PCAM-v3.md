@@ -909,6 +909,8 @@ contact.<field>
 target.<field>
 ```
 
+For a transition with `input_match`, the runtime selects one canonical buffer entry before guard evaluation. `input.<field>` and dotted `input.payload.<field>` references use that same immutable entry through guard evaluation and every accepted transition operation. For `event_match`, the first matching event in canonical inbox order is selected once and exposed through `event.<field>` and dotted `event.payload.<field>` for the same interval. A contextual reference without its corresponding match or with a missing field produces `MISSING_REFERENCE`. State mutation MUST NOT cause context reselection during the transition.
+
 ## 11.4 Core Operators
 
 Core Boolean operators:
