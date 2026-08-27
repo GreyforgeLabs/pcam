@@ -8,6 +8,7 @@ from typing import Literal
 from .effects import EffectEnvelope
 from .errors import PCAMError, PCAMFault, ResultCode
 from .expressions import evaluate
+from .immutable import freeze_value
 from .numeric import scale_ratio
 
 Stage = Literal["ADMISSION", "ROUTING", "MODIFICATION", "MATERIALIZATION", "REACTION"]
@@ -23,6 +24,9 @@ class EffectTemplate:
     priority: int = 0
     authoritative: bool = True
 
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "payload", freeze_value(self.payload))
+
 
 @dataclass(frozen=True)
 class SemanticFact:
@@ -32,6 +36,10 @@ class SemanticFact:
     tags: tuple[str, ...] = ()
     attributes: dict[str, object] | None = None
     effect_templates: tuple[EffectTemplate, ...] = ()
+
+    def __post_init__(self) -> None:
+        if self.attributes is not None:
+            object.__setattr__(self, "attributes", freeze_value(self.attributes))
 
 
 @dataclass(frozen=True)
@@ -47,11 +55,19 @@ class InteractionCandidate:
     host_context: dict[str, object] | None = None
     defense_fact_id: str | None = None
 
+    def __post_init__(self) -> None:
+        if self.host_context is not None:
+            object.__setattr__(self, "host_context", freeze_value(self.host_context))
+
 
 @dataclass(frozen=True)
 class RuleOperation:
     op: str
     data: dict[str, object] | None = None
+
+    def __post_init__(self) -> None:
+        if self.data is not None:
+            object.__setattr__(self, "data", freeze_value(self.data))
 
 
 @dataclass(frozen=True)
@@ -63,6 +79,9 @@ class InteractionRule:
     operations: tuple[RuleOperation, ...]
     stop_stage: bool = False
     stop_pipeline: bool = False
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "condition", freeze_value(self.condition))
 
 
 @dataclass(frozen=True)

@@ -8,6 +8,7 @@ from typing import Literal
 
 from .canonical import canonical_dumps, canonical_hash
 from .errors import PCAMError, PCAMFault, ResultCode
+from .immutable import freeze_value
 from .interactions import SemanticFact
 from .intents import Claim
 from .ledgers import HitPolicy
@@ -151,6 +152,7 @@ class RuntimeProfile:
     extensions: dict[str, object] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
+        object.__setattr__(self, "extensions", freeze_value(self.extensions))
         if self.fault_policy not in {"ABORT_SIMULATION", "FAULT_ACTION", "FAULT_ENTITY"}:
             raise PCAMError(
                 ResultCode.DEFINITION_REJECTED,
@@ -266,6 +268,9 @@ class Assignment:
     target: str
     value: dict[str, object]
 
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "value", freeze_value(self.value))
+
 
 @dataclass(frozen=True)
 class DefinitionEffect:
@@ -276,6 +281,9 @@ class DefinitionEffect:
     reducer: str | None = None
     target: str | int | None = None
     priority: int = 0
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "payload", freeze_value(self.payload))
 
 
 @dataclass(frozen=True)
@@ -292,6 +300,9 @@ class NodeDefinition:
     tags: tuple[str, ...] = ()
     extensions: dict[str, object] = field(default_factory=dict)
 
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "extensions", freeze_value(self.extensions))
+
 
 @dataclass(frozen=True)
 class PredicateDefinition:
@@ -301,6 +312,10 @@ class PredicateDefinition:
     max_node_step_exclusive: int | None = None
     expression: dict[str, object] | None = None
     track_edges: bool = True
+
+    def __post_init__(self) -> None:
+        if self.expression is not None:
+            object.__setattr__(self, "expression", freeze_value(self.expression))
 
 
 @dataclass(frozen=True)
@@ -331,6 +346,11 @@ class TransitionDefinition:
     cycle_delta: int = 0
     metadata: dict[str, object] = field(default_factory=dict)
 
+    def __post_init__(self) -> None:
+        if self.guard_expression is not None:
+            object.__setattr__(self, "guard_expression", freeze_value(self.guard_expression))
+        object.__setattr__(self, "metadata", freeze_value(self.metadata))
+
 
 @dataclass(frozen=True)
 class Effect:
@@ -347,6 +367,10 @@ class Effect:
     event_type: str | None = None
     delivery_mode: str | None = None
     payload: dict[str, object] | None = None
+
+    def __post_init__(self) -> None:
+        if self.payload is not None:
+            object.__setattr__(self, "payload", freeze_value(self.payload))
 
 
 @dataclass(frozen=True)
@@ -380,6 +404,20 @@ class ActionDefinition:
     register_declarations: dict[str, dict[str, object]] = field(default_factory=dict)
     import_declarations: dict[str, dict[str, object]] = field(default_factory=dict)
     initial_node_id: str | None = None
+
+    def __post_init__(self) -> None:
+        for name in (
+            "child_slot_capacities",
+            "child_termination_policies",
+            "metadata",
+            "extensions",
+            "parameter_defaults",
+            "register_initials",
+            "parameter_declarations",
+            "register_declarations",
+            "import_declarations",
+        ):
+            object.__setattr__(self, name, freeze_value(getattr(self, name)))
 
     @property
     def definition_hash(self) -> str:

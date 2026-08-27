@@ -1,0 +1,180 @@
+{
+  "pcam_vector_version": "1",
+  "kind": "definition_hash_vectors",
+  "id": "full-definition-hashes",
+  "base_document": {
+    "pcam_version": "3.0",
+    "kind": "action",
+    "id": "greyforge.test.full_binding",
+    "revision": 1,
+    "metadata": {"display_name": "Full Binding"},
+    "limits": {
+      "max_internal_transitions_per_tick": 8,
+      "buffer_capacity": 4,
+      "buffer_overflow_policy": "DROP_OLDEST"
+    },
+    "rate": {"scale": 2, "units_per_tick": 1},
+    "parameters": {
+      "power": {
+        "type": "I64",
+        "required": false,
+        "default": 1,
+        "minimum": 0,
+        "maximum": 10,
+        "capture_policy": "CAPTURE_ON_START"
+      }
+    },
+    "registers": {
+      "counter": {
+        "type": "U64",
+        "initial": 0,
+        "minimum": 0,
+        "maximum": 10,
+        "overflow": "FAULT",
+        "serialization_policy": "AUTHORITATIVE"
+      }
+    },
+    "imports": {
+      "grounded": {
+        "type": "BOOL",
+        "source_contract": "greyforge.host.grounded.v1",
+        "default": true,
+        "failure_policy": "USE_DEFAULT",
+        "authoritative": true,
+        "serialization_dependency": true
+      }
+    },
+    "initial_node": "wait",
+    "nodes": {
+      "done": {
+        "id": "done",
+        "mode": "TERMINAL",
+        "seekable": false,
+        "entry_assignments": [],
+        "entry_effects": [],
+        "exit_assignments": [],
+        "exit_effects": [],
+        "tags": ["DONE"],
+        "extensions": {}
+      },
+      "wait": {
+        "id": "wait",
+        "mode": "TIMED",
+        "duration_quanta": 1,
+        "seekable": true,
+        "entry_assignments": [
+          {"target": "action.register.counter", "value": {"literal": 0}}
+        ],
+        "entry_effects": [
+          {
+            "effect_type": "presentation.start",
+            "authoritative": false,
+            "payload": {"clip": "full_binding"}
+          }
+        ],
+        "exit_assignments": [],
+        "exit_effects": [],
+        "tags": ["WAIT"],
+        "extensions": {}
+      }
+    },
+    "predicates": {
+      "READY": {
+        "expression": {
+          "op": "eq",
+          "args": [{"ref": "action.node"}, {"literal": "wait"}]
+        },
+        "track_edges": true,
+        "metadata": {"purpose": "binding"}
+      }
+    },
+    "semantic_facts": [
+      {
+        "id": "binding_fact",
+        "direction": "OFFENSE",
+        "when": {"ref": "action.predicate.READY"},
+        "channels": ["BINDING"],
+        "tags": ["BINDING"],
+        "attributes": {"rank": 1},
+        "hit_policy": {
+          "kind": "ONCE_PER_ACTION_INSTANCE",
+          "receipt_on": "ON_IMPACT"
+        },
+        "effect_templates": [
+          {
+            "effect_type": "binding.value",
+            "effect_class": "BINDING",
+            "authoritative": true,
+            "reducer": "SUM",
+            "priority": 1,
+            "payload": {"amount": 1}
+          }
+        ],
+        "extensions": {}
+      }
+    ],
+    "transitions": [
+      {
+        "id": "finish",
+        "source_node": "wait",
+        "evaluation_point": "AFTER_QUANTUM",
+        "priority": 100,
+        "guard": {"literal": true},
+        "input_match": null,
+        "event_match": null,
+        "target": {"kind": "NODE", "node": "done"},
+        "claims": [],
+        "consume_policy": "NEVER",
+        "exit_assignments": [],
+        "assignments": [],
+        "entry_assignments": [],
+        "effects": [],
+        "cycle_delta": 0,
+        "metadata": {"purpose": "binding"}
+      }
+    ],
+    "slot_claims": [{"slot": "FULL_BODY", "amount": 1}],
+    "profiles": {
+      "pcam24": {
+        "lifecycle": "TERMINATE",
+        "projection": [
+          {"node": "wait", "step_range": [0, 1], "phase_range": [0, 12]},
+          {"node": "done", "step_range": [0, 1], "phase_range": [12, 24]}
+        ],
+        "tags": {"BINDING": [[0, 24]]}
+      }
+    },
+    "extensions": {
+      "tech.greyforge.binding": {
+        "requirement": "OPTIONAL",
+        "authoritative": false,
+        "omission_preserves_authority": true,
+        "payload": {"label": "base"}
+      }
+    }
+  },
+  "mutations": [
+    {"id": "pcam-version", "path": ["pcam_version"], "value": "3.1", "valid": false},
+    {"id": "kind", "path": ["kind"], "value": "runtime_profile", "valid": false},
+    {"id": "id", "path": ["id"], "value": "greyforge.test.full_binding_variant", "valid": true},
+    {"id": "revision", "path": ["revision"], "value": 2, "valid": true},
+    {"id": "metadata", "path": ["metadata", "display_name"], "value": "Full Binding Variant", "valid": true},
+    {"id": "limits", "path": ["limits", "buffer_capacity"], "value": 5, "valid": true},
+    {"id": "rate", "path": ["rate", "units_per_tick"], "value": 2, "valid": true},
+    {"id": "parameters", "path": ["parameters", "power", "default"], "value": 2, "valid": true},
+    {"id": "registers", "path": ["registers", "counter", "initial"], "value": 1, "valid": true},
+    {"id": "imports", "path": ["imports", "grounded", "default"], "value": false, "valid": true},
+    {"id": "initial-node", "path": ["initial_node"], "value": "done", "valid": true},
+    {"id": "nodes", "path": ["nodes", "wait", "tags"], "value": ["WAIT", "VARIANT"], "valid": true},
+    {"id": "predicates", "path": ["predicates", "READY", "track_edges"], "value": false, "valid": true},
+    {"id": "semantic-facts", "path": ["semantic_facts", 0, "tags"], "value": ["BINDING", "VARIANT"], "valid": true},
+    {"id": "transitions", "path": ["transitions", 0, "priority"], "value": 101, "valid": true},
+    {"id": "slot-claims", "path": ["slot_claims", 0, "amount"], "value": 2, "valid": true},
+    {"id": "profiles", "path": ["profiles", "pcam24", "lifecycle"], "value": "CLAMP", "valid": true},
+    {"id": "extensions", "path": ["extensions", "tech.greyforge.binding", "payload", "label"], "value": "variant", "valid": true}
+  ],
+  "expected": {
+    "base_sha256": "4b5c7a983e9e1d7d3699bd04fbcd311327e55bf1f483a59af5a459474a508ee7",
+    "mutation_hashes_sha256": "001f36c9b551e2b24bfb970e424937b451d998343468b1a2eea42a6b848e08e6"
+  }
+}
