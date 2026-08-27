@@ -1,0 +1,117 @@
+{
+  "audit_version": "1",
+  "scan_glob": "**/*.md",
+  "prohibited_claim_patterns": [
+    {
+      "id": "perfect_determinism",
+      "regex": "\\bperfect determinism\\b"
+    },
+    {
+      "id": "latency_elimination",
+      "regex": "\\b(?:elimination of latency|latency elimination)\\b"
+    },
+    {
+      "id": "rollback_elimination",
+      "regex": "\\b(?:elimination of rollback|rollback elimination)\\b"
+    },
+    {
+      "id": "universally_minimal_network_state",
+      "regex": "\\buniversally minimal network state\\b"
+    },
+    {
+      "id": "superior_performance",
+      "regex": "\\bsuperior performance\\b"
+    },
+    {
+      "id": "production_readiness",
+      "regex": "\\bproduction(?:[ -]ready| readiness)\\b"
+    },
+    {
+      "id": "novelty",
+      "regex": "\\bnovelty\\b"
+    }
+  ],
+  "allowed_prohibition_contexts": [
+    {
+      "path": "spec/PCAM-v3.md",
+      "context_regex": ".*",
+      "reason": "normative migration and claims restrictions"
+    },
+    {
+      "path": "release/claims-gate.md",
+      "context_regex": ".*",
+      "reason": "claims-gate restriction text"
+    },
+    {
+      "path": "release/claims-audit.md",
+      "context_regex": ".*",
+      "reason": "audit vocabulary and outcome"
+    },
+    {
+      "path": "README.md",
+      "context_regex": "does not claim",
+      "reason": "root disclaimer"
+    },
+    {
+      "path": "experiments/methodology/README.md",
+      "context_regex": "do not establish",
+      "reason": "experiment interpretation disclaimer"
+    }
+  ],
+  "conformance_class_regex": "\\bPCAM-(?:DEF|RUN|DET|RB|24)-3\\b",
+  "allowed_conformance_contexts": [
+    {
+      "path": "spec/PCAM-v3.md",
+      "context_regex": ".*",
+      "reason": "normative class definitions and dependencies"
+    },
+    {
+      "path": "release/claims-gate.md",
+      "context_regex": ".*",
+      "reason": "unclaimed-class disclosure"
+    },
+    {
+      "path": "release/claims-audit.md",
+      "context_regex": ".*",
+      "reason": "audit outcome"
+    },
+    {
+      "path": "release/reference-runtime-gate.md",
+      "context_regex": "not",
+      "reason": "explicit runtime non-claim"
+    }
+  ],
+  "stable_label_regex": "\\bStable, Normative\\b",
+  "allowed_stability_contexts": [
+    {
+      "path": "spec/PCAM-v3.md",
+      "context_regex": ".*",
+      "reason": "normative release condition and prohibition"
+    },
+    {
+      "path": "README.md",
+      "context_regex": "does not claim",
+      "reason": "root disclaimer"
+    },
+    {
+      "path": "STATUS.md",
+      "context_regex": "(?:not|prohibited)",
+      "reason": "current status prohibition"
+    },
+    {
+      "path": "release/specification-audit.md",
+      "context_regex": "does not permit",
+      "reason": "audit scope disclaimer"
+    },
+    {
+      "path": "release/specification-gate.md",
+      "context_regex": "does not permit",
+      "reason": "gate scope disclaimer"
+    },
+    {
+      "path": "release/claims-audit.md",
+      "context_regex": ".*",
+      "reason": "audit outcome"
+    }
+  ]
+}
