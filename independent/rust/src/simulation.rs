@@ -519,12 +519,19 @@ impl SimulationRuntime {
                 .unwrap_or_default(),
             extension_state: BTreeMap::new(),
             fault_state: BTreeMap::new(),
-            freeze_tokens: Vec::new(),
+            freeze_tokens: initial
+                .get("freeze_tokens")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default(),
             host_state: json!({}),
             input_buffers: BTreeMap::new(),
             interaction_ledgers: BTreeMap::new(),
             next_action_instance_id: 1,
-            next_freeze_token_id: 1,
+            next_freeze_token_id: initial
+                .get("next_freeze_token_id")
+                .and_then(Value::as_u64)
+                .unwrap_or(1),
             pending_events: initial
                 .get("pending_events")
                 .and_then(Value::as_array)
@@ -725,6 +732,9 @@ impl SimulationRuntime {
             else {
                 continue;
             };
+            if domain_frozen(&work, instance_id, "INTERACTION_EMISSION") {
+                continue;
+            }
             let definition = self
                 .definitions
                 .values()

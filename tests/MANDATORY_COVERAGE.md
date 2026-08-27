@@ -10,7 +10,7 @@ This map names current executable evidence for specification §38. A mapped test
 |---|---|---|
 | 38.1 State sufficiency | `test_mandatory_conformance.py::test_38_1_*` | implemented for freeze state and future behavior |
 | 38.2 Cycle distinction | `test_mandatory_conformance.py::test_38_2_*` | implemented |
-| 38.3 Once per action during freeze | runtime freeze, typed interaction, and ledger tests | implemented across composed unit surfaces; dedicated integrated vector pending |
+| 38.3 Once per action during freeze | `vectors/once-freeze-runtime.json` in Python and independent Rust complete-state runtimes | implemented directly with one hit, two frozen emission ticks, post-freeze ledger suppression, and four exact state digests |
 | 38.4 Once per cycle | `test_ledgers.py::test_cycle_and_predicate_activation_are_part_of_policy_key` | implemented key eligibility; full looping runtime vector pending |
 | 38.5 Predicate reactivation | same ledger test plus predicate edge runtime tests | implemented across composed unit surfaces |
 | 38.6 Explicit skip | seekable validation and transition target-step runtime behavior | partial; entry/exit effect model breadth pending |

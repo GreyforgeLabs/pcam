@@ -116,6 +116,8 @@ class TickExecutor:
         rng_streams: dict[str, object] | None = None,
         entity_records: dict[str, dict[str, object]] | None = None,
         pending_events: tuple[dict[str, object], ...] = (),
+        freeze_tokens: tuple[FreezeToken, ...] = (),
+        next_freeze_token_id: int = 1,
     ) -> SimulationState:
         action_slots = {
             str(entity): {
@@ -131,6 +133,8 @@ class TickExecutor:
             resource_banks=resource_banks or {},
             action_slots=action_slots,
             pending_events=pending_events,
+            freeze_tokens=freeze_tokens,
+            next_freeze_token_id=next_freeze_token_id,
             rng_streams=rng_streams or {},
         )
 

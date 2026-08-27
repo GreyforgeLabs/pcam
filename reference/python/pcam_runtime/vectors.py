@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from .freezes import FreezeToken
 from .interactions import EffectTemplate, InteractionRule, RuleOperation, SemanticFact
 from .intents import Claim
 from .ledgers import HitPolicy
@@ -60,6 +61,8 @@ def run_vector(document: dict[str, Any], max_ticks: int = 10_000) -> VectorRun:
         rng_streams={str(key): dict(value) for key, value in initial.get("rng_streams", {}).items()},
         entity_records={str(key): dict(value) for key, value in initial.get("entity_records", {}).items()},
         pending_events=tuple(dict(value) for value in initial.get("pending_events", [])),
+        freeze_tokens=tuple(_freeze_token(value) for value in initial.get("freeze_tokens", [])),
+        next_freeze_token_id=int(initial.get("next_freeze_token_id", 1)),
     )
     initial_snapshot = executor.save(state)
     traces: list[dict[str, object]] = []
@@ -144,6 +147,21 @@ def _network_profile(value: dict[str, Any]) -> NetworkProfile:
         correction_policy=value.get("correction_policy"),
         latency_mechanism=value.get("latency_mechanism"),
         max_latency_compensation_ticks=value.get("max_latency_compensation_ticks"),
+    )
+
+
+def _freeze_token(value: dict[str, Any]) -> FreezeToken:
+    return FreezeToken(
+        token_id=int(value["token_id"]),
+        source_id=int(value["source_id"]),
+        target_id=int(value["target_id"]),
+        activation_tick=int(value["activation_tick"]),
+        remaining_ticks=int(value["remaining_ticks"]),
+        domains=tuple(value["domains"]),  # type: ignore[arg-type]
+        accrual_policy=str(value.get("accrual_policy", "HOLD")),  # type: ignore[arg-type]
+        stack_group=str(value.get("stack_group", "default")),
+        stack_policy=str(value.get("stack_policy", "INDEPENDENT")),  # type: ignore[arg-type]
+        metadata=value.get("metadata"),
     )
 
 

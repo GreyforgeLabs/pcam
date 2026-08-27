@@ -1,0 +1,120 @@
+{
+  "pcam_vector_version": "1",
+  "kind": "runtime_vector",
+  "id": "once-freeze-runtime",
+  "runtime_profile": {
+    "pcam_version": "3.0",
+    "kind": "runtime_profile",
+    "id": "pcam.reference.once-freeze-runtime.v1",
+    "revision": 1,
+    "fault_policy": "ABORT_SIMULATION",
+    "limits": {
+      "max_actions_per_entity": 8,
+      "max_action_nesting_depth": 4,
+      "max_children_per_action": 4,
+      "max_quanta_per_action_per_tick": 8,
+      "max_internal_transitions_per_action_per_tick": 8,
+      "max_buffer_entries_per_action": 8,
+      "max_pending_events_per_entity": 8,
+      "max_candidates_per_tick": 32,
+      "max_effects_per_tick": 32,
+      "max_redirects_per_candidate": 4,
+      "max_definition_size_bytes": 65536,
+      "max_snapshot_size_bytes": 262144,
+      "max_extension_state_bytes": 4096,
+      "max_expression_depth": 64,
+      "max_expression_nodes": 4096
+    },
+    "rng_profiles": ["pcam.pcg32.v1"],
+    "network_profiles": [
+      {"id": "pcam.local.v1", "topology": "LOCAL_DETERMINISTIC"}
+    ],
+    "extensions": {}
+  },
+  "definitions": [
+    {
+      "id": "FROZEN_STRIKE",
+      "rate_scale": 1,
+      "units_per_tick": 0,
+      "nodes": [{"id": "ACTIVE", "mode": "EVENT_DRIVEN"}],
+      "predicates": [{"id": "ACTIVE", "node_ids": ["ACTIVE"]}],
+      "semantic_facts": [
+        {
+          "fact": {
+            "fact_id": "strike",
+            "direction": "OFFENSE",
+            "effect_templates": [
+              {"effect_type": "combat.damage", "effect_class": "DAMAGE", "payload": 10, "reducer": "SUM"}
+            ]
+          },
+          "when_predicate": "ACTIVE",
+          "hit_policy": {"kind": "ONCE_PER_ACTION_INSTANCE", "receipt_on": "ON_IMPACT"}
+        }
+      ]
+    }
+  ],
+  "interaction_rules": [
+    {"rule_id": "materialize", "stage": "MATERIALIZATION", "order": 10, "condition": {"literal": true}, "operations": [{"op": "MATERIALIZE"}]}
+  ],
+  "effect_registry": {"combat.damage": ["hp", -1]},
+  "initial_state": {
+    "resource_banks": {"2": {"hp": 100}},
+    "slot_capacities": {},
+    "next_freeze_token_id": 2,
+    "freeze_tokens": [
+      {
+        "accrual_policy": "HOLD",
+        "activation_tick": 1,
+        "domains": ["INTERACTION_EMISSION"],
+        "metadata": {"test": "38.3"},
+        "remaining_ticks": 2,
+        "source_id": 99,
+        "stack_group": "mandatory-38.3",
+        "stack_policy": "INDEPENDENT",
+        "target_id": 1,
+        "token_id": 1
+      }
+    ]
+  },
+  "ticks": [
+    {
+      "inputs": [
+        {"input_id": "start", "source_entity_id": 1, "sequence": 0, "command_id": "START", "assigned_tick": 0, "action_definition_id": "FROZEN_STRIKE"}
+      ],
+      "contacts": [
+        {"candidate_id": "c0", "source_instance_id": 1, "source_entity_id": 1, "target_entity_id": 2, "fact_id": "strike", "contact_id": "c0"}
+      ]
+    },
+    {
+      "inputs": [],
+      "contacts": [
+        {"candidate_id": "c1", "source_instance_id": 1, "source_entity_id": 1, "target_entity_id": 2, "fact_id": "strike", "contact_id": "c1"}
+      ]
+    },
+    {
+      "inputs": [],
+      "contacts": [
+        {"candidate_id": "c2", "source_instance_id": 1, "source_entity_id": 1, "target_entity_id": 2, "fact_id": "strike", "contact_id": "c2"}
+      ]
+    },
+    {
+      "inputs": [],
+      "contacts": [
+        {"candidate_id": "c3", "source_instance_id": 1, "source_entity_id": 1, "target_entity_id": 2, "fact_id": "strike", "contact_id": "c3"}
+      ]
+    }
+  ],
+  "expected": {
+    "tick_state_digests": [
+      "890990a66a645de3deef3f74b93de6070a6bd4dd3f4a8a415d84580cb5f51f3a",
+      "6bb95f50d895980e79af8ecca7de02dcc089da248e8b4d4b6dc11ca95f4fcd92",
+      "5cd38b702760a24956143d001f41f990878e7b755fb67d7edd6f65d3c808edc5",
+      "5ad2b866e4911f5b718b137c23c32fa502f60983e2ae21e59edd3629aba21c9d"
+    ],
+    "target_hp": [90, 90, 90, 90],
+    "ledger_count": [1, 1, 1, 1],
+    "effect_count": [1, 0, 0, 0],
+    "receipt_count": [1, 0, 0, 1],
+    "freeze_count": [1, 1, 0, 0]
+  }
+}
