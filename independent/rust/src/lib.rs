@@ -10,6 +10,7 @@ pub mod events;
 pub mod expression;
 pub mod extension;
 pub mod faults;
+pub mod interactions;
 pub mod numeric;
 pub mod rng;
 pub mod simulation;

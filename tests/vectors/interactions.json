@@ -1,0 +1,154 @@
+{
+  "profile": "pcam.interactions.v1",
+  "canonical_candidate_order": {
+    "candidates": [
+      {"tick": 4, "candidate_id": "late", "source_entity_id": 2, "target_entity_id": 1, "source_action_instance_id": 20, "offense_fact_id": "strike", "contact_id": "z"},
+      {"tick": 4, "candidate_id": "partition-b", "source_entity_id": 1, "target_entity_id": 2, "source_action_instance_id": 10, "offense_fact_id": "strike", "defense_fact_id": "guard", "contact_partition": "b", "contact_id": "a"},
+      {"tick": 4, "candidate_id": "first", "source_entity_id": 1, "target_entity_id": 2, "source_action_instance_id": 10, "offense_fact_id": "strike", "contact_id": "a"},
+      {"tick": 4, "candidate_id": "partition-a", "source_entity_id": 1, "target_entity_id": 2, "source_action_instance_id": 10, "offense_fact_id": "strike", "defense_fact_id": "guard", "contact_partition": "a", "contact_id": "z"}
+    ],
+    "candidate_ids": ["first", "partition-a", "partition-b", "late"]
+  },
+  "cases": [
+    {
+      "id": "all-stages-and-transformations",
+      "candidate": {"tick": 4, "candidate_id": "full", "source_entity_id": 1, "target_entity_id": 2, "source_action_instance_id": 10, "offense_fact_id": "strike", "contact_id": "contact-1", "host_context": {"target.lifecycle": "RUNNING"}},
+      "offense": {
+        "fact_id": "strike",
+        "direction": "OFFENSE",
+        "channels": ["STRIKE"],
+        "tags": ["HEAVY"],
+        "effect_templates": [
+          {"effect_type": "combat.damage", "effect_class": "DAMAGE", "payload": 31, "reducer": "SUM", "priority": 3},
+          {"effect_type": "combat.stagger", "effect_class": "STAGGER", "payload": 25, "reducer": "SUM"},
+          {"effect_type": "combat.guard-old", "effect_class": "GUARD", "payload": 99, "reducer": "MAX"},
+          {"effect_type": "combat.temporary", "effect_class": "TEMP", "payload": 9}
+        ]
+      },
+      "defense_by_target": {
+        "2": {"fact_id": "armor", "direction": "DEFENSE", "tags": ["ARMOR"]}
+      },
+      "rules": [
+        {"rule_id": "reaction-skipped", "stage": "REACTION", "order": 20, "condition": {"literal": true}, "operations": [{"op": "ADD_DECISION_TAG", "data": {"tag": "REACTION_SKIPPED"}}]},
+        {"rule_id": "materialize", "stage": "MATERIALIZATION", "order": 10, "condition": {"literal": true}, "operations": [{"op": "MATERIALIZE", "data": {"effect_classes": ["DAMAGE", "STAGGER", "GUARD", "BONUS"]}}, {"op": "STOP_STAGE"}]},
+        {"rule_id": "admission-skipped", "stage": "ADMISSION", "order": 30, "condition": {"literal": true}, "operations": [{"op": "ADD_DECISION_TAG", "data": {"tag": "ADMISSION_SKIPPED"}}]},
+        {"rule_id": "route", "stage": "ROUTING", "order": 5, "condition": {"op": "contains", "args": [{"ref": "offense.channels"}, {"literal": "STRIKE"}]}, "operations": [{"op": "ADD_DECISION_TAG", "data": {"tag": "ROUTED"}}]},
+        {"rule_id": "admit", "stage": "ADMISSION", "order": 10, "condition": {"op": "eq", "args": [{"ref": "target.lifecycle"}, {"literal": "RUNNING"}]}, "operations": [{"op": "ADD_DECISION_TAG", "data": {"tag": "ADMITTED"}}, {"op": "REQUEST_RECEIPT", "data": {"condition": "ON_CONTACT"}}]},
+        {"rule_id": "admission-stop", "stage": "ADMISSION", "order": 20, "condition": {"literal": true}, "operations": [{"op": "STOP_STAGE"}]},
+        {"rule_id": "modify", "stage": "MODIFICATION", "order": 10, "condition": {"op": "contains", "args": [{"ref": "defense.tags"}, {"literal": "ARMOR"}]}, "operations": [
+          {"op": "REMOVE_EFFECT_CLASS", "data": {"effect_class": "TEMP"}},
+          {"op": "SCALE_EFFECT_CLASS", "data": {"effect_class": "STAGGER", "numerator": 1, "denominator": 2}},
+          {"op": "CAP_EFFECT_CLASS", "data": {"effect_class": "DAMAGE", "cap": 20}},
+          {"op": "REPLACE_EFFECT_CLASS", "data": {"effect_class": "GUARD", "replacement": {"effect_type": "combat.guard", "effect_class": "GUARD", "payload": 7, "reducer": "MAX", "priority": 2}}},
+          {"op": "APPEND_EFFECT_TEMPLATE", "data": {"template": {"effect_type": "combat.bonus", "effect_class": "BONUS", "payload": {"kind": {"literal": "bonus"}, "source": {"ref": "candidate.source_entity_id"}, "target": {"ref": "candidate.target_entity_id"}}, "reducer": "ORDERED", "authoritative": false}}},
+          {"op": "ADD_DECISION_TAG", "data": {"tag": "MODIFIED"}}
+        ]},
+        {"rule_id": "react", "stage": "REACTION", "order": 10, "condition": {"op": "contains", "args": [{"ref": "decision.tags"}, {"literal": "MODIFIED"}]}, "operations": [
+          {"op": "APPEND_EFFECT_TEMPLATE", "data": {"template": {"effect_type": "combat.reaction", "effect_class": "REACTION", "payload": {"target": {"ref": "candidate.target_entity_id"}}, "reducer": "ORDERED"}}},
+          {"op": "MATERIALIZE", "data": {"effect_classes": ["REACTION"]}},
+          {"op": "STOP_PIPELINE"}
+        ]}
+      ],
+      "decision_sha256": "f4f7c35dab5663c59a97da40d15c2f15fda2af162ec330b49738ab6c3fa2906e",
+      "expected": {"status": "ACCEPTED", "current_target": 2, "effect_classes": ["DAMAGE", "STAGGER", "GUARD", "BONUS", "REACTION"], "generated_effect_ids": ["4:10:full:materialize:0:0", "4:10:full:materialize:0:1", "4:10:full:materialize:0:2", "4:10:full:materialize:0:3", "4:10:full:react:1:0"], "decision_tags": ["ADMITTED", "MODIFIED", "ROUTED"], "receipt_requests": ["ON_CONTACT"], "redirect_count": 0, "visited_targets": [2], "trace_rule_ids": ["admit", "admission-stop", "route", "modify", "materialize", "react"]}
+    },
+    {
+      "id": "rejected-explicit-reaction",
+      "candidate": {"tick": 8, "candidate_id": "parry", "source_entity_id": 4, "target_entity_id": 9, "source_action_instance_id": 12, "offense_fact_id": "strike", "contact_id": "contact-p"},
+      "offense": {"fact_id": "strike", "direction": "OFFENSE", "channels": ["STRIKE"], "effect_templates": [{"effect_type": "combat.damage", "effect_class": "DAMAGE", "payload": 30, "reducer": "SUM"}]},
+      "defense_by_target": {"9": {"fact_id": "parry", "direction": "DEFENSE", "tags": ["PARRY"]}},
+      "rules": [
+        {"rule_id": "parry", "stage": "ROUTING", "order": 1, "condition": {"op": "contains", "args": [{"ref": "defense.tags"}, {"literal": "PARRY"}]}, "operations": [
+          {"op": "REJECT", "data": {"reason": "PARRIED"}},
+          {"op": "APPEND_EFFECT_TEMPLATE", "data": {"template": {"effect_type": "combat.parry-success", "effect_class": "REACTION", "payload": {"attacker": {"ref": "candidate.source_entity_id"}}, "reducer": "ORDERED"}}},
+          {"op": "MATERIALIZE", "data": {"statuses": ["REJECTED"], "effect_classes": ["REACTION"]}}
+        ], "stop_pipeline": true}
+      ],
+      "decision_sha256": "2c21f5a010f229e582f7c235ede297e23df594f246e9e2aab50a5e649657d5ef",
+      "expected": {"status": "REJECTED", "current_target": 9, "effect_classes": ["DAMAGE", "REACTION"], "generated_effect_ids": ["8:12:parry:parry:2:0"], "decision_tags": ["PARRIED"], "receipt_requests": [], "redirect_count": 0, "visited_targets": [9], "trace_rule_ids": ["parry"]}
+    },
+    {
+      "id": "redirect-restarts-and-rebinds-defense",
+      "candidate": {"tick": 6, "candidate_id": "redirect", "source_entity_id": 1, "target_entity_id": 2, "source_action_instance_id": 15, "offense_fact_id": "bolt", "contact_id": "contact-r"},
+      "offense": {"fact_id": "bolt", "direction": "OFFENSE", "channels": ["PROJECTILE"], "effect_templates": [{"effect_type": "combat.damage", "effect_class": "DAMAGE", "payload": 21, "reducer": "SUM"}]},
+      "defense_by_target": {"2": {"fact_id": "reflect", "direction": "DEFENSE", "tags": ["REFLECT"]}, "3": {"fact_id": "armor", "direction": "DEFENSE", "tags": ["ARMOR"]}},
+      "rules": [
+        {"rule_id": "admit", "stage": "ADMISSION", "order": 1, "condition": {"literal": true}, "operations": [{"op": "ADD_DECISION_TAG", "data": {"tag": "ADMITTED"}}]},
+        {"rule_id": "reflect", "stage": "ROUTING", "order": 1, "condition": {"op": "contains", "args": [{"ref": "defense.tags"}, {"literal": "REFLECT"}]}, "operations": [{"op": "REDIRECT", "data": {"target_entity_id": 3}}]},
+        {"rule_id": "armor", "stage": "MODIFICATION", "order": 1, "condition": {"op": "contains", "args": [{"ref": "defense.tags"}, {"literal": "ARMOR"}]}, "operations": [{"op": "SCALE_EFFECT_CLASS", "data": {"effect_class": "DAMAGE", "numerator": 1, "denominator": 2}}]},
+        {"rule_id": "materialize", "stage": "MATERIALIZATION", "order": 1, "condition": {"literal": true}, "operations": [{"op": "MATERIALIZE"}]}
+      ],
+      "decision_sha256": "c8068f3f8f254e7dee1d74379713c38430cd337884d78e11bdadce982c288037",
+      "expected": {"status": "ACCEPTED", "current_target": 3, "effect_classes": ["DAMAGE"], "generated_effect_ids": ["6:15:redirect:materialize:0:0"], "decision_tags": ["ADMITTED"], "receipt_requests": [], "redirect_count": 1, "visited_targets": [2, 3], "trace_rule_ids": ["admit", "reflect", "admit", "armor", "materialize"]}
+    },
+    {
+      "id": "redirect-limit-rejection",
+      "candidate": {"tick": 2, "candidate_id": "loop-reject", "source_entity_id": 5, "target_entity_id": 2, "source_action_instance_id": 3, "offense_fact_id": "bolt", "contact_id": "loop"},
+      "offense": {"fact_id": "bolt", "direction": "OFFENSE", "effect_templates": []},
+      "defense_by_target": {},
+      "rules": [{"rule_id": "always-redirect", "stage": "ROUTING", "order": 1, "condition": {"literal": true}, "operations": [{"op": "REDIRECT", "data": {"target_entity_id": 1}}]}],
+      "options": {"redirect_limit_policy": "REJECT"},
+      "decision_sha256": "98484bc3b8722190159e88a35164fac9fd832aaa0e970f6ca5a8c20d0fea5fc3",
+      "expected": {"status": "REJECTED", "current_target": 1, "effect_classes": [], "generated_effect_ids": [], "decision_tags": ["REDIRECT_LIMIT_EXCEEDED"], "receipt_requests": [], "redirect_count": 1, "visited_targets": [2, 1], "trace_rule_ids": ["always-redirect", "always-redirect"]}
+    },
+    {
+      "id": "rule-stop-flags",
+      "candidate": {"tick": 1, "candidate_id": "flags", "source_entity_id": 1, "target_entity_id": 2, "source_action_instance_id": 1, "offense_fact_id": "empty", "contact_id": "flags"},
+      "offense": {"fact_id": "empty", "direction": "OFFENSE", "effect_templates": []},
+      "defense_by_target": {},
+      "rules": [
+        {"rule_id": "admission-first", "stage": "ADMISSION", "order": 1, "condition": {"literal": true}, "operations": [{"op": "ADD_DECISION_TAG", "data": {"tag": "FIRST"}}], "stop_stage": true},
+        {"rule_id": "admission-skipped", "stage": "ADMISSION", "order": 2, "condition": {"literal": true}, "operations": [{"op": "ADD_DECISION_TAG", "data": {"tag": "SKIPPED"}}]},
+        {"rule_id": "routing-last", "stage": "ROUTING", "order": 1, "condition": {"literal": true}, "operations": [{"op": "ADD_DECISION_TAG", "data": {"tag": "LAST"}}], "stop_pipeline": true},
+        {"rule_id": "modification-skipped", "stage": "MODIFICATION", "order": 1, "condition": {"literal": true}, "operations": [{"op": "ADD_DECISION_TAG", "data": {"tag": "MODIFICATION_SKIPPED"}}]}
+      ],
+      "decision_sha256": "42ee9e024fdba882d933f4a9ce3e3a56cf7c5612b5c723c6a5181bfc5129ff85",
+      "expected": {"status": "ACCEPTED", "current_target": 2, "effect_classes": [], "generated_effect_ids": [], "decision_tags": ["FIRST", "LAST"], "receipt_requests": [], "redirect_count": 0, "visited_targets": [2], "trace_rule_ids": ["admission-first", "routing-last"]}
+    }
+  ],
+  "fault_cases": [
+    {
+      "id": "duplicate-stage-order",
+      "candidate": {"tick": 0, "candidate_id": "duplicate", "source_entity_id": 1, "target_entity_id": 2, "source_action_instance_id": 1, "offense_fact_id": "empty", "contact_id": "duplicate"},
+      "offense": {"fact_id": "empty", "direction": "OFFENSE"},
+      "defense_by_target": {},
+      "rules": [
+        {"rule_id": "a", "stage": "ADMISSION", "order": 1, "condition": {"literal": true}, "operations": []},
+        {"rule_id": "b", "stage": "ADMISSION", "order": 1, "condition": {"literal": true}, "operations": []}
+      ],
+      "fault": "DEFINITION_REJECTED"
+    },
+    {
+      "id": "unsafe-rejected-materialization",
+      "candidate": {"tick": 0, "candidate_id": "unsafe", "source_entity_id": 1, "target_entity_id": 2, "source_action_instance_id": 1, "offense_fact_id": "strike", "contact_id": "unsafe"},
+      "offense": {"fact_id": "strike", "direction": "OFFENSE", "effect_templates": [{"effect_type": "combat.damage", "effect_class": "DAMAGE", "payload": 1, "reducer": "SUM"}]},
+      "defense_by_target": {},
+      "rules": [{"rule_id": "unsafe", "stage": "ROUTING", "order": 1, "condition": {"literal": true}, "operations": [{"op": "REJECT"}, {"op": "MATERIALIZE", "data": {"statuses": ["REJECTED"]}}]}],
+      "fault": "STATE_INVARIANT_FAILURE"
+    },
+    {
+      "id": "redirect-cycle-fault",
+      "candidate": {"tick": 0, "candidate_id": "cycle", "source_entity_id": 1, "target_entity_id": 2, "source_action_instance_id": 1, "offense_fact_id": "empty", "contact_id": "cycle"},
+      "offense": {"fact_id": "empty", "direction": "OFFENSE"},
+      "defense_by_target": {},
+      "rules": [{"rule_id": "cycle", "stage": "ROUTING", "order": 1, "condition": {"literal": true}, "operations": [{"op": "REDIRECT", "data": {"target_entity_id": 2}}]}],
+      "fault": "REDIRECT_LIMIT_EXCEEDED"
+    },
+    {
+      "id": "zero-scale-denominator",
+      "candidate": {"tick": 0, "candidate_id": "zero", "source_entity_id": 1, "target_entity_id": 2, "source_action_instance_id": 1, "offense_fact_id": "strike", "contact_id": "zero"},
+      "offense": {"fact_id": "strike", "direction": "OFFENSE", "effect_templates": [{"effect_type": "combat.damage", "effect_class": "DAMAGE", "payload": 1, "reducer": "SUM"}]},
+      "defense_by_target": {},
+      "rules": [{"rule_id": "zero", "stage": "MODIFICATION", "order": 1, "condition": {"literal": true}, "operations": [{"op": "SCALE_EFFECT_CLASS", "data": {"effect_class": "DAMAGE", "numerator": 1, "denominator": 0}}]}],
+      "fault": "DIVISION_BY_ZERO"
+    },
+    {
+      "id": "unknown-operation",
+      "candidate": {"tick": 0, "candidate_id": "unknown", "source_entity_id": 1, "target_entity_id": 2, "source_action_instance_id": 1, "offense_fact_id": "empty", "contact_id": "unknown"},
+      "offense": {"fact_id": "empty", "direction": "OFFENSE"},
+      "defense_by_target": {},
+      "rules": [{"rule_id": "unknown", "stage": "REACTION", "order": 1, "condition": {"literal": true}, "operations": [{"op": "NOT_CORE"}]}],
+      "fault": "STATE_INVARIANT_FAILURE"
+    }
+  ]
+}

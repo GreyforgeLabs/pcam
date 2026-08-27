@@ -18,5 +18,5 @@ Direct starts now validate declared parameter bindings before allocation, deep-c
 
 ## Known remaining interpreter gaps
 
-- Independent normative-vector breadth remains insufficient to rule out divergence in transition arbitration, the general interaction language, broader effect classes, parent policies, and fault-trigger integration despite exact complete-state vectors, shared policy-containment transformations, and stable presentation reconciliation.
+- Independent normative-vector breadth remains insufficient to rule out divergence in transition arbitration, interaction integration across complete ticks, broader effect classes, parent policies, and fault-trigger integration despite exact interaction decision records, complete-state vectors, shared policy-containment transformations, and stable presentation reconciliation.
 - Linux ARM64 digest evidence is unavailable, so this gate cannot contribute to cross-platform closure.
