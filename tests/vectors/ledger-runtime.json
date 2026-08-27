@@ -291,7 +291,8 @@
             {"input_id": "start", "source_entity_id": 1, "sequence": 0, "command_id": "START", "assigned_tick": 0, "action_definition_id": "STRIKER"}
           ],
           "contacts": [
-            {"candidate_id": "cycle-0", "source_instance_id": 1, "source_entity_id": 1, "target_entity_id": 2, "fact_id": "strike", "contact_id": "a"}
+            {"candidate_id": "cycle-0-a", "source_instance_id": 1, "source_entity_id": 1, "target_entity_id": 2, "fact_id": "strike", "contact_id": "a"},
+            {"candidate_id": "cycle-0-b", "source_instance_id": 1, "source_entity_id": 1, "target_entity_id": 2, "fact_id": "strike", "contact_id": "b"}
           ]
         },
         {
@@ -299,25 +300,26 @@
             {"input_id": "next", "source_entity_id": 1, "sequence": 1, "command_id": "NEXT", "assigned_tick": 1}
           ],
           "contacts": [
-            {"candidate_id": "cycle-1", "source_instance_id": 1, "source_entity_id": 1, "target_entity_id": 2, "fact_id": "strike", "contact_id": "b"}
+            {"candidate_id": "cycle-1-a", "source_instance_id": 1, "source_entity_id": 1, "target_entity_id": 2, "fact_id": "strike", "contact_id": "c"},
+            {"candidate_id": "cycle-1-b", "source_instance_id": 1, "source_entity_id": 1, "target_entity_id": 2, "fact_id": "strike", "contact_id": "d"}
           ]
         }
       ],
       "definition_hash": "1672c8fb91022d7a2b9742572e5acc1644fbd987e6c03dfaba2620b94872d94d",
       "definition_set_hash": "4b059d24c7a11ba0495d0b6b7668e48140f5b08ba34567ca271f230a3a695a02",
       "tick_state_digests": [
-        "3aca8d61205b0a593e021c121d4bc38159135336e13ad0568e8ced442f452af3",
-        "126bcb0c021dee8ef9129ae91d99646ce828bf48a78175519259bf1c895ff20e"
+        "626b3a24a5979f242a8d9c379803f94af68f8876530c8043a8cf3d3a005da5f3",
+        "225b440b31cd6132aa67d2e6b7ad40d145be17f18e0057335a23436b0c733eac"
       ],
-      "final_state_digest": "126bcb0c021dee8ef9129ae91d99646ce828bf48a78175519259bf1c895ff20e",
+      "final_state_digest": "225b440b31cd6132aa67d2e6b7ad40d145be17f18e0057335a23436b0c733eac",
       "expected": {
         "hp": 80,
         "ledger_count": 2,
         "ledger_origin_ticks": [0, 1],
-        "effects_by_tick": [["0:1:cycle-0:materialize:0:0"], ["1:1:cycle-1:materialize:0:0"]],
-        "accepted_by_tick": [[true], [true]],
-        "receipt_written_by_tick": [[true], [true]],
-        "reasons_by_tick": [[null], [null]],
+        "effects_by_tick": [["0:1:cycle-0-a:materialize:0:0"], ["1:1:cycle-1-a:materialize:0:0"]],
+        "accepted_by_tick": [[true, false], [true, false]],
+        "receipt_written_by_tick": [[true, null], [true, null]],
+        "reasons_by_tick": [[null, "ONCE_PER_CYCLE"], [null, "ONCE_PER_CYCLE"]],
         "predicate_entry_serials": {"ACTIVE": 1},
         "predicate_exit_serials": {},
         "cycle": 1
@@ -336,7 +338,8 @@
             {"input_id": "start", "source_entity_id": 1, "sequence": 0, "command_id": "START", "assigned_tick": 0, "action_definition_id": "STRIKER"}
           ],
           "contacts": [
-            {"candidate_id": "activation-1", "source_instance_id": 1, "source_entity_id": 1, "target_entity_id": 2, "fact_id": "strike", "contact_id": "a"}
+            {"candidate_id": "activation-1-a", "source_instance_id": 1, "source_entity_id": 1, "target_entity_id": 2, "fact_id": "strike", "contact_id": "a"},
+            {"candidate_id": "activation-1-b", "source_instance_id": 1, "source_entity_id": 1, "target_entity_id": 2, "fact_id": "strike", "contact_id": "b"}
           ]
         },
         {
@@ -350,26 +353,27 @@
             {"input_id": "on", "source_entity_id": 1, "sequence": 2, "command_id": "ON", "assigned_tick": 2}
           ],
           "contacts": [
-            {"candidate_id": "activation-2", "source_instance_id": 1, "source_entity_id": 1, "target_entity_id": 2, "fact_id": "strike", "contact_id": "b"}
+            {"candidate_id": "activation-2-a", "source_instance_id": 1, "source_entity_id": 1, "target_entity_id": 2, "fact_id": "strike", "contact_id": "c"},
+            {"candidate_id": "activation-2-b", "source_instance_id": 1, "source_entity_id": 1, "target_entity_id": 2, "fact_id": "strike", "contact_id": "d"}
           ]
         }
       ],
       "definition_hash": "3e58a3bc279264c1dc0499ba7226e154b3ccabc234bbf5c49adf429e7daefacc",
       "definition_set_hash": "4c2e2be34230e3adf11433488ebda5ee024bba7bd0934a6a210e7bfec8700ff1",
       "tick_state_digests": [
-        "0cfd13632ba505d420545642f19218a7ecb56210f9ff067358c0ecf883f45d5c",
-        "ad76ab8459ee310965fb1c99919c6337cd7bc127db1199ddbfdbb9d4b1423007",
-        "f496e328909682e37a650917ef97915bccfd0397fc5842e08d623caf497aa5ad"
+        "3532a3be32a19a3d59d2cd5a062bf6ac548275ddf3217e0d52eec7e638541a19",
+        "b499913646eb2c06df5af3a8d88d76971cd2b15463514217cadf3d4c66744d9e",
+        "d9ed243dd3f31479e21ea7b97744e6ccb83a993b5f2a345ceb3080b8b1abe16e"
       ],
-      "final_state_digest": "f496e328909682e37a650917ef97915bccfd0397fc5842e08d623caf497aa5ad",
+      "final_state_digest": "d9ed243dd3f31479e21ea7b97744e6ccb83a993b5f2a345ceb3080b8b1abe16e",
       "expected": {
         "hp": 80,
         "ledger_count": 2,
         "ledger_origin_ticks": [0, 2],
-        "effects_by_tick": [["0:1:activation-1:materialize:0:0"], [], ["2:1:activation-2:materialize:0:0"]],
-        "accepted_by_tick": [[true], [], [true]],
-        "receipt_written_by_tick": [[true], [], [true]],
-        "reasons_by_tick": [[null], [], [null]],
+        "effects_by_tick": [["0:1:activation-1-a:materialize:0:0"], [], ["2:1:activation-2-a:materialize:0:0"]],
+        "accepted_by_tick": [[true, false], [], [true, false]],
+        "receipt_written_by_tick": [[true, null], [], [true, null]],
+        "reasons_by_tick": [[null, "ONCE_PER_PREDICATE_ACTIVATION"], [], [null, "ONCE_PER_PREDICATE_ACTIVATION"]],
         "predicate_entry_serials": {"ACTIVE": 2},
         "predicate_exit_serials": {"ACTIVE": 1}
       }
