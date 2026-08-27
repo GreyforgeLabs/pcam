@@ -33,6 +33,7 @@ The audit compared every normative issue against the master text and the executa
 | Host imports had no exact snapshot binding | §8.6 defines the host `imports` object, supplied/default resolution, validation, capture, faulting, and serialization |
 | Owner references had no exact state paths or missing-value rule | §7.2 binds resource and register references to authoritative maps and fails missing identifiers |
 | Input and event references had no match lifetime | §11.3 defines canonical one-time selection, dotted fields, operation lifetime, and missing-context failure |
+| PCAM-24 CLAMP had no legal Core rate-control assignment | §8.5 permits the built-in U64 `action.current_rate_units` target, and §32.7 compiles CLAMP to timeline step 23 with rate zero |
 
 ## Gate conclusion
 

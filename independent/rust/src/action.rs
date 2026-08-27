@@ -532,7 +532,9 @@ fn tick_inner(
             current_tick,
         )?;
     }
-    semantic_snapshot(action, definition, limits)?;
+    if action.lifecycle_state == "RUNNING" {
+        semantic_snapshot(action, definition, limits)?;
+    }
     if !freezes.buffer_expiry {
         expire_buffer(&mut action.input_buffer);
     }
@@ -941,6 +943,18 @@ fn apply_assignments(
     limits: RuntimeLimits,
 ) -> Result<(), ActionError> {
     for assignment in assignments {
+        if assignment.target == "action.current_rate_units" {
+            let context = transition_context(action, matched_input);
+            let value = evaluate(
+                &assignment.value,
+                &context,
+                limits.max_expression_depth,
+                limits.max_expression_nodes,
+            )
+            .map_err(map_expression)?;
+            action.current_rate_units = value.as_u64().ok_or(ActionError::StateInvariant)?;
+            continue;
+        }
         let register = assignment
             .target
             .strip_prefix("action.register.")

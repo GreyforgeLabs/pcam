@@ -1380,6 +1380,22 @@ class TickExecutor:
     ) -> ActionInstance:
         current = action
         for assignment in assignments:
+            if assignment.target == "action.current_rate_units":
+                value = self._evaluate_action_expression(
+                    state,
+                    current,
+                    definition,
+                    assignment.value,
+                    context,
+                )
+                if type(value) is not int:
+                    raise PCAMError(
+                        ResultCode.RUNTIME_FAULT,
+                        PCAMFault.STATE_INVARIANT_FAILURE,
+                        assignment.target,
+                    )
+                current = replace(current, current_rate_units=apply_u64(value))
+                continue
             prefix = "action.register."
             if not assignment.target.startswith(prefix):
                 raise PCAMError(

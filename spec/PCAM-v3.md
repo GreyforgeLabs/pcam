@@ -602,7 +602,7 @@ BOUNDED_LIST
 
 Dynamic collections MUST declare a maximum capacity and overflow policy.
 
-Core assignment targets use the exact form `action.register.<id>`. Parameters are immutable and MUST NOT be assignment targets. Assignments execute in document array order, and each assignment expression observes all preceding authoritative mutations. The assigned value MUST match the declared register type. Numeric values apply the register's declared minimum, maximum, and overflow policy before mutation. An invalid target, type, or bounded value produces a deterministic fault before that assignment mutates the register.
+Core assignment targets use `action.register.<id>` for declared registers. The built-in target `action.current_rate_units` assigns a U64 directly to the action instance's authoritative progression rate. Parameters are immutable and MUST NOT be assignment targets. Assignments execute in document array order, and each assignment expression observes all preceding authoritative mutations. A register value MUST match its declared type and a rate value MUST be a U64. Numeric register values apply the register's declared minimum, maximum, and overflow policy before mutation. An invalid target, type, or bounded value produces a deterministic fault before that assignment mutates state.
 
 ## 8.6 Host Imports
 

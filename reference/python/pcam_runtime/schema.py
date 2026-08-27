@@ -246,6 +246,8 @@ def _action_diagnostics(document: dict[str, Any]) -> list[Diagnostic]:
                 continue
             target = assignment.get("target")
             register_id = target.removeprefix(prefix) if isinstance(target, str) else ""
+            if target == "action.current_rate_units":
+                continue
             if not isinstance(target, str) or not target.startswith(prefix) or register_id not in register_ids:
                 diagnostics.append(
                     Diagnostic(

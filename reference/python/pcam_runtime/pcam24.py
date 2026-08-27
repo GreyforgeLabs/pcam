@@ -38,25 +38,14 @@ def compile_pcam24(source: dict[str, Any]) -> dict[str, Any]:
         target = {"kind": "NODE", "node": "timeline", "target_step": 0}
         cycle_delta = 1
     else:
-        nodes["clamped"] = {
-            "id": "clamped",
-            "mode": "EVENT_DRIVEN",
-            "seekable": False,
-            "entry_assignments": [],
-            "entry_effects": [],
-            "exit_assignments": [],
-            "exit_effects": [],
-            "tags": [],
-            "extensions": {},
-        }
-        target = {"kind": "NODE", "node": "clamped", "target_step": 0}
+        target = {"kind": "NODE", "node": "timeline", "target_step": 23}
         assignments = [{"target": "action.current_rate_units", "value": {"literal": 0}}]
 
     predicates = {
         tag: {
             "track_edges": True,
             "metadata": {"profile": "pcam24", "ranges": deepcopy(ranges)},
-            "expression": _ranges_expression(ranges, lifecycle == "CLAMP"),
+            "expression": _ranges_expression(ranges),
         }
         for tag, ranges in sorted(source["tags"].items(), key=lambda item: item[0].encode("utf-8"))
     }
@@ -84,8 +73,6 @@ def compile_pcam24(source: dict[str, Any]) -> dict[str, Any]:
     projection = [
         {"node": "timeline", "step_range": [0, 24], "phase_range": [0, 24]}
     ]
-    if lifecycle == "CLAMP":
-        projection.append({"node": "clamped", "step_range": [0, 1], "phase_range": [23, 24]})
 
     return {
         "pcam_version": "3.0",
@@ -119,7 +106,7 @@ def compile_pcam24(source: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _ranges_expression(ranges: list[list[int]], include_clamped: bool) -> dict[str, Any]:
+def _ranges_expression(ranges: list[list[int]]) -> dict[str, Any]:
     alternatives: list[dict[str, Any]] = []
     for start, end in ranges:
         alternatives.append(
@@ -132,10 +119,6 @@ def _ranges_expression(ranges: list[list[int]], include_clamped: bool) -> dict[s
                 ],
             }
         )
-        if include_clamped and start <= 23 < end:
-            alternatives.append(
-                {"op": "eq", "args": [{"ref": "action.node"}, {"literal": "clamped"}]}
-            )
     if len(alternatives) == 1:
         return alternatives[0]
     return {"op": "or", "args": alternatives}

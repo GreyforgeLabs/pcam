@@ -548,6 +548,8 @@ def validate_definition(definition: ActionDefinition) -> None:
     def validate_assignments(assignments: tuple[Assignment, ...]) -> None:
         prefix = "action.register."
         for assignment in assignments:
+            if assignment.target == "action.current_rate_units":
+                continue
             register_id = assignment.target.removeprefix(prefix)
             if not assignment.target.startswith(prefix) or register_id not in register_ids:
                 raise PCAMError(

@@ -2259,6 +2259,39 @@ impl SimulationRuntime {
         matched_event: Option<&Value>,
     ) -> Result<(), SimulationError> {
         for assignment in assignments {
+            if assignment.target == "action.current_rate_units" {
+                let action = state
+                    .action_instances
+                    .iter()
+                    .find(|action| action.instance_id == action_id)
+                    .cloned()
+                    .ok_or(SimulationError::RuntimeFault)?;
+                let context = transition_guard_context(
+                    state,
+                    &action,
+                    definition,
+                    &assignment.value,
+                    matched_input,
+                    matched_event,
+                )?;
+                let value = evaluate_expression(
+                    &assignment.value,
+                    &context,
+                    self.max_expression_depth,
+                    self.max_expression_nodes,
+                )
+                .map_err(|error| predicate_expression_fault(error, &action))?;
+                let rate = value
+                    .as_u64()
+                    .ok_or_else(|| assignment_fault("STATE_INVARIANT_FAILURE", action_id, state))?;
+                state
+                    .action_instances
+                    .iter_mut()
+                    .find(|action| action.instance_id == action_id)
+                    .ok_or(SimulationError::RuntimeFault)?
+                    .current_rate_units = rate;
+                continue;
+            }
             let register_id = assignment
                 .target
                 .strip_prefix("action.register.")

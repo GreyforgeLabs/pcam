@@ -1,0 +1,89 @@
+{
+  "pcam_vector_version": "1",
+  "kind": "pcam24_lifecycle_vector",
+  "id": "bounded-core-lifecycles",
+  "source": {
+    "pcam_version": "3.0",
+    "kind": "pcam24",
+    "id": "greyforge.test.pcam24.lifecycle",
+    "revision": 1,
+    "lifecycle": "TERMINATE",
+    "rate": {"scale": 1, "units_per_tick": 1},
+    "tags": {
+      "STARTUP": [[0, 10]],
+      "ACTIVE": [[10, 14]],
+      "RECOVERY": [[14, 24]]
+    },
+    "extensions": {}
+  },
+  "limits": {
+    "max_quanta_per_action_per_tick": 8,
+    "max_internal_transitions_per_tick": 8,
+    "max_expression_depth": 64,
+    "max_expression_nodes": 4096
+  },
+  "cases": [
+    {
+      "lifecycle": "TERMINATE",
+      "compiled_target": {"kind": "TERMINATE"},
+      "compiled_assignments": [],
+      "compiled_cycle_delta": 0,
+      "expected_projection": {
+        "current_node_id": "timeline",
+        "current_rate_units": 1,
+        "cycle": 0,
+        "deferred_quanta": 0,
+        "lifecycle_state": "TERMINATED",
+        "local_step": 24,
+        "node_step": 24,
+        "predicate_entry_serials": {"ACTIVE": 1, "RECOVERY": 1, "STARTUP": 1},
+        "predicate_exit_serials": {"ACTIVE": 1, "STARTUP": 1},
+        "predicate_truth_state": {"ACTIVE": false, "RECOVERY": true, "STARTUP": false},
+        "quantum_accumulator": 0,
+        "transition_serial": 1
+      }
+    },
+    {
+      "lifecycle": "LOOP",
+      "compiled_target": {"kind": "NODE", "node": "timeline", "target_step": 0},
+      "compiled_assignments": [],
+      "compiled_cycle_delta": 1,
+      "expected_projection": {
+        "current_node_id": "timeline",
+        "current_rate_units": 1,
+        "cycle": 1,
+        "deferred_quanta": 0,
+        "lifecycle_state": "RUNNING",
+        "local_step": 24,
+        "node_step": 0,
+        "predicate_entry_serials": {"ACTIVE": 1, "RECOVERY": 1, "STARTUP": 2},
+        "predicate_exit_serials": {"ACTIVE": 1, "RECOVERY": 1, "STARTUP": 1},
+        "predicate_truth_state": {"ACTIVE": false, "RECOVERY": false, "STARTUP": true},
+        "quantum_accumulator": 0,
+        "transition_serial": 1
+      }
+    },
+    {
+      "lifecycle": "CLAMP",
+      "compiled_target": {"kind": "NODE", "node": "timeline", "target_step": 23},
+      "compiled_assignments": [
+        {"target": "action.current_rate_units", "value": {"literal": 0}}
+      ],
+      "compiled_cycle_delta": 0,
+      "expected_projection": {
+        "current_node_id": "timeline",
+        "current_rate_units": 0,
+        "cycle": 0,
+        "deferred_quanta": 0,
+        "lifecycle_state": "RUNNING",
+        "local_step": 24,
+        "node_step": 23,
+        "predicate_entry_serials": {"ACTIVE": 1, "RECOVERY": 1, "STARTUP": 1},
+        "predicate_exit_serials": {"ACTIVE": 1, "STARTUP": 1},
+        "predicate_truth_state": {"ACTIVE": false, "RECOVERY": true, "STARTUP": false},
+        "quantum_accumulator": 0,
+        "transition_serial": 1
+      }
+    }
+  ]
+}

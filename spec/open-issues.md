@@ -69,3 +69,7 @@ Resolved in §7.2. `owner.resource.<id>` reads the authoritative resource bank, 
 ## Transition contextual references
 
 Resolved in §11.3. Input and event matches select one canonical immutable record before guard evaluation, dotted payload fields use that same record through every transition operation, missing context fails, and mutation never triggers reselection.
+
+## PCAM-24 CLAMP progression control
+
+Resolved in §8.5 and §32.7. Core assignments may target the built-in U64 `action.current_rate_units` state field. The PCAM-24 compiler uses that target to set the rate to zero while seeking the timeline back to cell 23, so CLAMP remains running at the required cursor without implicit progression accrual.

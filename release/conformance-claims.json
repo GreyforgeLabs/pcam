@@ -66,9 +66,9 @@
         "overlapping_tags": {"status": "PASS", "evidence": ["reference/python/tests/test_pcam24.py"]},
         "lifecycle_compilation": {"status": "PASS", "evidence": ["reference/python/pcam_runtime/pcam24.py"]},
         "rational_rate_advancement": {"status": "PASS", "evidence": ["tests/vectors/action-runtime.json"]},
-        "phase_projection": {"status": "OPEN", "evidence": ["reference/python/pcam_runtime/pcam24.py"]},
+        "phase_projection": {"status": "PASS", "evidence": ["reference/python/pcam_runtime/pcam24.py", "tests/vectors/pcam24-lifecycle.json"]},
         "explicit_migration_warnings": {"status": "PASS", "evidence": ["reference/python/tests/test_migration.py"]},
-        "no_phase_only_state_claims": {"status": "OPEN", "evidence": ["release/claims-gate.md"]}
+        "no_phase_only_state_claims": {"status": "PASS", "evidence": ["release/claims-gate.md", "spec/PCAM-v3.md"]}
       }
     }
   }
