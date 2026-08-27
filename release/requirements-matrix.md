@@ -13,7 +13,7 @@ This matrix preserves the complete target. A row is complete only when its named
 | §8 definitions | action schema, immutable hash binding, positive and negative vectors | missing |
 | §9 numeric semantics | arithmetic unit/property vectors including Euclidean division and overflow | partial: Python and independent Rust agree on shared checked I64/U64 overflow, Euclidean division, exact ratio, negative-floor, and checked-intermediate vectors; broader generated cross-language arithmetic remains open |
 | §10 progression | rational accumulator and bounded quantum vectors | partial: targeted rational-rate, HOLD/ACCRUE deferred-state, and limit slice |
-| §11-12 expressions and predicates | pure evaluator, cycle validator, edge serial vectors | partial: bounded core evaluator, cycle validation, slice edge serials |
+| §11-12 expressions and predicates | pure evaluator, cycle validator, edge serial vectors | partial: Python and independent Rust agree on every bounded pure expression operator and core faults; Python also has cycle validation and runtime edge serials, while independent predicate-graph execution remains open |
 | §13 inputs | canonical ordering, buffering, TTL, overflow, and consumption vectors | partial: runtime capture/consume/expiry plus pure capacity and policy vectors |
 | §14 transitions | all evaluation points, priorities, targets, mutation order, seek/skip vectors | missing |
 | §15-16 intents, claims, slots | atomic arbitration and replacement vectors | partial: runtime-integrated resource/slot starts, permutation invariance, atomic replacement, and ID allocation; child/capacity/exclusive integration and group semantics open |

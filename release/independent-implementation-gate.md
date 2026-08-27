@@ -11,6 +11,7 @@ Required: an implementation built from the specification and shared black-box ve
 - The Rust implementation passes all three PCAM-CJ1 cases, a real action-definition hash, and floating-point rejection.
 - `tests/vectors/numeric-rng.json` supplies shared overflow, Euclidean division, checked ratio, PCG32 output, snapshot, and continuation expectations.
 - Python and Rust independently agree on I64/U64 overflow policy, negative-floor division, checked intermediate overflow, five PCG32 draws, serialized stream state, restore, and the next draw.
+- `tests/vectors/expressions.json` exercises every core expression operator plus unresolved-reference, arity, float, division, overflow, depth, and node-budget failures in both languages.
 - Validation command: `cargo test --manifest-path independent/rust/Cargo.toml`.
 
 ## Remaining before closure
@@ -20,4 +21,4 @@ Required: an implementation built from the specification and shared black-box ve
 - Produce matching Linux x86-64 and Linux ARM64 digest manifests.
 - Audit that no Python runtime execution code or behavior-specific generated source is shared.
 
-The current evidence covers independent PCAM-CJ1, core numeric, and PCG32 slices. It does not satisfy the independent action-runtime gate.
+The current evidence covers independent PCAM-CJ1, core numeric, PCG32, and pure expression slices. It does not satisfy the independent action-runtime gate.

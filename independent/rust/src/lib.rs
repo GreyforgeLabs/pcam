@@ -3,6 +3,7 @@ use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 use unicode_normalization::UnicodeNormalization;
 
+pub mod expression;
 pub mod numeric;
 pub mod rng;
 

@@ -1,0 +1,149 @@
+{
+  "profile": "pcam.expression.v1",
+  "cases": [
+    {
+      "id": "boolean",
+      "expression": {"op": "and", "args": [{"literal": true}, {"op": "not", "args": [{"literal": false}]}]},
+      "context": {},
+      "result": true
+    },
+    {
+      "id": "xor",
+      "expression": {"op": "xor", "args": [{"literal": true}, {"literal": false}]},
+      "context": {},
+      "result": true
+    },
+    {
+      "id": "remaining-boolean-comparison-and-minimum-operators",
+      "expression": {
+        "op": "and",
+        "args": [
+          {"op": "or", "args": [{"literal": false}, {"literal": true}]},
+          {"op": "ne", "args": [{"literal": 1}, {"literal": 2}]},
+          {"op": "lt", "args": [{"literal": 1}, {"literal": 2}]},
+          {"op": "lte", "args": [{"literal": 2}, {"literal": 2}]},
+          {"op": "gt", "args": [{"literal": 3}, {"literal": 2}]},
+          {"op": "eq", "args": [{"op": "min", "args": [{"literal": 3}, {"literal": -1}, {"literal": 2}]}, {"literal": -1}]}
+        ]
+      },
+      "context": {},
+      "result": true
+    },
+    {
+      "id": "reference-comparison",
+      "expression": {"op": "gte", "args": [{"ref": "action.node_step"}, {"literal": 6}]},
+      "context": {"action.node_step": 7},
+      "result": true
+    },
+    {
+      "id": "equality",
+      "expression": {"op": "eq", "args": [{"ref": "action.node"}, {"literal": "active"}]},
+      "context": {"action.node": "active"},
+      "result": true
+    },
+    {
+      "id": "checked-arithmetic",
+      "expression": {"op": "sub", "args": [{"op": "mul", "args": [{"literal": 7}, {"literal": 6}]}, {"op": "add", "args": [{"literal": 1}, {"literal": 2}]}]},
+      "context": {},
+      "result": 39
+    },
+    {
+      "id": "euclidean-division",
+      "expression": {"op": "div", "args": [{"literal": -7}, {"literal": 3}]},
+      "context": {},
+      "result": -3
+    },
+    {
+      "id": "euclidean-modulo",
+      "expression": {"op": "mod", "args": [{"literal": -7}, {"literal": 3}]},
+      "context": {},
+      "result": 2
+    },
+    {
+      "id": "min-max-clamp",
+      "expression": {"op": "clamp", "args": [{"op": "max", "args": [{"literal": 2}, {"literal": 9}, {"literal": 4}]}, {"literal": 0}, {"literal": 7}]},
+      "context": {},
+      "result": 7
+    },
+    {
+      "id": "absolute",
+      "expression": {"op": "abs", "args": [{"literal": -9}]},
+      "context": {},
+      "result": 9
+    },
+    {
+      "id": "contains",
+      "expression": {"op": "contains", "args": [{"literal": ["ARMOR", "PARRY"]}, {"literal": "PARRY"}]},
+      "context": {},
+      "result": true
+    },
+    {
+      "id": "intersects",
+      "expression": {"op": "intersects", "args": [{"literal": ["A", "B"]}, {"literal": ["B", "C"]}]},
+      "context": {},
+      "result": true
+    },
+    {
+      "id": "subset",
+      "expression": {"op": "subset", "args": [{"literal": ["A"]}, {"literal": ["A", "B"]}]},
+      "context": {},
+      "result": true
+    },
+    {
+      "id": "union",
+      "expression": {"op": "union", "args": [{"literal": ["B", "A"]}, {"literal": ["C", "A"]}]},
+      "context": {},
+      "result": ["A", "B", "C"]
+    },
+    {
+      "id": "difference",
+      "expression": {"op": "difference", "args": [{"literal": ["A", "B", "C"]}, {"literal": ["B"]}]},
+      "context": {},
+      "result": ["A", "C"]
+    },
+    {
+      "id": "conditional",
+      "expression": {"op": "if", "args": [{"literal": true}, {"literal": 4}, {"literal": 5}]},
+      "context": {},
+      "result": 4
+    },
+    {
+      "id": "coalesce",
+      "expression": {"op": "coalesce", "args": [{"literal": null}, {"literal": "fallback"}]},
+      "context": {},
+      "result": "fallback"
+    }
+  ],
+  "fault_cases": [
+    {
+      "id": "unresolved-reference",
+      "expression": {"ref": "missing.value"},
+      "context": {},
+      "fault": "STATE_INVARIANT_FAILURE"
+    },
+    {
+      "id": "division-by-zero",
+      "expression": {"op": "div", "args": [{"literal": 1}, {"literal": 0}]},
+      "context": {},
+      "fault": "DIVISION_BY_ZERO"
+    },
+    {
+      "id": "integer-overflow",
+      "expression": {"op": "add", "args": [{"literal": 9223372036854775807}, {"literal": 1}]},
+      "context": {},
+      "fault": "INTEGER_OVERFLOW"
+    },
+    {
+      "id": "floating-literal",
+      "expression": {"literal": 1.5},
+      "context": {},
+      "fault": "STATE_INVARIANT_FAILURE"
+    },
+    {
+      "id": "wrong-arity",
+      "expression": {"op": "not", "args": [{"literal": true}, {"literal": false}]},
+      "context": {},
+      "fault": "STATE_INVARIANT_FAILURE"
+    }
+  ]
+}
