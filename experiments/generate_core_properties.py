@@ -224,6 +224,25 @@ def _rollback_correction_cases(generator: random.Random) -> list[dict[str, objec
     return cases
 
 
+def _parent_child_cases(generator: random.Random) -> list[dict[str, object]]:
+    cases = []
+    for case_index in range(16):
+        capacity = generator.randint(1, 4)
+        child_count = generator.randint(1, capacity)
+        cases.append(
+            {
+                "id": f"parent-child-{case_index:03d}",
+                "child_slot_id": generator.choice(("AUX", "SUB", "WEAPON")),
+                "capacity": capacity,
+                "child_count": child_count,
+                "expected_action_count": child_count + 1,
+                "expected_child_instance_ids": list(range(2, child_count + 2)),
+                "expected_next_action_instance_id": child_count + 2,
+            }
+        )
+    return cases
+
+
 def _effect_key(effect: dict[str, object]) -> tuple[object, ...]:
     return (
         effect["target_entity_id"],
@@ -378,6 +397,7 @@ def build_corpus() -> dict[str, object]:
     input_order_cases = _input_order_cases(generator)
     freeze_token_cases = _freeze_token_cases(generator)
     rollback_correction_cases = _rollback_correction_cases(generator)
+    parent_child_cases = _parent_child_cases(generator)
     return {
         "pcam_generated_corpus_version": "1",
         "kind": "generated_core_properties",
@@ -390,6 +410,7 @@ def build_corpus() -> dict[str, object]:
         "input_order_cases": input_order_cases,
         "freeze_token_cases": freeze_token_cases,
         "rollback_correction_cases": rollback_correction_cases,
+        "parent_child_cases": parent_child_cases,
         "effect_aggregation_cases": effect_aggregation_cases,
         "candidate_permutation_cases": candidate_permutation_cases,
         "interaction_rule_cases": interaction_rule_cases,

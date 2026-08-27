@@ -187,6 +187,7 @@ def test_python_shared_generated_action_graphs_are_repeatable_and_reach_expected
         first = _run_definition(definition, case["ticks"], case["id"])
         second = _run_definition(definition, case["ticks"], case["id"])
         assert first.to_snapshot() == second.to_snapshot(), case["id"]
+        assert first.state_hash() == second.state_hash(), case["id"]
         action = first.action_instances["1"]
         assert action.current_node_id == case["expected_node"], case["id"]
         assert action.local_step == case["expected_local_step"], case["id"]
@@ -375,6 +376,93 @@ def test_python_shared_generated_rollback_corrections_match_direct_execution():
             assert (
                 actions[0].quantum_accumulator
                 == case["expected_quantum_accumulator"]
+            ), case["id"]
+
+
+def _parent_child_definitions(case):
+    suffix = case["id"].removeprefix("parent-child-")
+    child = ActionDefinition(
+        id=f"GENERATED_CHILD_{suffix}",
+        rate_scale=1,
+        units_per_tick=0,
+        nodes=(NodeDefinition("RUN"),),
+    )
+    parent = ActionDefinition(
+        id=f"GENERATED_PARENT_{suffix}",
+        rate_scale=1,
+        units_per_tick=0,
+        nodes=(NodeDefinition("RUN"),),
+        child_slot_capacities={case["child_slot_id"]: case["capacity"]},
+        child_termination_policies={case["child_slot_id"]: "TERMINATE_CHILD"},
+        transitions=(
+            TransitionDefinition(
+                "launch",
+                "RUN",
+                "PRE_ADVANCE",
+                10,
+                target_kind="CHILD_ACTION",
+                target_action=child.id,
+                child_slot_id=case["child_slot_id"],
+                parent_policy="CONTINUE",
+                input_command="LAUNCH",
+            ),
+        ),
+    )
+    return parent, child
+
+
+def _run_parent_child_case(case):
+    parent, child = _parent_child_definitions(case)
+    executor = TickExecutor(
+        (parent, child),
+        RuntimeProfile(max_children_per_action=case["capacity"]),
+    )
+    state = executor.initial_state()
+    state, _ = executor.tick(
+        state,
+        (
+            TickInput(
+                input_id=f"parent-{case['id']}",
+                source_entity_id=1,
+                sequence=0,
+                command_id="START",
+                assigned_tick=0,
+                action_definition_id=parent.id,
+            ),
+        ),
+    )
+    for tick in range(1, case["child_count"] + 1):
+        state, _ = executor.tick(
+            state,
+            (
+                TickInput(
+                    input_id=f"launch-{case['id']}-{tick}",
+                    source_entity_id=1,
+                    sequence=tick,
+                    command_id="LAUNCH",
+                    assigned_tick=tick,
+                ),
+            ),
+        )
+    return executor, state
+
+
+def test_python_shared_generated_parent_child_structures_respect_limits_and_restore():
+    for case in _corpus()["parent_child_cases"]:
+        executor, state = _run_parent_child_case(case)
+        _, repeated = _run_parent_child_case(case)
+        assert state.to_snapshot() == repeated.to_snapshot(), case["id"]
+        assert state.state_hash() == repeated.state_hash(), case["id"]
+        assert executor.restore(executor.save(state)).to_snapshot() == state.to_snapshot()
+        assert len(state.action_instances) == case["expected_action_count"], case["id"]
+        parent = state.action_instances["1"]
+        assert list(parent.child_instance_ids) == case["expected_child_instance_ids"], case["id"]
+        assert state.next_action_instance_id == case["expected_next_action_instance_id"]
+        for child_id in case["expected_child_instance_ids"]:
+            child = state.action_instances[str(child_id)]
+            assert (child.parent_instance_id, child.parent_slot_id) == (
+                1,
+                case["child_slot_id"],
             ), case["id"]
 
 

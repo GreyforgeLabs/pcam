@@ -2,6 +2,7 @@ use pcam_independent::action::{
     ActionDefinition, FreezeControls, RuntimeLimits, TickInput, restore, snapshot, start,
     tick_with_controls,
 };
+use pcam_independent::canonical_hash;
 use pcam_independent::effects::{EffectEnvelope, reduce_effects};
 use pcam_independent::freezes::{
     FreezeToken, canonical_tokens, end_tick, is_frozen, progression_accrual,
@@ -9,7 +10,7 @@ use pcam_independent::freezes::{
 use pcam_independent::interactions::{
     InteractionCandidate, InteractionRule, SemanticFact, canonical_candidates, resolve_candidate,
 };
-use pcam_independent::simulation::{RetainedRollbackHistory, SimulationRuntime};
+use pcam_independent::simulation::{RetainedRollbackHistory, SimulationRuntime, SimulationState};
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
 use std::fs;
@@ -140,6 +141,12 @@ fn independent_shared_generated_action_graphs_are_repeatable_and_reach_expected_
         advance_rate(&mut first, &definition, 0, ticks);
         advance_rate(&mut second, &definition, 0, ticks);
         assert_eq!(first, second, "{}:repeat", case["id"]);
+        assert_eq!(
+            canonical_hash(&serde_json::to_value(&first).unwrap()).unwrap(),
+            canonical_hash(&serde_json::to_value(&second).unwrap()).unwrap(),
+            "{}:digest",
+            case["id"]
+        );
         assert_eq!(
             first.current_node_id, case["expected_node"],
             "{}:node",
@@ -475,6 +482,171 @@ fn independent_shared_generated_rollback_corrections_match_direct_execution() {
                 action.quantum_accumulator,
                 case["expected_quantum_accumulator"].as_u64().unwrap(),
                 "{}:accumulator",
+                case["id"]
+            );
+        }
+    }
+}
+
+fn parent_child_vector(case: &Value) -> Value {
+    let suffix = case["id"]
+        .as_str()
+        .unwrap()
+        .trim_start_matches("parent-child-");
+    let slot = case["child_slot_id"].as_str().unwrap();
+    let child_slot_capacities = BTreeMap::from([(slot.to_owned(), case["capacity"].clone())]);
+    let child_termination_policies =
+        BTreeMap::from([(slot.to_owned(), Value::String("TERMINATE_CHILD".to_owned()))]);
+    json!({
+        "runtime_profile": {
+            "pcam_version": "3.0",
+            "kind": "runtime_profile",
+            "id": format!("pcam.generated.{}.v1", case["id"].as_str().unwrap()),
+            "revision": 1,
+            "fault_policy": "ABORT_SIMULATION",
+            "limits": {
+                "max_actions_per_entity": 8,
+                "max_action_nesting_depth": 4,
+                "max_children_per_action": case["capacity"],
+                "max_quanta_per_action_per_tick": 8,
+                "max_internal_transitions_per_action_per_tick": 8,
+                "max_buffer_entries_per_action": 8,
+                "max_pending_events_per_entity": 8,
+                "max_candidates_per_tick": 32,
+                "max_effects_per_tick": 32,
+                "max_redirects_per_candidate": 4,
+                "max_definition_size_bytes": 65536,
+                "max_snapshot_size_bytes": 262144,
+                "max_extension_state_bytes": 4096,
+                "max_expression_depth": 64,
+                "max_expression_nodes": 4096,
+            },
+            "rng_profiles": ["pcam.pcg32.v1"],
+            "network_profiles": [{
+                "id": "pcam.local.v1",
+                "topology": "LOCAL_DETERMINISTIC",
+            }],
+            "extensions": {},
+        },
+        "definitions": [
+            {
+                "id": format!("GENERATED_PARENT_{suffix}"),
+                "rate_scale": 1,
+                "units_per_tick": 0,
+                "initial_node_id": "RUN",
+                "nodes": [{"id": "RUN", "mode": "EVENT_DRIVEN"}],
+                "child_slot_capacities": child_slot_capacities,
+                "child_termination_policies": child_termination_policies,
+                "transitions": [{
+                    "id": "launch",
+                    "source_node": "RUN",
+                    "evaluation_point": "PRE_ADVANCE",
+                    "priority": 10,
+                    "target_kind": "CHILD_ACTION",
+                    "target_action": format!("GENERATED_CHILD_{suffix}"),
+                    "child_slot_id": slot,
+                    "parent_policy": "CONTINUE",
+                    "input_command": "LAUNCH",
+                }],
+            },
+            {
+                "id": format!("GENERATED_CHILD_{suffix}"),
+                "rate_scale": 1,
+                "units_per_tick": 0,
+                "initial_node_id": "RUN",
+                "nodes": [{"id": "RUN", "mode": "EVENT_DRIVEN"}],
+            },
+        ],
+        "interaction_rules": [],
+        "effect_registry": {},
+        "initial_state": {},
+    })
+}
+
+fn run_parent_child_case(case: &Value) -> (SimulationRuntime, SimulationState) {
+    let vector = parent_child_vector(case);
+    let runtime = SimulationRuntime::from_vector(&vector).unwrap();
+    let mut state = runtime.initial_state(&vector).unwrap();
+    let suffix = case["id"]
+        .as_str()
+        .unwrap()
+        .trim_start_matches("parent-child-");
+    let start = json!({
+        "inputs": [{
+            "input_id": format!("parent-{}", case["id"].as_str().unwrap()),
+            "source_entity_id": 1,
+            "sequence": 0,
+            "command_id": "START",
+            "assigned_tick": 0,
+            "action_definition_id": format!("GENERATED_PARENT_{suffix}"),
+        }],
+        "contacts": [],
+    });
+    (state, _) = runtime.tick(&state, &start).unwrap();
+    for tick in 1..=case["child_count"].as_u64().unwrap() {
+        let launch = json!({
+            "inputs": [{
+                "input_id": format!("launch-{}-{tick}", case["id"].as_str().unwrap()),
+                "source_entity_id": 1,
+                "sequence": tick,
+                "command_id": "LAUNCH",
+                "assigned_tick": tick,
+            }],
+            "contacts": [],
+        });
+        (state, _) = runtime.tick(&state, &launch).unwrap();
+    }
+    (runtime, state)
+}
+
+#[test]
+fn independent_shared_generated_parent_child_structures_respect_limits_and_restore() {
+    let corpus = corpus();
+    for case in corpus["parent_child_cases"].as_array().unwrap() {
+        let (_, state) = run_parent_child_case(case);
+        let (_, repeated) = run_parent_child_case(case);
+        assert_eq!(state, repeated, "{}:repeat", case["id"]);
+        assert_eq!(state.digest().unwrap(), repeated.digest().unwrap());
+        assert_eq!(
+            SimulationState::restore(&state.snapshot().unwrap()).unwrap(),
+            state,
+            "{}:restore",
+            case["id"]
+        );
+        assert_eq!(
+            state.action_instances.len() as u64,
+            case["expected_action_count"].as_u64().unwrap(),
+            "{}:action-count",
+            case["id"]
+        );
+        let parent = state
+            .action_instances
+            .iter()
+            .find(|action| action.instance_id == 1)
+            .unwrap();
+        assert_eq!(
+            serde_json::to_value(&parent.child_instance_ids).unwrap(),
+            case["expected_child_instance_ids"],
+            "{}:children",
+            case["id"]
+        );
+        assert_eq!(
+            state.next_action_instance_id,
+            case["expected_next_action_instance_id"].as_u64().unwrap(),
+            "{}:next-id",
+            case["id"]
+        );
+        for child_id in case["expected_child_instance_ids"].as_array().unwrap() {
+            let child = state
+                .action_instances
+                .iter()
+                .find(|action| action.instance_id == child_id.as_u64().unwrap())
+                .unwrap();
+            assert_eq!(child.parent_instance_id, Some(1), "{}:parent", case["id"]);
+            assert_eq!(
+                child.parent_slot_id.as_deref(),
+                case["child_slot_id"].as_str(),
+                "{}:slot",
                 case["id"]
             );
         }

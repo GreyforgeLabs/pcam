@@ -27045,6 +27045,200 @@
     }
   ],
   "kind": "generated_core_properties",
+  "parent_child_cases": [
+    {
+      "capacity": 4,
+      "child_count": 2,
+      "child_slot_id": "AUX",
+      "expected_action_count": 3,
+      "expected_child_instance_ids": [
+        2,
+        3
+      ],
+      "expected_next_action_instance_id": 4,
+      "id": "parent-child-000"
+    },
+    {
+      "capacity": 4,
+      "child_count": 3,
+      "child_slot_id": "AUX",
+      "expected_action_count": 4,
+      "expected_child_instance_ids": [
+        2,
+        3,
+        4
+      ],
+      "expected_next_action_instance_id": 5,
+      "id": "parent-child-001"
+    },
+    {
+      "capacity": 2,
+      "child_count": 1,
+      "child_slot_id": "SUB",
+      "expected_action_count": 2,
+      "expected_child_instance_ids": [
+        2
+      ],
+      "expected_next_action_instance_id": 3,
+      "id": "parent-child-002"
+    },
+    {
+      "capacity": 3,
+      "child_count": 3,
+      "child_slot_id": "AUX",
+      "expected_action_count": 4,
+      "expected_child_instance_ids": [
+        2,
+        3,
+        4
+      ],
+      "expected_next_action_instance_id": 5,
+      "id": "parent-child-003"
+    },
+    {
+      "capacity": 4,
+      "child_count": 2,
+      "child_slot_id": "WEAPON",
+      "expected_action_count": 3,
+      "expected_child_instance_ids": [
+        2,
+        3
+      ],
+      "expected_next_action_instance_id": 4,
+      "id": "parent-child-004"
+    },
+    {
+      "capacity": 2,
+      "child_count": 2,
+      "child_slot_id": "AUX",
+      "expected_action_count": 3,
+      "expected_child_instance_ids": [
+        2,
+        3
+      ],
+      "expected_next_action_instance_id": 4,
+      "id": "parent-child-005"
+    },
+    {
+      "capacity": 4,
+      "child_count": 2,
+      "child_slot_id": "AUX",
+      "expected_action_count": 3,
+      "expected_child_instance_ids": [
+        2,
+        3
+      ],
+      "expected_next_action_instance_id": 4,
+      "id": "parent-child-006"
+    },
+    {
+      "capacity": 2,
+      "child_count": 2,
+      "child_slot_id": "AUX",
+      "expected_action_count": 3,
+      "expected_child_instance_ids": [
+        2,
+        3
+      ],
+      "expected_next_action_instance_id": 4,
+      "id": "parent-child-007"
+    },
+    {
+      "capacity": 3,
+      "child_count": 2,
+      "child_slot_id": "SUB",
+      "expected_action_count": 3,
+      "expected_child_instance_ids": [
+        2,
+        3
+      ],
+      "expected_next_action_instance_id": 4,
+      "id": "parent-child-008"
+    },
+    {
+      "capacity": 1,
+      "child_count": 1,
+      "child_slot_id": "WEAPON",
+      "expected_action_count": 2,
+      "expected_child_instance_ids": [
+        2
+      ],
+      "expected_next_action_instance_id": 3,
+      "id": "parent-child-009"
+    },
+    {
+      "capacity": 4,
+      "child_count": 2,
+      "child_slot_id": "WEAPON",
+      "expected_action_count": 3,
+      "expected_child_instance_ids": [
+        2,
+        3
+      ],
+      "expected_next_action_instance_id": 4,
+      "id": "parent-child-010"
+    },
+    {
+      "capacity": 4,
+      "child_count": 4,
+      "child_slot_id": "AUX",
+      "expected_action_count": 5,
+      "expected_child_instance_ids": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "expected_next_action_instance_id": 6,
+      "id": "parent-child-011"
+    },
+    {
+      "capacity": 1,
+      "child_count": 1,
+      "child_slot_id": "SUB",
+      "expected_action_count": 2,
+      "expected_child_instance_ids": [
+        2
+      ],
+      "expected_next_action_instance_id": 3,
+      "id": "parent-child-012"
+    },
+    {
+      "capacity": 2,
+      "child_count": 1,
+      "child_slot_id": "SUB",
+      "expected_action_count": 2,
+      "expected_child_instance_ids": [
+        2
+      ],
+      "expected_next_action_instance_id": 3,
+      "id": "parent-child-013"
+    },
+    {
+      "capacity": 4,
+      "child_count": 3,
+      "child_slot_id": "WEAPON",
+      "expected_action_count": 4,
+      "expected_child_instance_ids": [
+        2,
+        3,
+        4
+      ],
+      "expected_next_action_instance_id": 5,
+      "id": "parent-child-014"
+    },
+    {
+      "capacity": 1,
+      "child_count": 1,
+      "child_slot_id": "SUB",
+      "expected_action_count": 2,
+      "expected_child_instance_ids": [
+        2
+      ],
+      "expected_next_action_instance_id": 3,
+      "id": "parent-child-015"
+    }
+  ],
   "pcam_generated_corpus_version": "1",
   "rate_restore_cases": [
     {
