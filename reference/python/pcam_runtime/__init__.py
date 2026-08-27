@@ -20,6 +20,9 @@ from .model import (
 from .rollback import RollbackManager
 from .runtime import TickExecutor
 from .pcam24 import compile_pcam24
+from .expressions import evaluate
+from .numeric import OverflowPolicy, apply_i64, apply_u64, euclidean_divmod, scale_ratio
+from .rng import PCG32Stream
 from .schema import Diagnostic, load_document, validate_document
 from .state import ActionInstance, SimulationState
 
@@ -31,8 +34,10 @@ __all__ = [
     "Effect",
     "HostSnapshot",
     "NodeDefinition",
+    "OverflowPolicy",
     "PCAMError",
     "PCAMFault",
+    "PCG32Stream",
     "PredicateDefinition",
     "ResultCode",
     "RollbackManager",
@@ -44,6 +49,11 @@ __all__ = [
     "canonical_dumps",
     "canonical_hash",
     "compile_pcam24",
+    "evaluate",
+    "apply_i64",
+    "apply_u64",
+    "euclidean_divmod",
     "load_document",
     "validate_document",
+    "scale_ratio",
 ]

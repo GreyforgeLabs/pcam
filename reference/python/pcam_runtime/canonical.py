@@ -59,15 +59,19 @@ def _normalize(value: Any) -> Any:
             f"PCAM-CJ1 forbids {detail}",
         )
     if isinstance(value, Mapping):
+        if any(not isinstance(key, str) for key in value):
+            pairs = [[_normalize(key), _normalize(item)] for key, item in value.items()]
+            return sorted(pairs, key=lambda pair: canonical_dumps(pair[0]))
         out: dict[str, Any] = {}
         for key, item in value.items():
-            if not isinstance(key, str):
+            normalized_key = unicodedata.normalize("NFC", key)
+            if normalized_key in out:
                 raise PCAMError(
                     ResultCode.CANONICALIZATION_FAILURE,
                     PCAMFault.CANONICALIZATION_FAILURE,
-                    "this reference slice only accepts string JSON object keys",
+                    "object keys collide after Unicode NFC normalization",
                 )
-            out[unicodedata.normalize("NFC", key)] = _normalize(item)
+            out[normalized_key] = _normalize(item)
         return out
     if isinstance(value, (set, frozenset)):
         normalized = [_normalize(item) for item in value]

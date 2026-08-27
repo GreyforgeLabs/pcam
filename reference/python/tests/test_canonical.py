@@ -16,3 +16,13 @@ def test_pcam_cj1_rejects_float_literals():
     with pytest.raises(PCAMError) as raised:
         canonical_dumps({"bad": 1.25})
     assert raised.value.fault.value == "CANONICALIZATION_FAILURE"
+
+
+def test_pcam_cj1_encodes_non_string_logical_maps_as_sorted_pairs():
+    assert canonical_dumps({2: "b", 1: "a"}) == b'[[1,"a"],[2,"b"]]'
+
+
+def test_pcam_cj1_rejects_object_key_collision_after_nfc():
+    with pytest.raises(PCAMError) as raised:
+        canonical_dumps({"e\u0301": 1, "\u00e9": 2})
+    assert "collide" in raised.value.message
