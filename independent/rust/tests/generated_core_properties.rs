@@ -9,6 +9,7 @@ use pcam_independent::freezes::{
 use pcam_independent::interactions::{
     InteractionCandidate, InteractionRule, SemanticFact, canonical_candidates, resolve_candidate,
 };
+use pcam_independent::simulation::{RetainedRollbackHistory, SimulationRuntime};
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
 use std::fs;
@@ -341,6 +342,142 @@ fn independent_shared_generated_freeze_token_combinations_match_timing_and_domai
         }
         assert_eq!(runs[0], runs[1], "{}:permutation", case["id"]);
         assert_eq!(runs[0], case["expected_ticks"], "{}:expected", case["id"]);
+    }
+}
+
+fn rollback_vector(case: &Value) -> Value {
+    json!({
+        "runtime_profile": {
+            "pcam_version": "3.0",
+            "kind": "runtime_profile",
+            "id": format!("pcam.generated.{}.v1", case["id"].as_str().unwrap()),
+            "revision": 1,
+            "fault_policy": "ABORT_SIMULATION",
+            "limits": {
+                "max_actions_per_entity": 8,
+                "max_action_nesting_depth": 4,
+                "max_children_per_action": 4,
+                "max_quanta_per_action_per_tick": 16,
+                "max_internal_transitions_per_action_per_tick": 8,
+                "max_buffer_entries_per_action": 8,
+                "max_pending_events_per_entity": 8,
+                "max_candidates_per_tick": 32,
+                "max_effects_per_tick": 32,
+                "max_redirects_per_candidate": 4,
+                "max_definition_size_bytes": 65536,
+                "max_snapshot_size_bytes": 262144,
+                "max_extension_state_bytes": 4096,
+                "max_expression_depth": 64,
+                "max_expression_nodes": 4096,
+            },
+            "rng_profiles": ["pcam.pcg32.v1"],
+            "network_profiles": [{
+                "id": "pcam.local.v1",
+                "topology": "LOCAL_DETERMINISTIC",
+            }],
+            "extensions": {},
+        },
+        "definitions": [{
+            "id": format!(
+                "GENERATED_ROLLBACK_{}",
+                case["id"]
+                    .as_str()
+                    .unwrap()
+                    .trim_start_matches("rollback-correction-")
+            ),
+            "rate_scale": case["scale"],
+            "units_per_tick": case["units_per_tick"],
+            "initial_node_id": "RUN",
+            "nodes": [{"id": "RUN", "mode": "EVENT_DRIVEN"}],
+        }],
+        "interaction_rules": [],
+        "effect_registry": {},
+        "initial_state": {},
+    })
+}
+
+fn rollback_tick(case: &Value, tick: u64, has_start: bool) -> Value {
+    let inputs = if tick == case["corrected_tick"].as_u64().unwrap() && has_start {
+        vec![json!({
+            "input_id": format!("start-{}", case["id"].as_str().unwrap()),
+            "source_entity_id": 1,
+            "sequence": 0,
+            "command_id": "START",
+            "assigned_tick": tick,
+            "action_definition_id": format!(
+                "GENERATED_ROLLBACK_{}",
+                case["id"]
+                    .as_str()
+                    .unwrap()
+                    .trim_start_matches("rollback-correction-")
+            ),
+        })]
+    } else {
+        Vec::new()
+    };
+    json!({"inputs": inputs, "contacts": []})
+}
+
+#[test]
+fn independent_shared_generated_rollback_corrections_match_direct_execution() {
+    let corpus = corpus();
+    for case in corpus["rollback_correction_cases"].as_array().unwrap() {
+        let vector = rollback_vector(case);
+        let runtime = SimulationRuntime::from_vector(&vector).unwrap();
+        let initial = runtime.initial_state(&vector).unwrap();
+        let mut manager = RetainedRollbackHistory::new(
+            runtime.clone(),
+            case["total_ticks"].as_u64().unwrap() + 1,
+        )
+        .unwrap();
+        let mut predicted = initial.clone();
+        let mut direct = initial;
+        for tick in 0..case["total_ticks"].as_u64().unwrap() {
+            let predicted_document =
+                rollback_tick(case, tick, case["predicted_has_start"].as_bool().unwrap());
+            let corrected_document =
+                rollback_tick(case, tick, case["corrected_has_start"].as_bool().unwrap());
+            (predicted, _, _) = manager.advance(&predicted, &predicted_document).unwrap();
+            (direct, _) = runtime.tick(&direct, &corrected_document).unwrap();
+        }
+        let corrected_document = rollback_tick(
+            case,
+            case["corrected_tick"].as_u64().unwrap(),
+            case["corrected_has_start"].as_bool().unwrap(),
+        );
+        let correction = manager
+            .correct_and_resimulate(
+                case["corrected_tick"].as_u64().unwrap(),
+                &corrected_document,
+            )
+            .unwrap();
+        assert_eq!(correction.state, direct, "{}:state", case["id"]);
+        assert_eq!(
+            correction.rewind_ticks,
+            case["expected_rewind_ticks"].as_u64().unwrap(),
+            "{}:rewind",
+            case["id"]
+        );
+        assert_eq!(
+            correction.state.action_instances.len() as u64,
+            case["expected_action_count"].as_u64().unwrap(),
+            "{}:action-count",
+            case["id"]
+        );
+        if let Some(action) = correction.state.action_instances.first() {
+            assert_eq!(
+                action.local_step,
+                case["expected_local_step"].as_u64().unwrap(),
+                "{}:local-step",
+                case["id"]
+            );
+            assert_eq!(
+                action.quantum_accumulator,
+                case["expected_quantum_accumulator"].as_u64().unwrap(),
+                "{}:accumulator",
+                case["id"]
+            );
+        }
     }
 }
 

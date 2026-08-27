@@ -196,6 +196,34 @@ def _freeze_token_cases(generator: random.Random) -> list[dict[str, object]]:
     return cases
 
 
+def _rollback_correction_cases(generator: random.Random) -> list[dict[str, object]]:
+    cases = []
+    for case_index in range(24):
+        scale = generator.randint(1, 8)
+        units = generator.randint(0, 8)
+        total_ticks = generator.randint(3, 8)
+        corrected_tick = generator.randint(0, total_ticks - 1)
+        corrected_has_start = bool(generator.getrandbits(1))
+        advancing_ticks = total_ticks - corrected_tick if corrected_has_start else 0
+        total_units = advancing_ticks * units
+        cases.append(
+            {
+                "id": f"rollback-correction-{case_index:03d}",
+                "scale": scale,
+                "units_per_tick": units,
+                "total_ticks": total_ticks,
+                "corrected_tick": corrected_tick,
+                "predicted_has_start": not corrected_has_start,
+                "corrected_has_start": corrected_has_start,
+                "expected_action_count": 1 if corrected_has_start else 0,
+                "expected_local_step": total_units // scale,
+                "expected_quantum_accumulator": total_units % scale,
+                "expected_rewind_ticks": total_ticks - corrected_tick,
+            }
+        )
+    return cases
+
+
 def _effect_key(effect: dict[str, object]) -> tuple[object, ...]:
     return (
         effect["target_entity_id"],
@@ -349,6 +377,7 @@ def build_corpus() -> dict[str, object]:
     transition_guard_cases = _transition_guard_cases(generator)
     input_order_cases = _input_order_cases(generator)
     freeze_token_cases = _freeze_token_cases(generator)
+    rollback_correction_cases = _rollback_correction_cases(generator)
     return {
         "pcam_generated_corpus_version": "1",
         "kind": "generated_core_properties",
@@ -360,6 +389,7 @@ def build_corpus() -> dict[str, object]:
         "transition_guard_cases": transition_guard_cases,
         "input_order_cases": input_order_cases,
         "freeze_token_cases": freeze_token_cases,
+        "rollback_correction_cases": rollback_correction_cases,
         "effect_aggregation_cases": effect_aggregation_cases,
         "candidate_permutation_cases": candidate_permutation_cases,
         "interaction_rule_cases": interaction_rule_cases,

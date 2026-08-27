@@ -10,6 +10,7 @@ from pcam_runtime import (
     InteractionRule,
     NodeDefinition,
     RuleOperation,
+    RetainedRollbackHistory,
     RuntimeProfile,
     SemanticFact,
     TickExecutor,
@@ -319,6 +320,62 @@ def test_python_shared_generated_freeze_token_combinations_match_timing_and_doma
                 )
             runs.append(observations)
         assert runs[0] == runs[1] == case["expected_ticks"], case["id"]
+
+
+def _rollback_start_input(case):
+    return TickInput(
+        input_id=f"start-{case['id']}",
+        source_entity_id=1,
+        sequence=0,
+        command_id="START",
+        assigned_tick=case["corrected_tick"],
+        action_definition_id=f"GENERATED_ROLLBACK_{case['id'].removeprefix('rollback-correction-')}",
+    )
+
+
+def test_python_shared_generated_rollback_corrections_match_direct_execution():
+    for case in _corpus()["rollback_correction_cases"]:
+        definition = ActionDefinition(
+            id=f"GENERATED_ROLLBACK_{case['id'].removeprefix('rollback-correction-')}",
+            rate_scale=case["scale"],
+            units_per_tick=case["units_per_tick"],
+            nodes=(NodeDefinition("RUN"),),
+        )
+        executor = TickExecutor(
+            (definition,), RuntimeProfile(max_quanta_per_action_per_tick=16)
+        )
+        initial = executor.initial_state()
+        start_input = _rollback_start_input(case)
+        predicted = RetainedRollbackHistory(executor, case["total_ticks"] + 1)
+        predicted_state = initial
+        direct_state = initial
+        for tick in range(case["total_ticks"]):
+            predicted_inputs = (
+                (start_input,)
+                if tick == case["corrected_tick"] and case["predicted_has_start"]
+                else ()
+            )
+            corrected_inputs = (
+                (start_input,)
+                if tick == case["corrected_tick"] and case["corrected_has_start"]
+                else ()
+            )
+            predicted_state, _, _ = predicted.advance(predicted_state, predicted_inputs)
+            direct_state, _ = executor.tick(direct_state, corrected_inputs)
+        corrected_inputs = (start_input,) if case["corrected_has_start"] else ()
+        correction = predicted.correct_and_resimulate(
+            case["corrected_tick"], corrected_inputs
+        )
+        assert correction.state.to_snapshot() == direct_state.to_snapshot(), case["id"]
+        assert correction.rewind_ticks == case["expected_rewind_ticks"], case["id"]
+        actions = tuple(correction.state.action_instances.values())
+        assert len(actions) == case["expected_action_count"], case["id"]
+        if actions:
+            assert actions[0].local_step == case["expected_local_step"], case["id"]
+            assert (
+                actions[0].quantum_accumulator
+                == case["expected_quantum_accumulator"]
+            ), case["id"]
 
 
 def test_python_shared_generated_effect_aggregation_is_permutation_invariant():
