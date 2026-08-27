@@ -21,7 +21,7 @@ from .model import (
     TickInput,
     TransitionDefinition,
 )
-from .rollback import RollbackManager
+from .rollback import RetainedRollbackHistory, RollbackCorrection, RollbackFrame, RollbackManager
 from .runtime import TickExecutor
 from .pcam24 import compile_pcam24
 from .expressions import evaluate
@@ -88,6 +88,9 @@ __all__ = [
     "RejectedEffect",
     "ResultCode",
     "RollbackManager",
+    "RetainedRollbackHistory",
+    "RollbackCorrection",
+    "RollbackFrame",
     "RuntimeProfile",
     "RuleOperation",
     "SemanticFact",

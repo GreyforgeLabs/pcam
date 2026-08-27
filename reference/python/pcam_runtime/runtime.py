@@ -17,6 +17,7 @@ from .intents import ArbitrationState, Claim, Intent, IntentDecision, arbitrate
 from .ledgers import LedgerContext, is_eligible as ledger_is_eligible, receipt_required, write_receipt
 from .model import ActionDefinition, Contact, Effect, FactBinding, HostSnapshot, RuntimeProfile, TickInput, TransitionDefinition, validate_definition
 from .numeric import U64_MAX, apply_u64
+from .rng import PCG32Stream
 from .state import ActionInstance, SimulationState
 
 
@@ -91,6 +92,7 @@ class TickExecutor:
         self,
         resource_banks: dict[str, dict[str, int]] | None = None,
         slot_capacities: dict[str, dict[str, int]] | None = None,
+        rng_streams: dict[str, object] | None = None,
     ) -> SimulationState:
         action_slots = {
             str(entity): {
@@ -104,6 +106,7 @@ class TickExecutor:
             definition_set_hash=self.definition_set_hash,
             resource_banks=resource_banks or {},
             action_slots=action_slots,
+            rng_streams=rng_streams or {},
         )
 
     def tick(
@@ -1083,6 +1086,8 @@ class TickExecutor:
         typed_effects: list[EffectEnvelope],
     ) -> tuple[SimulationState, list[dict[str, object]]]:
         banks = {entity: dict(values) for entity, values in state.resource_banks.items()}
+        rng_streams = dict(state.rng_streams)
+        reduction_trace: list[dict[str, object]] = []
         for effect in sorted(
             effects,
             key=lambda item: (
@@ -1094,6 +1099,30 @@ class TickExecutor:
                 item.id.encode("utf-8"),
             ),
         ):
+            if effect.kind == "RNG_DRAW":
+                snapshot = rng_streams.get(effect.resource)
+                if not isinstance(snapshot, dict):
+                    raise PCAMError(ResultCode.RUNTIME_FAULT, PCAMFault.RNG_PROFILE_MISMATCH, effect.resource)
+                try:
+                    stream = PCG32Stream.from_snapshot(snapshot)
+                    stream, value = stream.draw_u32()
+                except (KeyError, TypeError, ValueError) as exc:
+                    raise PCAMError(
+                        ResultCode.RUNTIME_FAULT,
+                        PCAMFault.RNG_PROFILE_MISMATCH,
+                        effect.resource,
+                    ) from exc
+                rng_streams[effect.resource] = stream.to_snapshot()
+                reduction_trace.append(
+                    {
+                        "draw_count": stream.draw_count,
+                        "effect_id": effect.id,
+                        "effect_type": "pcam.rng.draw",
+                        "stream_id": effect.resource,
+                        "value": value,
+                    }
+                )
+                continue
             if effect.kind != "RESOURCE_DELTA":
                 raise PCAMError(ResultCode.RUNTIME_FAULT, PCAMFault.UNKNOWN_EFFECT, effect.kind)
             entity = str(effect.target_entity_id)
@@ -1101,7 +1130,6 @@ class TickExecutor:
             banks[entity][effect.resource] = banks[entity].get(effect.resource, 0) + effect.amount
         authoritative = tuple(item for item in typed_effects if item.authoritative)
         reduced, rejected = reduce_effects(authoritative)
-        reduction_trace: list[dict[str, object]] = []
         for item in reduced:
             registration = self.effect_registry.get(item.effect_type)
             if registration is None or type(item.value) is not int:
@@ -1120,7 +1148,7 @@ class TickExecutor:
                 }
             )
         reduction_trace.extend({"effect_id": item.effect_id, "reason": item.reason} for item in rejected)
-        return replace(state, resource_banks=banks), reduction_trace
+        return replace(state, resource_banks=banks, rng_streams=rng_streams), reduction_trace
 
     def _validate_limits(self, state: SimulationState, candidate_count: int, effect_count: int) -> None:
         if candidate_count > self.profile.max_candidates_per_tick or effect_count > self.profile.max_effects_per_tick:

@@ -24,7 +24,7 @@ This map names current executable evidence for specification §38. A mapped test
 | 38.14 Same-tick duplicate | typed runtime receipt test | implemented |
 | 38.15 Redirect loop | pure resolver fault/reject test | implemented |
 | 38.16 Save-restore equivalence | runtime and generated continuation tests | implemented for current supported state |
-| 38.17 Rollback equivalence | CLI pinned vector and generated corrections | implemented for current supported state |
+| 38.17 Rollback equivalence | retained-history gate suite plus CLI and generated corrections | implemented directly across every §45.6 rewind case |
 | 38.18 RNG restore | shared Python/Rust PCG32 output, snapshot, restore, and next-draw vector | implemented independently in both languages |
 | 38.19 Cross-architecture digest | no Linux ARM64 execution evidence | missing |
 | 38.20 Invalid definitions | schema negative vectors and semantic validator tests | partial breadth |

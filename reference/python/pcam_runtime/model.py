@@ -305,7 +305,7 @@ class TransitionDefinition:
 @dataclass(frozen=True)
 class Effect:
     id: str
-    kind: Literal["RESOURCE_DELTA", "EVENT"] = "RESOURCE_DELTA"
+    kind: Literal["RESOURCE_DELTA", "EVENT", "RNG_DRAW"] = "RESOURCE_DELTA"
     effect_class: str = "RESOURCE"
     source_entity_id: int = 0
     target_entity_id: int = 0

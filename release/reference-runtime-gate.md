@@ -9,3 +9,5 @@ Current evidence: a narrow Python vertical slice exercises the twelve stage orde
 The schema-complete canonical Heavy Strike and combat interaction examples now compile into runtime records and execute for 60 ticks with pinned document, definition-set, trace, and final-state digests. The scenario covers rational progression, explicit initial-node selection, expression-backed predicates and guards, parameter capture, simultaneous trade, armor modification, and duplicate-contact suppression.
 
 All eleven §42 command paths now execute with stable JSON envelopes. A pinned typed-strike vector drives run, trace, snapshot, restore, state hashing, and rollback digest equivalence. Command availability does not establish complete command semantics or runtime conformance.
+
+The retained rollback service now covers every §45.6 case with complete snapshots, canonical input and host history, explicit runtime RNG draw effects, atomic resimulation, ledger restoration, and stable presentation-effect reconciliation. This closes the rollback gate but not `PCAM-RUN-3`; unsupported interpreter breadth and incomplete trace fields remain.

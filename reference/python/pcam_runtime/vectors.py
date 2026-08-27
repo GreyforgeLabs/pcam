@@ -11,6 +11,7 @@ from .ledgers import HitPolicy
 from .model import (
     ActionDefinition,
     Contact,
+    Effect,
     FactBinding,
     HostSnapshot,
     NetworkProfile,
@@ -234,6 +235,22 @@ def _transition(value: dict[str, Any]) -> TransitionDefinition:
         event_type=value.get("event_type"),
         consume_policy=str(value.get("consume_policy", "ON_ACCEPT")),  # type: ignore[arg-type]
         claims=tuple(_claim(item) for item in value.get("claims", [])),
+        effects=tuple(_effect(item) for item in value.get("effects", [])),
+    )
+
+
+def _effect(value: dict[str, Any]) -> Effect:
+    return Effect(
+        id=str(value["id"]),
+        kind=str(value.get("kind", "RESOURCE_DELTA")),  # type: ignore[arg-type]
+        effect_class=str(value.get("effect_class", "RESOURCE")),
+        source_entity_id=int(value.get("source_entity_id", 0)),
+        target_entity_id=int(value.get("target_entity_id", 0)),
+        source_action_instance_id=int(value.get("source_action_instance_id", 0)),
+        origin_tick=int(value.get("origin_tick", 0)),
+        resource=str(value.get("resource", "hp")),
+        amount=int(value.get("amount", 0)),
+        priority=int(value.get("priority", 0)),
     )
 
 

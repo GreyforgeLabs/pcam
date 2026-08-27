@@ -1,0 +1,42 @@
+{
+  "pcam_evidence_version": "1",
+  "spec_section": "45.6",
+  "requirements": {
+    "late_input": {
+      "state": "PASS",
+      "evidence": "test_late_mispredicted_action_start_and_multitick_rewind_match_direct_execution"
+    },
+    "mispredicted_input": {
+      "state": "PASS",
+      "evidence": "test_late_mispredicted_action_start_and_multitick_rewind_match_direct_execution"
+    },
+    "multi_tick_rewind": {
+      "state": "PASS",
+      "evidence": "test_late_mispredicted_action_start_and_multitick_rewind_match_direct_execution"
+    },
+    "action_start": {
+      "state": "PASS",
+      "evidence": "test_late_mispredicted_action_start_and_multitick_rewind_match_direct_execution"
+    },
+    "hit_stop": {
+      "state": "PASS",
+      "evidence": "test_hit_stop_state_survives_rewind_and_expires_on_the_same_tick"
+    },
+    "child_action": {
+      "state": "PASS",
+      "evidence": "test_child_action_started_inside_rewind_preserves_identity_and_relationship"
+    },
+    "rng": {
+      "state": "PASS",
+      "evidence": "test_rng_draw_effect_during_rewind_reproduces_stream_state_and_value"
+    },
+    "interaction_ledger_restoration": {
+      "state": "PASS",
+      "evidence": "test_ledger_restore_and_stable_presentation_effect_reconciliation"
+    },
+    "presentation_event_deduplication": {
+      "state": "PASS",
+      "evidence": "test_ledger_restore_and_stable_presentation_effect_reconciliation"
+    }
+  }
+}
