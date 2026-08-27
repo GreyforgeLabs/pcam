@@ -47,7 +47,7 @@
     },
     {
       "id": "CHILD",
-      "rate_scale": 1,
+      "rate_scale": 2,
       "units_per_tick": 1,
       "initial_node_id": "RUN",
       "nodes": [{"id": "RUN", "mode": "EVENT_DRIVEN"}],
@@ -72,19 +72,21 @@
       ],
       "contacts": []
     },
+    {"inputs": [], "contacts": []},
     {"inputs": [], "contacts": []}
   ],
   "expected": {
     "definition_hashes": {
-      "CHILD": "2dc3effe291c0f49d70e75a5e0147941ab56c70e546e27225bb6870843b71a49",
+      "CHILD": "79bd9474b1f6fbf28dec590b2dc2eaadc2de209998f635d93fd25c5fe2be7264",
       "PARENT": "d406e2589eee0e447384b50136faa7950fb5db3864576130a37b257c7d889211"
     },
-    "definition_set_hash": "fa2877c273fbad08f66a0b71a78a9f9210453eb5ec943352ad9de358d8486e6a",
+    "definition_set_hash": "89675351a653ebce76dabdd1cee8261bd6d256a5c545ee10dd46455c4008f9d5",
     "tick_state_digests": [
-      "f3682ad4cd3e582192cc2124dd584995632bcf36ef63d67d629594f69f29f2ee",
-      "fb285bb4bc43711867d91aebb10c27458233d89806d39295b1c0dd683b4fb793",
-      "27b4e9eaff4b67887dedf3d19174d88ffc8a25535e5809615fe4dd1be5c51472"
+      "3772053848b744465e09f298f9792f286283aac96bce6576dd0f1f169b61cdd3",
+      "270122c842f8a1a842e691e209d8cdfcc8431bfba77bee6b2e3a5c1d3d5964cf",
+      "bacacb9480ab8759353d7e8c839165f754ed4ea1854a94bfe420760f9b15ee78",
+      "9e7866702c0751a3956e9c53b02f2e7633cb7cd03809715969d351cb4cf5539f"
     ],
-    "final_state_digest": "27b4e9eaff4b67887dedf3d19174d88ffc8a25535e5809615fe4dd1be5c51472"
+    "final_state_digest": "9e7866702c0751a3956e9c53b02f2e7633cb7cd03809715969d351cb4cf5539f"
   }
 }

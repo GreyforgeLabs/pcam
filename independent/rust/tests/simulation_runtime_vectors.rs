@@ -191,6 +191,60 @@ fn independent_simulation_matches_parent_child_result_event_lifecycle() {
 }
 
 #[test]
+fn independent_parent_child_mid_child_restore_preserves_identity_freeze_and_future_digests() {
+    let vector = parent_child_vector();
+    let runtime = SimulationRuntime::from_vector(&vector).unwrap();
+    let mut uninterrupted = runtime.initial_state(&vector).unwrap();
+    for tick in &vector["ticks"].as_array().unwrap()[..2] {
+        (uninterrupted, _) = runtime.tick(&uninterrupted, tick).unwrap();
+    }
+
+    let parent = uninterrupted
+        .action_instances
+        .iter()
+        .find(|action| action.instance_id == 1)
+        .unwrap();
+    let child = uninterrupted
+        .action_instances
+        .iter()
+        .find(|action| action.instance_id == 2)
+        .unwrap();
+    assert_eq!(parent.child_instance_ids, [2]);
+    assert_eq!(parent.freeze_token_references, [1]);
+    assert_eq!(child.parent_instance_id, Some(1));
+    assert_eq!(child.parent_slot_id.as_deref(), Some("SUB"));
+    assert_eq!(child.lifecycle_state, "RUNNING");
+    assert_eq!(uninterrupted.freeze_tokens.len(), 1);
+    assert_eq!(uninterrupted.freeze_tokens[0]["source_id"], 2);
+    assert_eq!(uninterrupted.freeze_tokens[0]["target_id"], 1);
+    assert_eq!(
+        uninterrupted.freeze_tokens[0]["domains"],
+        serde_json::json!(["PROGRESSION"])
+    );
+
+    let mut restored = SimulationState::restore(&uninterrupted.snapshot().unwrap()).unwrap();
+    assert_eq!(restored, uninterrupted);
+    for (offset, tick) in vector["ticks"].as_array().unwrap()[2..].iter().enumerate() {
+        let left_trace;
+        let right_trace;
+        (uninterrupted, left_trace) = runtime.tick(&uninterrupted, tick).unwrap();
+        (restored, right_trace) = runtime.tick(&restored, tick).unwrap();
+        assert_eq!(left_trace.state_digest, right_trace.state_digest);
+        assert_eq!(
+            left_trace.state_digest,
+            vector["expected"]["tick_state_digests"][offset + 2]
+                .as_str()
+                .unwrap()
+        );
+    }
+    assert_eq!(restored, uninterrupted);
+    assert_eq!(
+        restored.digest().unwrap(),
+        vector["expected"]["final_state_digest"].as_str().unwrap()
+    );
+}
+
+#[test]
 fn independent_simulation_matches_contended_start_arbitration_state() {
     let vector = contended_starts_vector();
     let runtime = SimulationRuntime::from_vector(&vector).unwrap();

@@ -120,6 +120,51 @@ def test_python_parent_child_matches_shared_result_event_lifecycle_digests():
     assert run.final_state.freeze_tokens == ()
 
 
+def test_python_parent_child_mid_child_restore_preserves_identity_freeze_and_future_digests():
+    document = _parent_child_document()
+    expected = document["expected"]
+    run = run_vector(document)
+    uninterrupted = run.executor.restore(run.initial_snapshot)
+    for tick_index in range(2):
+        uninterrupted, _ = run.executor.tick(
+            uninterrupted,
+            run.input_history[tick_index],
+            run.host_history[tick_index],
+        )
+
+    parent = uninterrupted.action_instances["1"]
+    child = uninterrupted.action_instances["2"]
+    assert parent.child_instance_ids == (2,)
+    assert parent.freeze_token_references == (1,)
+    assert (child.parent_instance_id, child.parent_slot_id, child.lifecycle_state) == (
+        1,
+        "SUB",
+        "RUNNING",
+    )
+    assert len(uninterrupted.freeze_tokens) == 1
+    token = uninterrupted.freeze_tokens[0]
+    assert (token.source_id, token.target_id, token.domains) == (2, 1, ("PROGRESSION",))
+
+    restored = run.executor.restore(run.executor.save(uninterrupted))
+    assert restored.to_snapshot() == uninterrupted.to_snapshot()
+    for tick_index in range(2, len(document["ticks"])):
+        uninterrupted, left = run.executor.tick(
+            uninterrupted,
+            run.input_history[tick_index],
+            run.host_history[tick_index],
+        )
+        restored, right = run.executor.tick(
+            restored,
+            run.input_history[tick_index],
+            run.host_history[tick_index],
+        )
+        assert left["state_digest"] == right["state_digest"]
+        assert left["state_digest"] == expected["tick_state_digests"][tick_index]
+
+    assert restored.to_snapshot() == uninterrupted.to_snapshot()
+    assert restored.state_hash() == expected["final_state_digest"]
+
+
 def test_python_contended_starts_match_shared_arbitration_state_digest():
     document = _contended_starts_document()
     expected = document["expected"]

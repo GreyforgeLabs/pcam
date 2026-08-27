@@ -17,7 +17,7 @@ This map names current executable evidence for specification §38. A mapped test
 | 38.7 Buffer expiration | `test_buffers.py` and runtime freeze integration | implemented for normal/frozen expiry primitives |
 | 38.8 Resource arbitration | `test_intents.py` and competing start runtime test | implemented |
 | 38.9 Slot replacement | runtime failed/successful atomic replacement tests | implemented |
-| 38.10 Parent-child restore | runtime parent-child restore-equivalence test | implemented |
+| 38.10 Parent-child restore | `vectors/parent-child.json` in Python and independent Rust complete-state runtimes | implemented directly with a mid-child snapshot preserving the running child identity, parent link, child slot, parent progression freeze, future child-result delivery, and every remaining state digest |
 | 38.11 Simultaneous trade | `vectors/simultaneous-trade-runtime.json` in Python and independent Rust complete-state runtimes | implemented directly with two lethal candidates, frozen semantic facts, two authoritative commits, reversed raw order, and one exact final digest |
 | 38.12 Armor with outgoing attack | same shared complete-state vector, armored case | implemented directly with incoming damage halved, outgoing lethal damage preserved, reversed raw order, and one exact final digest |
 | 38.13 Candidate permutation | both cases in the same vector execute forward and reversed raw contacts | implemented directly with identical canonical order, summaries, resources, effects, and digests in both runtimes |
