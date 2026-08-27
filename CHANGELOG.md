@@ -37,6 +37,7 @@
 - Added bounded supplied-parameter capture and definition register initialization to independent complete-state action creation, including typed range checks and default capture for transition-spawned actions.
 - Completed declared host-import guard handling in the independent runtime with referenced-only resolution, deterministic defaults, bounded types, and stable missing or invalid import faults.
 - Integrated recursive expression-backed predicates into independent complete-state semantic snapshots, including action/owner context, dependent predicate references, sparse truth-state updates, and edge serials pinned by the shared transition-context vector.
+- Moved complete-state predicate-cycle and missing-dependency detection to Python and Rust definition construction with shared fail-closed fault evidence.
 - Added independent runtime freeze controls and shared schedules for HOLD/ACCRUE progression, transition domains, input capture, and buffer expiry.
 - Added canonical cross-language action-state projection hashes plus restore-and-continue digest vectors for every shared runtime case.
 - Added a schema-valid conformance claim manifest with exact §37 requirement sets, evidence-path validation, dependency enforcement, and fail-closed premature-claim tests.

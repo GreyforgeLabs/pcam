@@ -81,3 +81,18 @@ fn independent_transition_context_rejects_invalid_host_imports() {
         assert_eq!(context.fault, case["fault"], "{}:fault", case["id"]);
     }
 }
+
+#[test]
+fn independent_complete_state_rejects_invalid_predicate_graphs() {
+    let vector = vector();
+    for case in vector["definition_fault_cases"].as_array().unwrap() {
+        let mut document = vector.clone();
+        document["definitions"][0]["predicates"] = case["predicates"].clone();
+        let error = SimulationRuntime::from_vector(&document).unwrap_err();
+        let SimulationError::Fault(context) = error else {
+            panic!("{}: unexpected error", case["id"]);
+        };
+        assert_eq!(context.code, "DEFINITION_REJECTED", "{}:code", case["id"]);
+        assert_eq!(context.fault, case["fault"], "{}:fault", case["id"]);
+    }
+}

@@ -447,6 +447,24 @@ class HostSnapshot:
     imports: dict[str, object] = field(default_factory=dict)
 
 
+def _predicate_dependencies(expression: object) -> set[str]:
+    dependencies: set[str] = set()
+
+    def collect(value: object) -> None:
+        if isinstance(value, dict):
+            reference = value.get("ref")
+            if isinstance(reference, str) and reference.startswith("action.predicate."):
+                dependencies.add(reference.removeprefix("action.predicate."))
+            for nested in value.values():
+                collect(nested)
+        elif isinstance(value, list):
+            for nested in value:
+                collect(nested)
+
+    collect(expression)
+    return dependencies
+
+
 def validate_definition(definition: ActionDefinition) -> None:
     ids = [definition.id]
     ids.extend(node.id for node in definition.nodes)
@@ -475,6 +493,40 @@ def validate_definition(definition: ActionDefinition) -> None:
     if len(node_ids) != len(definition.nodes):
         raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.STATE_INVARIANT_FAILURE, definition.id)
     predicate_ids = {predicate.id for predicate in definition.predicates}
+    if len(predicate_ids) != len(definition.predicates):
+        raise PCAMError(
+            ResultCode.DEFINITION_REJECTED,
+            PCAMFault.DUPLICATE_IDENTIFIER,
+            definition.id,
+        )
+    predicates = {predicate.id: predicate for predicate in definition.predicates}
+    complete: set[str] = set()
+    visiting: set[str] = set()
+
+    def validate_predicate(predicate_id: str) -> None:
+        if predicate_id in complete:
+            return
+        if predicate_id in visiting:
+            raise PCAMError(
+                ResultCode.DEFINITION_REJECTED,
+                PCAMFault.PREDICATE_CYCLE,
+                predicate_id,
+            )
+        predicate = predicates.get(predicate_id)
+        if predicate is None:
+            raise PCAMError(
+                ResultCode.DEFINITION_REJECTED,
+                PCAMFault.MISSING_REFERENCE,
+                predicate_id,
+            )
+        visiting.add(predicate_id)
+        for dependency in sorted(_predicate_dependencies(predicate.expression)):
+            validate_predicate(dependency)
+        visiting.remove(predicate_id)
+        complete.add(predicate_id)
+
+    for predicate_id in sorted(predicate_ids):
+        validate_predicate(predicate_id)
     register_ids = set(definition.register_initials)
 
     def validate_assignments(assignments: tuple[Assignment, ...]) -> None:

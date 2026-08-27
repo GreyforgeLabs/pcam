@@ -2933,6 +2933,7 @@ fn parse_definition(raw: &Value, hash: String) -> Result<Definition, SimulationE
             })
         })
         .collect::<Result<Vec<_>, SimulationError>>()?;
+    validate_simulation_predicates(&predicates)?;
     let facts = raw
         .get("semantic_facts")
         .and_then(Value::as_array)
@@ -3406,11 +3407,9 @@ fn predicate_references(expression: &Value) -> BTreeSet<String> {
 fn collect_predicate_references(expression: &Value, references: &mut BTreeSet<String>) {
     match expression {
         Value::Object(object) => {
-            if object.len() == 1 {
-                if let Some(reference) = object.get("ref").and_then(Value::as_str) {
-                    if let Some(identifier) = reference.strip_prefix("action.predicate.") {
-                        references.insert(identifier.to_owned());
-                    }
+            if let Some(reference) = object.get("ref").and_then(Value::as_str) {
+                if let Some(identifier) = reference.strip_prefix("action.predicate.") {
+                    references.insert(identifier.to_owned());
                 }
             }
             for value in object.values() {
@@ -3424,6 +3423,53 @@ fn collect_predicate_references(expression: &Value, references: &mut BTreeSet<St
         }
         _ => {}
     }
+}
+
+fn validate_simulation_predicates(predicates: &[Predicate]) -> Result<(), SimulationError> {
+    let definitions = predicates
+        .iter()
+        .map(|predicate| (predicate.id.as_str(), predicate))
+        .collect::<BTreeMap<_, _>>();
+    if definitions.len() != predicates.len() {
+        return Err(definition_fault(
+            "DUPLICATE_IDENTIFIER",
+            "predicate identifier must be unique",
+        ));
+    }
+    let mut complete = BTreeSet::new();
+    let mut visiting = BTreeSet::new();
+    for identifier in definitions.keys() {
+        validate_simulation_predicate(identifier, &definitions, &mut complete, &mut visiting)?;
+    }
+    Ok(())
+}
+
+fn validate_simulation_predicate(
+    identifier: &str,
+    definitions: &BTreeMap<&str, &Predicate>,
+    complete: &mut BTreeSet<String>,
+    visiting: &mut BTreeSet<String>,
+) -> Result<(), SimulationError> {
+    if complete.contains(identifier) {
+        return Ok(());
+    }
+    if !visiting.insert(identifier.to_owned()) {
+        return Err(definition_fault(
+            "PREDICATE_CYCLE",
+            "predicate dependency cycle",
+        ));
+    }
+    let predicate = definitions
+        .get(identifier)
+        .ok_or_else(|| definition_fault("MISSING_REFERENCE", "missing predicate dependency"))?;
+    if let Some(expression) = &predicate.expression {
+        for dependency in predicate_references(expression) {
+            validate_simulation_predicate(&dependency, definitions, complete, visiting)?;
+        }
+    }
+    visiting.remove(identifier);
+    complete.insert(identifier.to_owned());
+    Ok(())
 }
 
 fn collect_host_import_references(expression: &Value, references: &mut BTreeSet<String>) {
@@ -3545,6 +3591,16 @@ fn flatten_guard_context(prefix: &str, value: &Value, context: &mut BTreeMap<Str
 
 fn transition_expression_fault(error: EvalError, action: &ActionSnapshot) -> SimulationError {
     action_expression_fault(error, action, "transition guard expression failed")
+}
+
+fn definition_fault(fault: &str, message: &str) -> SimulationError {
+    SimulationError::Fault(FaultContext {
+        code: "DEFINITION_REJECTED".to_owned(),
+        fault: fault.to_owned(),
+        message: message.to_owned(),
+        action_instance_id: None,
+        owner_entity_id: None,
+    })
 }
 
 fn predicate_expression_fault(error: EvalError, action: &ActionSnapshot) -> SimulationError {

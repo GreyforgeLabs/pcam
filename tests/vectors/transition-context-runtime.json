@@ -144,5 +144,22 @@
   "fault_cases": [
     {"id": "missing-required-host-import", "imports": {}, "failure_policy": "FAULT", "fault": "INVALID_HOST_IMPORT"},
     {"id": "invalid-host-import-type", "imports": {"allowed": "yes"}, "failure_policy": "FAULT", "fault": "INVALID_HOST_IMPORT"}
+  ],
+  "definition_fault_cases": [
+    {
+      "id": "predicate-cycle",
+      "fault": "PREDICATE_CYCLE",
+      "predicates": [
+        {"id": "FIRST", "expression": {"ref": "action.predicate.SECOND"}},
+        {"id": "SECOND", "expression": {"ref": "action.predicate.FIRST"}}
+      ]
+    },
+    {
+      "id": "missing-predicate-dependency",
+      "fault": "MISSING_REFERENCE",
+      "predicates": [
+        {"id": "FIRST", "expression": {"ref": "action.predicate.MISSING"}}
+      ]
+    }
   ]
 }

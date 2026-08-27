@@ -55,3 +55,14 @@ def test_python_transition_context_rejects_invalid_host_imports():
         with pytest.raises(PCAMError) as raised:
             run_vector(_case_document(vector, case))
         assert raised.value.fault.value == case["fault"], case["id"]
+
+
+def test_python_complete_state_rejects_invalid_predicate_graphs():
+    vector = _vector()
+    for case in vector["definition_fault_cases"]:
+        document = json.loads(json.dumps(vector))
+        document["definitions"][0]["predicates"] = case["predicates"]
+        with pytest.raises(PCAMError) as raised:
+            run_vector(document)
+        assert raised.value.code.value == "DEFINITION_REJECTED", case["id"]
+        assert raised.value.fault.value == case["fault"], case["id"]
