@@ -13,7 +13,9 @@ use pcam_independent::interactions::{
 use pcam_independent::numeric::{
     NumericError, OverflowPolicy, apply_i64, apply_u64, euclidean_divmod, scale_ratio,
 };
-use pcam_independent::simulation::{RetainedRollbackHistory, SimulationRuntime, SimulationState};
+use pcam_independent::simulation::{
+    RetainedRollbackHistory, SimulationError, SimulationRuntime, SimulationState,
+};
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
 use std::fs;
@@ -509,6 +511,221 @@ fn independent_shared_generated_interaction_pipeline_is_typed_atomic_and_permuta
             "{}:digest",
             case["id"]
         );
+    }
+}
+
+fn fault_origin_document(case: &Value, reverse_enumeration: bool) -> Value {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let relative = match case["origin"].as_str().unwrap() {
+        "PROGRESSION" => "tests/vectors/fault-trigger-runtime.json",
+        "INTERACTION" => "tests/vectors/interaction-fault-runtime.json",
+        "EFFECT" => "tests/vectors/effect-fault-runtime.json",
+        _ => unreachable!(),
+    };
+    let mut document: Value =
+        serde_json::from_slice(&fs::read(root.join(relative)).unwrap()).unwrap();
+    document.as_object_mut().unwrap().remove("cases");
+    document["id"] = case["id"].clone();
+    document["runtime_profile"]["id"] = json!(format!(
+        "pcam.generated.{}.v1",
+        case["id"].as_str().unwrap()
+    ));
+    document["runtime_profile"]["fault_policy"] = case["policy"].clone();
+    if reverse_enumeration {
+        document["ticks"][0]["inputs"]
+            .as_array_mut()
+            .unwrap()
+            .reverse();
+        document["fault_tick"]["contacts"]
+            .as_array_mut()
+            .unwrap()
+            .reverse();
+    }
+    match case["origin"].as_str().unwrap() {
+        "PROGRESSION" => {
+            document["runtime_profile"]["limits"]["max_quanta_per_action_per_tick"] =
+                case["parameter"].clone();
+            document["rate_overrides"] = json!({
+                "1": case["safe_rate"],
+                "2": case["parameter"].as_u64().unwrap() + 1,
+                "3": 0,
+            });
+        }
+        "INTERACTION" => {
+            document["runtime_profile"]["limits"]["max_redirects_per_candidate"] =
+                case["parameter"].clone();
+        }
+        "EFFECT" => {
+            document["definitions"][0]["semantic_facts"][0]["fact"]["effect_templates"][0]["payload"] =
+                json!(i64::MAX - case["parameter"].as_i64().unwrap());
+            document["initial_state"]["resource_banks"]["2"]["hp"] = case["initial_hp"].clone();
+        }
+        _ => unreachable!(),
+    }
+    document
+}
+
+fn fault_before(document: &Value, runtime: &SimulationRuntime) -> SimulationState {
+    let initial = runtime.initial_state(document).unwrap();
+    let (mut state, _) = runtime.tick(&initial, &document["ticks"][0]).unwrap();
+    if document["id"]
+        .as_str()
+        .unwrap()
+        .starts_with("fault-origin-progression")
+    {
+        for action in &mut state.action_instances {
+            action.current_rate_units = document["rate_overrides"][&action.instance_id.to_string()]
+                .as_u64()
+                .unwrap();
+        }
+    }
+    state
+}
+
+#[test]
+fn independent_shared_generated_fault_origins_are_atomic_scoped_and_permutation_invariant() {
+    let corpus = corpus();
+    for case in corpus["fault_origin_cases"].as_array().unwrap() {
+        let first_reverse = case["reverse_enumeration"].as_bool().unwrap();
+        let mut pre_fault_snapshots = Vec::new();
+        let mut abort_outcomes = Vec::new();
+        let mut contained_states = Vec::new();
+        for reverse_enumeration in [first_reverse, !first_reverse] {
+            let document = fault_origin_document(case, reverse_enumeration);
+            let runtime = SimulationRuntime::from_vector(&document).unwrap();
+            let before = fault_before(&document, &runtime);
+            let before_snapshot = before.snapshot().unwrap();
+            pre_fault_snapshots.push(before_snapshot.clone());
+            if case["policy"] == "ABORT_SIMULATION" {
+                let error = runtime.tick(&before, &document["fault_tick"]).unwrap_err();
+                let SimulationError::Fault(context) = error else {
+                    panic!("{}: expected contextual fault", case["id"])
+                };
+                assert_eq!(
+                    context.fault, case["expected_fault"],
+                    "{}:fault",
+                    case["id"]
+                );
+                assert_eq!(
+                    context.action_instance_id,
+                    case["expected_fault_action_id"].as_u64(),
+                    "{}:action",
+                    case["id"]
+                );
+                assert_eq!(
+                    context.owner_entity_id,
+                    case["expected_owner_entity_id"].as_u64(),
+                    "{}:owner",
+                    case["id"]
+                );
+                assert_eq!(
+                    before.snapshot().unwrap(),
+                    before_snapshot,
+                    "{}:atomic",
+                    case["id"]
+                );
+                abort_outcomes.push(json!({
+                    "fault": context.fault,
+                    "action_instance_id": context.action_instance_id,
+                    "owner_entity_id": context.owner_entity_id,
+                }));
+                continue;
+            }
+
+            let (state, trace) = runtime.tick(&before, &document["fault_tick"]).unwrap();
+            let faulted_ids = state
+                .action_instances
+                .iter()
+                .filter(|action| action.lifecycle_state == "FAULTED")
+                .map(|action| action.instance_id)
+                .collect::<Vec<_>>();
+            let entity_fault_owners = state
+                .entity_records
+                .iter()
+                .filter(|(_, record)| record.get("fault_record").is_some())
+                .map(|(owner, _)| owner.parse::<u64>().unwrap())
+                .collect::<Vec<_>>();
+            assert_eq!(state.tick, before.tick + 1, "{}:tick", case["id"]);
+            assert_eq!(
+                serde_json::to_value(faulted_ids).unwrap(),
+                case["expected_faulted_ids"],
+                "{}:scope",
+                case["id"]
+            );
+            assert_eq!(
+                serde_json::to_value(entity_fault_owners).unwrap(),
+                case["expected_entity_fault_owners"],
+                "{}:entity-scope",
+                case["id"]
+            );
+            assert!(
+                state.action_instances.iter().all(|action| {
+                    action.lifecycle_state != "FAULTED"
+                        || action.fault_record.as_deref()
+                            == Some(case["expected_fault"].as_str().unwrap())
+                }),
+                "{}:fault-record",
+                case["id"]
+            );
+            assert_eq!(
+                trace.faults[0]["fault"], case["expected_fault"],
+                "{}:trace-fault",
+                case["id"]
+            );
+            assert_eq!(
+                trace.faults[0]["policy"], case["policy"],
+                "{}:trace-policy",
+                case["id"]
+            );
+            assert_eq!(
+                trace.faults[0]["action_instance_id"], case["expected_fault_action_id"],
+                "{}:trace-action",
+                case["id"]
+            );
+            assert_eq!(
+                trace.faults[0]["owner_entity_id"], case["expected_owner_entity_id"],
+                "{}:trace-owner",
+                case["id"]
+            );
+            assert!(trace.effects.is_empty(), "{}:effects", case["id"]);
+            assert_eq!(
+                state.interaction_ledgers, before.interaction_ledgers,
+                "{}:ledgers",
+                case["id"]
+            );
+            assert_eq!(
+                state.resource_banks, before.resource_banks,
+                "{}:resources",
+                case["id"]
+            );
+            assert_eq!(
+                SimulationState::restore(&state.snapshot().unwrap()).unwrap(),
+                state,
+                "{}:restore",
+                case["id"]
+            );
+            contained_states.push(state);
+        }
+        assert_eq!(
+            pre_fault_snapshots[0], pre_fault_snapshots[1],
+            "{}:pre-fault-permutation",
+            case["id"]
+        );
+        if case["policy"] == "ABORT_SIMULATION" {
+            assert_eq!(abort_outcomes[0], abort_outcomes[1], "{}:abort", case["id"]);
+        } else {
+            assert_eq!(
+                contained_states[0], contained_states[1],
+                "{}:permutation",
+                case["id"]
+            );
+            assert_eq!(
+                contained_states[0].digest().unwrap(),
+                contained_states[1].digest().unwrap(),
+                "{}:digest",
+                case["id"]
+            );
+        }
     }
 }
 

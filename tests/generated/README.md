@@ -2,7 +2,7 @@
 
 `core-properties-v1.json` is the checked-in deterministic corpus generated from seed `0x5043414D39` by `experiments/generate_core_properties.py`.
 
-It currently contains 384 cases:
+It currently contains 411 cases:
 
 - 24 rational-rate cases with repeated execution and save/restore continuation
 - 24 random valid linear action graphs
@@ -19,6 +19,7 @@ It currently contains 384 cases:
 - 24 bounded interaction-rule sets with shuffled definition order
 - 24 cross-stage transition-versus-start arbitration cases with varied priorities, resource claims, and raw input order
 - 24 complete-pipeline interaction cases with varied defense routing, effect magnitudes, initial resources, and raw contact order
+- 27 integrated fault-origin cases spanning progression, interaction, and effect faults under all three policies, varied bounds, and reversed raw enumeration
 
 Regenerate intentionally with:
 

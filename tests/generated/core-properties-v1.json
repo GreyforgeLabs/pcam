@@ -9839,6 +9839,449 @@
       ]
     }
   ],
+  "fault_origin_cases": [
+    {
+      "expected_entity_fault_owners": [],
+      "expected_fault": "QUANTUM_LIMIT_EXCEEDED",
+      "expected_fault_action_id": 2,
+      "expected_faulted_ids": [
+        2
+      ],
+      "expected_owner_entity_id": 2,
+      "id": "fault-origin-progression-fault_action-000",
+      "initial_hp": 252,
+      "origin": "PROGRESSION",
+      "parameter": 5,
+      "policy": "FAULT_ACTION",
+      "reverse_enumeration": true,
+      "safe_rate": 4
+    },
+    {
+      "expected_entity_fault_owners": [],
+      "expected_fault": "QUANTUM_LIMIT_EXCEEDED",
+      "expected_fault_action_id": 2,
+      "expected_faulted_ids": [
+        2
+      ],
+      "expected_owner_entity_id": 2,
+      "id": "fault-origin-progression-fault_action-001",
+      "initial_hp": 128,
+      "origin": "PROGRESSION",
+      "parameter": 3,
+      "policy": "FAULT_ACTION",
+      "reverse_enumeration": false,
+      "safe_rate": 3
+    },
+    {
+      "expected_entity_fault_owners": [],
+      "expected_fault": "QUANTUM_LIMIT_EXCEEDED",
+      "expected_fault_action_id": 2,
+      "expected_faulted_ids": [
+        2
+      ],
+      "expected_owner_entity_id": 2,
+      "id": "fault-origin-progression-fault_action-002",
+      "initial_hp": 162,
+      "origin": "PROGRESSION",
+      "parameter": 8,
+      "policy": "FAULT_ACTION",
+      "reverse_enumeration": false,
+      "safe_rate": 8
+    },
+    {
+      "expected_entity_fault_owners": [
+        2
+      ],
+      "expected_fault": "QUANTUM_LIMIT_EXCEEDED",
+      "expected_fault_action_id": 2,
+      "expected_faulted_ids": [
+        2,
+        3
+      ],
+      "expected_owner_entity_id": 2,
+      "id": "fault-origin-progression-fault_entity-000",
+      "initial_hp": 138,
+      "origin": "PROGRESSION",
+      "parameter": 16,
+      "policy": "FAULT_ENTITY",
+      "reverse_enumeration": false,
+      "safe_rate": 2
+    },
+    {
+      "expected_entity_fault_owners": [
+        2
+      ],
+      "expected_fault": "QUANTUM_LIMIT_EXCEEDED",
+      "expected_fault_action_id": 2,
+      "expected_faulted_ids": [
+        2,
+        3
+      ],
+      "expected_owner_entity_id": 2,
+      "id": "fault-origin-progression-fault_entity-001",
+      "initial_hp": 248,
+      "origin": "PROGRESSION",
+      "parameter": 14,
+      "policy": "FAULT_ENTITY",
+      "reverse_enumeration": true,
+      "safe_rate": 8
+    },
+    {
+      "expected_entity_fault_owners": [
+        2
+      ],
+      "expected_fault": "QUANTUM_LIMIT_EXCEEDED",
+      "expected_fault_action_id": 2,
+      "expected_faulted_ids": [
+        2,
+        3
+      ],
+      "expected_owner_entity_id": 2,
+      "id": "fault-origin-progression-fault_entity-002",
+      "initial_hp": 33,
+      "origin": "PROGRESSION",
+      "parameter": 14,
+      "policy": "FAULT_ENTITY",
+      "reverse_enumeration": true,
+      "safe_rate": 6
+    },
+    {
+      "expected_entity_fault_owners": [],
+      "expected_fault": "QUANTUM_LIMIT_EXCEEDED",
+      "expected_fault_action_id": 2,
+      "expected_faulted_ids": [],
+      "expected_owner_entity_id": 2,
+      "id": "fault-origin-progression-abort_simulation-000",
+      "initial_hp": 168,
+      "origin": "PROGRESSION",
+      "parameter": 7,
+      "policy": "ABORT_SIMULATION",
+      "reverse_enumeration": false,
+      "safe_rate": 1
+    },
+    {
+      "expected_entity_fault_owners": [],
+      "expected_fault": "QUANTUM_LIMIT_EXCEEDED",
+      "expected_fault_action_id": 2,
+      "expected_faulted_ids": [],
+      "expected_owner_entity_id": 2,
+      "id": "fault-origin-progression-abort_simulation-001",
+      "initial_hp": 158,
+      "origin": "PROGRESSION",
+      "parameter": 11,
+      "policy": "ABORT_SIMULATION",
+      "reverse_enumeration": false,
+      "safe_rate": 9
+    },
+    {
+      "expected_entity_fault_owners": [],
+      "expected_fault": "QUANTUM_LIMIT_EXCEEDED",
+      "expected_fault_action_id": 2,
+      "expected_faulted_ids": [],
+      "expected_owner_entity_id": 2,
+      "id": "fault-origin-progression-abort_simulation-002",
+      "initial_hp": 20,
+      "origin": "PROGRESSION",
+      "parameter": 1,
+      "policy": "ABORT_SIMULATION",
+      "reverse_enumeration": true,
+      "safe_rate": 1
+    },
+    {
+      "expected_entity_fault_owners": [],
+      "expected_fault": "REDIRECT_LIMIT_EXCEEDED",
+      "expected_fault_action_id": 1,
+      "expected_faulted_ids": [
+        1
+      ],
+      "expected_owner_entity_id": 1,
+      "id": "fault-origin-interaction-fault_action-000",
+      "initial_hp": 133,
+      "origin": "INTERACTION",
+      "parameter": 9,
+      "policy": "FAULT_ACTION",
+      "reverse_enumeration": false,
+      "safe_rate": 1
+    },
+    {
+      "expected_entity_fault_owners": [],
+      "expected_fault": "REDIRECT_LIMIT_EXCEEDED",
+      "expected_fault_action_id": 1,
+      "expected_faulted_ids": [
+        1
+      ],
+      "expected_owner_entity_id": 1,
+      "id": "fault-origin-interaction-fault_action-001",
+      "initial_hp": 234,
+      "origin": "INTERACTION",
+      "parameter": 7,
+      "policy": "FAULT_ACTION",
+      "reverse_enumeration": true,
+      "safe_rate": 7
+    },
+    {
+      "expected_entity_fault_owners": [],
+      "expected_fault": "REDIRECT_LIMIT_EXCEEDED",
+      "expected_fault_action_id": 1,
+      "expected_faulted_ids": [
+        1
+      ],
+      "expected_owner_entity_id": 1,
+      "id": "fault-origin-interaction-fault_action-002",
+      "initial_hp": 57,
+      "origin": "INTERACTION",
+      "parameter": 11,
+      "policy": "FAULT_ACTION",
+      "reverse_enumeration": true,
+      "safe_rate": 8
+    },
+    {
+      "expected_entity_fault_owners": [
+        1
+      ],
+      "expected_fault": "REDIRECT_LIMIT_EXCEEDED",
+      "expected_fault_action_id": 1,
+      "expected_faulted_ids": [
+        1,
+        2
+      ],
+      "expected_owner_entity_id": 1,
+      "id": "fault-origin-interaction-fault_entity-000",
+      "initial_hp": 105,
+      "origin": "INTERACTION",
+      "parameter": 10,
+      "policy": "FAULT_ENTITY",
+      "reverse_enumeration": false,
+      "safe_rate": 5
+    },
+    {
+      "expected_entity_fault_owners": [
+        1
+      ],
+      "expected_fault": "REDIRECT_LIMIT_EXCEEDED",
+      "expected_fault_action_id": 1,
+      "expected_faulted_ids": [
+        1,
+        2
+      ],
+      "expected_owner_entity_id": 1,
+      "id": "fault-origin-interaction-fault_entity-001",
+      "initial_hp": 109,
+      "origin": "INTERACTION",
+      "parameter": 9,
+      "policy": "FAULT_ENTITY",
+      "reverse_enumeration": false,
+      "safe_rate": 7
+    },
+    {
+      "expected_entity_fault_owners": [
+        1
+      ],
+      "expected_fault": "REDIRECT_LIMIT_EXCEEDED",
+      "expected_fault_action_id": 1,
+      "expected_faulted_ids": [
+        1,
+        2
+      ],
+      "expected_owner_entity_id": 1,
+      "id": "fault-origin-interaction-fault_entity-002",
+      "initial_hp": 134,
+      "origin": "INTERACTION",
+      "parameter": 8,
+      "policy": "FAULT_ENTITY",
+      "reverse_enumeration": true,
+      "safe_rate": 5
+    },
+    {
+      "expected_entity_fault_owners": [],
+      "expected_fault": "REDIRECT_LIMIT_EXCEEDED",
+      "expected_fault_action_id": 1,
+      "expected_faulted_ids": [],
+      "expected_owner_entity_id": 1,
+      "id": "fault-origin-interaction-abort_simulation-000",
+      "initial_hp": 249,
+      "origin": "INTERACTION",
+      "parameter": 15,
+      "policy": "ABORT_SIMULATION",
+      "reverse_enumeration": true,
+      "safe_rate": 9
+    },
+    {
+      "expected_entity_fault_owners": [],
+      "expected_fault": "REDIRECT_LIMIT_EXCEEDED",
+      "expected_fault_action_id": 1,
+      "expected_faulted_ids": [],
+      "expected_owner_entity_id": 1,
+      "id": "fault-origin-interaction-abort_simulation-001",
+      "initial_hp": 237,
+      "origin": "INTERACTION",
+      "parameter": 14,
+      "policy": "ABORT_SIMULATION",
+      "reverse_enumeration": true,
+      "safe_rate": 2
+    },
+    {
+      "expected_entity_fault_owners": [],
+      "expected_fault": "REDIRECT_LIMIT_EXCEEDED",
+      "expected_fault_action_id": 1,
+      "expected_faulted_ids": [],
+      "expected_owner_entity_id": 1,
+      "id": "fault-origin-interaction-abort_simulation-002",
+      "initial_hp": 102,
+      "origin": "INTERACTION",
+      "parameter": 3,
+      "policy": "ABORT_SIMULATION",
+      "reverse_enumeration": true,
+      "safe_rate": 1
+    },
+    {
+      "expected_entity_fault_owners": [],
+      "expected_fault": "INTEGER_OVERFLOW",
+      "expected_fault_action_id": 1,
+      "expected_faulted_ids": [
+        1
+      ],
+      "expected_owner_entity_id": 1,
+      "id": "fault-origin-effect-fault_action-000",
+      "initial_hp": 229,
+      "origin": "EFFECT",
+      "parameter": 12,
+      "policy": "FAULT_ACTION",
+      "reverse_enumeration": true,
+      "safe_rate": 11
+    },
+    {
+      "expected_entity_fault_owners": [],
+      "expected_fault": "INTEGER_OVERFLOW",
+      "expected_fault_action_id": 1,
+      "expected_faulted_ids": [
+        1
+      ],
+      "expected_owner_entity_id": 1,
+      "id": "fault-origin-effect-fault_action-001",
+      "initial_hp": 81,
+      "origin": "EFFECT",
+      "parameter": 4,
+      "policy": "FAULT_ACTION",
+      "reverse_enumeration": true,
+      "safe_rate": 2
+    },
+    {
+      "expected_entity_fault_owners": [],
+      "expected_fault": "INTEGER_OVERFLOW",
+      "expected_fault_action_id": 1,
+      "expected_faulted_ids": [
+        1
+      ],
+      "expected_owner_entity_id": 1,
+      "id": "fault-origin-effect-fault_action-002",
+      "initial_hp": 96,
+      "origin": "EFFECT",
+      "parameter": 5,
+      "policy": "FAULT_ACTION",
+      "reverse_enumeration": true,
+      "safe_rate": 3
+    },
+    {
+      "expected_entity_fault_owners": [
+        1
+      ],
+      "expected_fault": "INTEGER_OVERFLOW",
+      "expected_fault_action_id": 1,
+      "expected_faulted_ids": [
+        1,
+        2
+      ],
+      "expected_owner_entity_id": 1,
+      "id": "fault-origin-effect-fault_entity-000",
+      "initial_hp": 138,
+      "origin": "EFFECT",
+      "parameter": 16,
+      "policy": "FAULT_ENTITY",
+      "reverse_enumeration": false,
+      "safe_rate": 1
+    },
+    {
+      "expected_entity_fault_owners": [
+        1
+      ],
+      "expected_fault": "INTEGER_OVERFLOW",
+      "expected_fault_action_id": 1,
+      "expected_faulted_ids": [
+        1,
+        2
+      ],
+      "expected_owner_entity_id": 1,
+      "id": "fault-origin-effect-fault_entity-001",
+      "initial_hp": 69,
+      "origin": "EFFECT",
+      "parameter": 11,
+      "policy": "FAULT_ENTITY",
+      "reverse_enumeration": true,
+      "safe_rate": 10
+    },
+    {
+      "expected_entity_fault_owners": [
+        1
+      ],
+      "expected_fault": "INTEGER_OVERFLOW",
+      "expected_fault_action_id": 1,
+      "expected_faulted_ids": [
+        1,
+        2
+      ],
+      "expected_owner_entity_id": 1,
+      "id": "fault-origin-effect-fault_entity-002",
+      "initial_hp": 56,
+      "origin": "EFFECT",
+      "parameter": 13,
+      "policy": "FAULT_ENTITY",
+      "reverse_enumeration": false,
+      "safe_rate": 2
+    },
+    {
+      "expected_entity_fault_owners": [],
+      "expected_fault": "INTEGER_OVERFLOW",
+      "expected_fault_action_id": 1,
+      "expected_faulted_ids": [],
+      "expected_owner_entity_id": 1,
+      "id": "fault-origin-effect-abort_simulation-000",
+      "initial_hp": 96,
+      "origin": "EFFECT",
+      "parameter": 11,
+      "policy": "ABORT_SIMULATION",
+      "reverse_enumeration": false,
+      "safe_rate": 11
+    },
+    {
+      "expected_entity_fault_owners": [],
+      "expected_fault": "INTEGER_OVERFLOW",
+      "expected_fault_action_id": 1,
+      "expected_faulted_ids": [],
+      "expected_owner_entity_id": 1,
+      "id": "fault-origin-effect-abort_simulation-001",
+      "initial_hp": 134,
+      "origin": "EFFECT",
+      "parameter": 6,
+      "policy": "ABORT_SIMULATION",
+      "reverse_enumeration": true,
+      "safe_rate": 4
+    },
+    {
+      "expected_entity_fault_owners": [],
+      "expected_fault": "INTEGER_OVERFLOW",
+      "expected_fault_action_id": 1,
+      "expected_faulted_ids": [],
+      "expected_owner_entity_id": 1,
+      "id": "fault-origin-effect-abort_simulation-002",
+      "initial_hp": 233,
+      "origin": "EFFECT",
+      "parameter": 15,
+      "policy": "ABORT_SIMULATION",
+      "reverse_enumeration": true,
+      "safe_rate": 4
+    }
+  ],
   "freeze_token_cases": [
     {
       "expected_ticks": [

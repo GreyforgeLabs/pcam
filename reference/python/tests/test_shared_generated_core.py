@@ -1,13 +1,16 @@
 import importlib.util
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
 from pcam_runtime import (
     ActionDefinition,
+    Contact,
     EffectEnvelope,
     FreezeToken,
+    HostSnapshot,
     InteractionCandidate,
     InteractionRule,
     NodeDefinition,
@@ -386,6 +389,148 @@ def test_python_shared_generated_interaction_pipeline_is_typed_atomic_and_permut
         assert runs[0].final_state.state_hash() == runs[1].final_state.state_hash(), case[
             "id"
         ]
+
+
+_FAULT_VECTOR_PATHS = {
+    "PROGRESSION": "tests/vectors/fault-trigger-runtime.json",
+    "INTERACTION": "tests/vectors/interaction-fault-runtime.json",
+    "EFFECT": "tests/vectors/effect-fault-runtime.json",
+}
+
+
+def _fault_origin_document(case, reverse_enumeration):
+    document = json.loads((ROOT / _FAULT_VECTOR_PATHS[case["origin"]]).read_text())
+    document.pop("cases")
+    document["id"] = case["id"]
+    document["runtime_profile"]["id"] = f"pcam.generated.{case['id']}.v1"
+    document["runtime_profile"]["fault_policy"] = case["policy"]
+    if reverse_enumeration:
+        document["ticks"][0]["inputs"].reverse()
+        document["fault_tick"]["contacts"].reverse()
+    if case["origin"] == "PROGRESSION":
+        document["runtime_profile"]["limits"]["max_quanta_per_action_per_tick"] = case[
+            "parameter"
+        ]
+        document["rate_overrides"] = {
+            "1": case["safe_rate"],
+            "2": case["parameter"] + 1,
+            "3": 0,
+        }
+    elif case["origin"] == "INTERACTION":
+        document["runtime_profile"]["limits"]["max_redirects_per_candidate"] = case[
+            "parameter"
+        ]
+    else:
+        document["definitions"][0]["semantic_facts"][0]["fact"]["effect_templates"][0][
+            "payload"
+        ] = (1 << 63) - 1 - case["parameter"]
+        document["initial_state"]["resource_banks"]["2"]["hp"] = case["initial_hp"]
+    return document
+
+
+def _fault_host(document):
+    return HostSnapshot(
+        contacts=tuple(
+            Contact(
+                candidate_id=item["candidate_id"],
+                source_instance_id=item["source_instance_id"],
+                source_entity_id=item["source_entity_id"],
+                target_entity_id=item["target_entity_id"],
+                fact_id=item["fact_id"],
+                contact_id=item["contact_id"],
+            )
+            for item in document["fault_tick"]["contacts"]
+        )
+    )
+
+
+def _fault_before(document):
+    run = run_vector(document)
+    state = run.final_state
+    if document["id"].startswith("fault-origin-progression"):
+        state = replace(
+            state,
+            action_instances={
+                key: replace(action, current_rate_units=document["rate_overrides"][key])
+                for key, action in state.action_instances.items()
+            },
+        )
+    return run.executor, state
+
+
+def test_python_shared_generated_fault_origins_are_atomic_scoped_and_permutation_invariant():
+    for case in _corpus()["fault_origin_cases"]:
+        pre_fault_snapshots = []
+        outcomes = []
+        enumeration_values = (
+            case["reverse_enumeration"],
+            not case["reverse_enumeration"],
+        )
+        for reverse_enumeration in enumeration_values:
+            document = _fault_origin_document(case, reverse_enumeration)
+            executor, before = _fault_before(document)
+            pre_fault_snapshots.append(before.to_snapshot())
+            host = _fault_host(document)
+            if case["policy"] == "ABORT_SIMULATION":
+                with pytest.raises(PCAMError) as raised:
+                    executor.tick(before, (), host)
+                assert raised.value.fault.value == case["expected_fault"], case["id"]
+                assert raised.value.action_instance_id == case[
+                    "expected_fault_action_id"
+                ], case["id"]
+                assert raised.value.owner_entity_id == case[
+                    "expected_owner_entity_id"
+                ], case["id"]
+                assert before.to_snapshot() == pre_fault_snapshots[-1], case["id"]
+                outcomes.append(
+                    (
+                        raised.value.fault.value,
+                        raised.value.action_instance_id,
+                        raised.value.owner_entity_id,
+                    )
+                )
+                continue
+
+            state, trace = executor.tick(before, (), host)
+            faulted_ids = sorted(
+                int(identifier)
+                for identifier, action in state.action_instances.items()
+                if action.lifecycle_state == "FAULTED"
+            )
+            entity_fault_owners = sorted(
+                int(identifier)
+                for identifier, record in state.entity_records.items()
+                if "fault_record" in record
+            )
+            assert state.tick == before.tick + 1, case["id"]
+            assert faulted_ids == case["expected_faulted_ids"], case["id"]
+            assert entity_fault_owners == case["expected_entity_fault_owners"], case[
+                "id"
+            ]
+            assert all(
+                action.fault_record == case["expected_fault"]
+                for action in state.action_instances.values()
+                if action.lifecycle_state == "FAULTED"
+            ), case["id"]
+            assert trace["faults"][0]["fault"] == case["expected_fault"], case["id"]
+            assert trace["faults"][0]["policy"] == case["policy"], case["id"]
+            assert trace["faults"][0]["action_instance_id"] == case[
+                "expected_fault_action_id"
+            ], case["id"]
+            assert trace["faults"][0]["owner_entity_id"] == case[
+                "expected_owner_entity_id"
+            ], case["id"]
+            assert trace["typed_effects_emitted"] == [], case["id"]
+            assert state.interaction_ledgers == before.interaction_ledgers, case["id"]
+            assert state.resource_banks == before.resource_banks, case["id"]
+            assert executor.restore(executor.save(state)) == state
+            outcomes.append(state)
+        assert pre_fault_snapshots[0] == pre_fault_snapshots[1], case["id"]
+        if case["policy"] == "ABORT_SIMULATION":
+            assert outcomes[0] == outcomes[1], case["id"]
+        else:
+            assert outcomes[0].to_snapshot() == outcomes[1].to_snapshot(), case["id"]
+            assert outcomes[0].state_hash() == outcomes[1].state_hash(), case["id"]
 
 
 def _freeze_tokens(values):

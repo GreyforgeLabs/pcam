@@ -542,6 +542,48 @@ def _interaction_pipeline_cases(
     return cases
 
 
+def _fault_origin_cases(generator: random.Random) -> list[dict[str, object]]:
+    origins = {
+        "PROGRESSION": ("QUANTUM_LIMIT_EXCEEDED", 2, 3),
+        "INTERACTION": ("REDIRECT_LIMIT_EXCEEDED", 1, 2),
+        "EFFECT": ("INTEGER_OVERFLOW", 1, 2),
+    }
+    policies = ("FAULT_ACTION", "FAULT_ENTITY", "ABORT_SIMULATION")
+    cases = []
+    for origin, (fault, fault_action_id, sibling_action_id) in origins.items():
+        for policy in policies:
+            for variant in range(3):
+                parameter = generator.randint(1, 16)
+                expected_faulted_ids = []
+                expected_entity_fault_owners = []
+                if policy == "FAULT_ACTION":
+                    expected_faulted_ids = [fault_action_id]
+                elif policy == "FAULT_ENTITY":
+                    expected_faulted_ids = [fault_action_id, sibling_action_id]
+                    expected_entity_fault_owners = [2 if origin == "PROGRESSION" else 1]
+                cases.append(
+                    {
+                        "id": (
+                            f"fault-origin-{origin.lower()}-{policy.lower()}-{variant:03d}"
+                        ),
+                        "origin": origin,
+                        "policy": policy,
+                        "parameter": parameter,
+                        "safe_rate": generator.randint(0, parameter),
+                        "initial_hp": generator.randint(1, 256),
+                        "reverse_enumeration": bool(generator.getrandbits(1)),
+                        "expected_fault": fault,
+                        "expected_fault_action_id": fault_action_id,
+                        "expected_owner_entity_id": (
+                            2 if origin == "PROGRESSION" else 1
+                        ),
+                        "expected_faulted_ids": expected_faulted_ids,
+                        "expected_entity_fault_owners": expected_entity_fault_owners,
+                    }
+                )
+    return cases
+
+
 def build_corpus() -> dict[str, object]:
     generator = random.Random(SEED)
     rate_restore_cases = _rate_cases(generator)
@@ -559,6 +601,7 @@ def build_corpus() -> dict[str, object]:
     numeric_overflow_cases = _numeric_overflow_cases(generator)
     cross_stage_arbitration_cases = _cross_stage_arbitration_cases(generator)
     interaction_pipeline_cases = _interaction_pipeline_cases(generator)
+    fault_origin_cases = _fault_origin_cases(generator)
     return {
         "pcam_generated_corpus_version": "1",
         "kind": "generated_core_properties",
@@ -580,6 +623,7 @@ def build_corpus() -> dict[str, object]:
         "interaction_rule_cases": interaction_rule_cases,
         "cross_stage_arbitration_cases": cross_stage_arbitration_cases,
         "interaction_pipeline_cases": interaction_pipeline_cases,
+        "fault_origin_cases": fault_origin_cases,
     }
 
 
