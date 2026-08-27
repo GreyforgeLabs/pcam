@@ -20,6 +20,8 @@
         ]
       },
       "ticks": 3,
+      "final_state_sha256": "deef37d1564fe43875864f933bd3898073f02735e25732f117223e434228790a",
+      "continuation_state_sha256": "5a96798420524906b59eb99c88e3eca2a5ceadfc7bb1ff151a71b185be9d4a00",
       "expected": [
         {"lifecycle_state": "RUNNING", "current_node_id": "WINDUP", "node_step": 0, "local_step": 0, "transition_serial": 0, "quantum_accumulator": 2},
         {"lifecycle_state": "RUNNING", "current_node_id": "WINDUP", "node_step": 0, "local_step": 0, "transition_serial": 0, "quantum_accumulator": 4},
@@ -46,6 +48,8 @@
         ]
       },
       "ticks": 2,
+      "final_state_sha256": "36d084c4840ab69f3540e59af1fa8c4a5a9d8ead2fba9d7645898db0615f0e74",
+      "continuation_state_sha256": "36d084c4840ab69f3540e59af1fa8c4a5a9d8ead2fba9d7645898db0615f0e74",
       "expected": [
         {"lifecycle_state": "RUNNING", "current_node_id": "WAIT", "node_step": 2, "local_step": 2, "transition_serial": 0, "quantum_accumulator": 0},
         {"lifecycle_state": "TERMINATED", "current_node_id": "POST", "node_step": 0, "local_step": 4, "transition_serial": 3, "quantum_accumulator": 0}
@@ -66,6 +70,8 @@
         ]
       },
       "ticks": 1,
+      "final_state_sha256": "e57dbe723586e4ed267c79e7c50324d8faa4316e2f413798b159cf940789f20c",
+      "continuation_state_sha256": "e57dbe723586e4ed267c79e7c50324d8faa4316e2f413798b159cf940789f20c",
       "expected": [
         {"lifecycle_state": "TERMINATED", "current_node_id": "END", "node_step": 0, "local_step": 1, "transition_serial": 1, "quantum_accumulator": 0}
       ]
@@ -90,6 +96,8 @@
         ]
       },
       "ticks": 2,
+      "final_state_sha256": "89052f220f7a97c419dabe44815aa2b14584029e95846c08598ac47d956460d3",
+      "continuation_state_sha256": "3412cc21e29edec4c274064b2c5ef9e20116577ef39607e09770e854b78850b9",
       "expected": [
         {"lifecycle_state": "RUNNING", "current_node_id": "B", "node_step": 0, "local_step": 1, "transition_serial": 1, "quantum_accumulator": 0, "predicate_truth_state": {"ACTIVE": true, "DERIVED": true}, "predicate_entry_serials": {"ACTIVE": 1, "DERIVED": 1}, "predicate_exit_serials": {}},
         {"lifecycle_state": "RUNNING", "current_node_id": "A", "node_step": 0, "local_step": 2, "transition_serial": 2, "quantum_accumulator": 0, "predicate_truth_state": {"ACTIVE": false, "DERIVED": false}, "predicate_entry_serials": {"ACTIVE": 1, "DERIVED": 1}, "predicate_exit_serials": {"ACTIVE": 1, "DERIVED": 1}}
@@ -110,6 +118,8 @@
         ]
       },
       "ticks": 2,
+      "final_state_sha256": "38f35705342c8a87759594c575b81ea014f8ece8d344ed48bc4b6a66862c4716",
+      "continuation_state_sha256": "38f35705342c8a87759594c575b81ea014f8ece8d344ed48bc4b6a66862c4716",
       "inputs": [
         [],
         [{"assigned_tick": 1, "source_entity_id": 1, "sequence": 1, "command_id": "DODGE", "payload": {}, "input_id": "dodge"}]
@@ -135,6 +145,8 @@
         ]
       },
       "ticks": 2,
+      "final_state_sha256": "a509becb734e07c0025acbf59dd4a25f4658572a1146eb0b106743052cd2126a",
+      "continuation_state_sha256": "3051fb9744c70bc115fb9a944255c36a0ea17cde478c7d4f3088f8618bb5d70a",
       "inputs": [
         [],
         [{"assigned_tick": 1, "source_entity_id": 1, "sequence": 1, "command_id": "CANCEL", "payload": {}, "input_id": "cancel"}]
@@ -157,6 +169,8 @@
         "transitions": []
       },
       "ticks": 2,
+      "final_state_sha256": "e95612cee521e34d9edd562b872c7a288603c603210cfa9d9fe375e73181977d",
+      "continuation_state_sha256": "4087f25a9c043b6d3c99683a225d19fabc41da1eb9b034512100a018140ace42",
       "inputs": [
         [],
         [
@@ -182,6 +196,8 @@
         "transitions": []
       },
       "ticks": 3,
+      "final_state_sha256": "4087f25a9c043b6d3c99683a225d19fabc41da1eb9b034512100a018140ace42",
+      "continuation_state_sha256": "4087f25a9c043b6d3c99683a225d19fabc41da1eb9b034512100a018140ace42",
       "inputs": [
         [],
         [
@@ -206,6 +222,8 @@
         "transitions": []
       },
       "ticks": 4,
+      "final_state_sha256": "fabec4462028b37093e5f212e368a31e42fb5083720328b3e1523c21f729fa1f",
+      "continuation_state_sha256": "aff63e5a8d31ee646229d61e90773c95086abd3242784170b53dad671b49c4ba",
       "freezes": [{}, {"progression": "HOLD"}, {"progression": "ACCRUE"}, {}],
       "expected": [
         {"local_step": 1, "quantum_accumulator": 0, "deferred_quanta": 0},
@@ -228,6 +246,8 @@
         ]
       },
       "ticks": 4,
+      "final_state_sha256": "76d183d5731d7f4e8f0b47c661ff88089dc4cf54ca99d9a72b009e7e9623b13b",
+      "continuation_state_sha256": "76d183d5731d7f4e8f0b47c661ff88089dc4cf54ca99d9a72b009e7e9623b13b",
       "inputs": [
         [],
         [{"assigned_tick": 1, "source_entity_id": 1, "sequence": 1, "command_id": "GO", "payload": {}, "input_id": "go"}],
@@ -253,6 +273,8 @@
         "transitions": []
       },
       "ticks": 4,
+      "final_state_sha256": "4087f25a9c043b6d3c99683a225d19fabc41da1eb9b034512100a018140ace42",
+      "continuation_state_sha256": "4087f25a9c043b6d3c99683a225d19fabc41da1eb9b034512100a018140ace42",
       "inputs": [
         [],
         [{"assigned_tick": 1, "source_entity_id": 1, "sequence": 1, "command_id": "BLOCKED", "payload": {}, "input_id": "blocked"}],

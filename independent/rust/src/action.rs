@@ -82,7 +82,7 @@ pub struct TickInput {
     pub input_id: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct BufferEntry {
     pub buffer_entry_id: String,
     pub input_id: String,
@@ -113,7 +113,7 @@ pub struct FreezeControls {
     pub buffer_expiry: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct ActionInstance {
     pub owner_entity_id: u64,
     pub lifecycle_state: String,
@@ -136,6 +136,45 @@ pub struct ActionInstance {
 pub struct TickResult {
     pub quanta: u64,
     pub transitions: Vec<String>,
+}
+
+pub fn snapshot(action: &ActionInstance) -> Result<Value, ActionError> {
+    serde_json::to_value(action).map_err(|_| ActionError::StateInvariant)
+}
+
+pub fn restore(
+    value: &Value,
+    definition: &ActionDefinition,
+) -> Result<ActionInstance, ActionError> {
+    validate_definition(definition)?;
+    let action: ActionInstance =
+        serde_json::from_value(value.clone()).map_err(|_| ActionError::StateInvariant)?;
+    if !matches!(
+        action.lifecycle_state.as_str(),
+        "PENDING" | "RUNNING" | "SUSPENDED" | "TERMINATED" | "FAULTED"
+    ) || node(definition, &action.current_node_id).is_err()
+        || action
+            .input_buffer
+            .iter()
+            .any(|entry| entry.remaining_eligibility_ticks == 0)
+    {
+        return Err(ActionError::StateInvariant);
+    }
+    let predicate_ids: BTreeSet<&str> = definition
+        .predicates
+        .iter()
+        .map(|predicate| predicate.id.as_str())
+        .collect();
+    if action
+        .predicate_truth_state
+        .keys()
+        .chain(action.predicate_entry_serials.keys())
+        .chain(action.predicate_exit_serials.keys())
+        .any(|identifier| !predicate_ids.contains(identifier.as_str()))
+    {
+        return Err(ActionError::StateInvariant);
+    }
+    Ok(action)
 }
 
 pub fn validate_definition(definition: &ActionDefinition) -> Result<(), ActionError> {

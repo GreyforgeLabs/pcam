@@ -1,7 +1,8 @@
 use pcam_independent::action::{
-    ActionDefinition, ActionError, FreezeControls, RuntimeLimits, TickInput, start,
-    tick_with_controls, validate_definition,
+    ActionDefinition, ActionError, FreezeControls, RuntimeLimits, TickInput, restore, snapshot,
+    start, tick_with_controls, validate_definition,
 };
+use pcam_independent::canonical_hash;
 use serde::Deserialize;
 use serde_json::Value;
 use std::fs;
@@ -40,6 +41,8 @@ struct Case {
     #[serde(default)]
     freezes: Vec<FreezeControls>,
     expected: Vec<Value>,
+    final_state_sha256: String,
+    continuation_state_sha256: String,
 }
 
 #[derive(Deserialize)]
@@ -108,6 +111,31 @@ fn independent_runtime_matches_shared_progression_and_transition_vectors() {
             .unwrap();
             assert_expected(&serde_json::to_value(&action).unwrap(), expected, &case.id);
         }
+        let action_snapshot = snapshot(&action).unwrap();
+        assert_eq!(
+            canonical_hash(&action_snapshot).unwrap(),
+            case.final_state_sha256,
+            "{}",
+            case.id
+        );
+        let mut restored = restore(&action_snapshot, &case.definition).unwrap();
+        assert_eq!(restored, action, "{}", case.id);
+        tick_with_controls(
+            &mut restored,
+            &case.definition,
+            vectors.limits.clone().into(),
+            true,
+            case.ticks as u64,
+            &[],
+            &FreezeControls::default(),
+        )
+        .unwrap();
+        assert_eq!(
+            canonical_hash(&snapshot(&restored).unwrap()).unwrap(),
+            case.continuation_state_sha256,
+            "{}",
+            case.id
+        );
     }
 }
 

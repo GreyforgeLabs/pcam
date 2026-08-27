@@ -9,7 +9,7 @@ This matrix preserves the complete target. A row is complete only when its named
 | Spec area | Required evidence | Current state |
 |---|---|---|
 | §1-6 language, scope, invariants, determinism boundary, formal model | contradiction-free specification audit | missing |
-| §7 authoritative state | snapshot schema plus complete-state round-trip vectors | partial: initial schema and slice round-trip |
+| §7 authoritative state | snapshot schema plus complete-state round-trip vectors | partial: Python full-slice snapshots plus cross-language canonical action-state projection round trips; complete independent simulation state remains open |
 | §8 definitions | action schema, immutable hash binding, positive and negative vectors | partial: Python schema/compiler coverage plus independent Rust validation and shared missing-initial-node, duplicate-priority, and invalid-seek rejection vectors; cross-language immutable binding and broader negatives remain open |
 | §9 numeric semantics | arithmetic unit/property vectors including Euclidean division and overflow | partial: Python and independent Rust agree on shared checked I64/U64 overflow, Euclidean division, exact ratio, negative-floor, and checked-intermediate vectors; broader generated cross-language arithmetic remains open |
 | §10 progression | rational accumulator and bounded quantum vectors | partial: Python and independent Rust agree on rational-rate and quantum-limit vectors; Python also covers HOLD/ACCRUE deferred state, while independent freeze progression remains open |
@@ -24,8 +24,8 @@ This matrix preserves the complete target. A row is complete only when its named
 | §24 tick pipeline | deterministic twelve-stage trace vectors | partial: ordered vertical-slice trace |
 | §25 events | delivery order, modes, and lifetime vectors | partial: canonical next-tick scheduling, snapshot round trip, duplicate rejection, and provisional freeze deferral |
 | §26 RNG | PCG32 vectors, snapshot state, restore vectors | partial: Python and independent Rust agree on canonical PCG32 outputs, snapshot state, profile validation, restore continuation, and draw-count overflow policy; runtime stream integration breadth remains open |
-| §27 canonicalization and hashes | PCAM-CJ1 corpus and exact digest vectors | partial: Python and independent Rust serializers agree on shared exact-byte and SHA-256 vectors, including a real definition; wider hostile and cross-architecture corpora remain open |
-| §28 save and restore | schema, round-trip, continuation equivalence | partial: slice round-trip and correction equivalence |
+| §27 canonicalization and hashes | PCAM-CJ1 corpus and exact digest vectors | partial: Python and independent Rust serializers agree on shared exact-byte and SHA-256 vectors, a real definition, and every action-runtime state projection; wider hostile and cross-architecture corpora remain open |
+| §28 save and restore | schema, round-trip, continuation equivalence | partial: Python full-slice restore/correction plus cross-language action-state restore and next-tick digest equivalence; complete independent simulation restore remains open |
 | §29 networking | declared local, lockstep, rollback, and server prediction profile artifacts | partial: machine-readable topology declarations, required mechanism/limit fields, canonical profile hashing, and rejection vectors; executable network services remain open |
 | §30-31 faults and limits | stable fault codes and every declared bound tested | partial: full core runtime fault enum, validated fault-policy declaration, canonically hashed required limits, extension-state bound, and several runtime bounds; policy execution and exhaustive bound enforcement remain open |
 | §32 PCAM-24 | schema, compiler, lifecycle, projection, migration warnings | partial: schema, explicit TERMINATE/LOOP/CLAMP compiler, expression-backed projections, and warning-first v1/v2 migration; broader profile lifecycle vectors remain open |

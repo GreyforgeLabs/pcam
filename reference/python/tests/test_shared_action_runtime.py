@@ -6,6 +6,7 @@ import pytest
 
 from pcam_runtime import (
     ActionDefinition,
+    canonical_hash,
     FreezeToken,
     NodeDefinition,
     PCAMError,
@@ -43,17 +44,21 @@ def _profile(raw):
 
 def _projection(action):
     return {
+        "owner_entity_id": action.owner_entity_id,
         "lifecycle_state": action.lifecycle_state,
         "current_node_id": action.current_node_id,
         "node_step": action.node_step,
         "local_step": action.local_step,
+        "cycle": action.cycle,
         "transition_serial": action.transition_serial,
         "quantum_accumulator": action.quantum_accumulator,
         "deferred_quanta": action.deferred_quanta,
+        "current_rate_units": action.current_rate_units,
         "predicate_truth_state": action.predicate_truth_state,
         "predicate_entry_serials": action.predicate_entry_serials,
         "predicate_exit_serials": action.predicate_exit_serials,
         "input_buffer": [entry.__dict__ for entry in action.input_buffer],
+        "fault_record": action.fault_record,
     }
 
 
@@ -110,6 +115,11 @@ def test_python_runtime_matches_shared_progression_and_transition_vectors():
             state, _ = executor.tick(state, inputs)
             actual = _projection(state.action_instances["1"])
             assert {key: actual[key] for key in expected} == expected, case["id"]
+        assert canonical_hash(actual) == case["final_state_sha256"], case["id"]
+        restored = executor.restore(executor.save(state))
+        assert _projection(restored.action_instances["1"]) == actual, case["id"]
+        restored, _ = executor.tick(restored)
+        assert canonical_hash(_projection(restored.action_instances["1"])) == case["continuation_state_sha256"], case["id"]
 
 
 def test_python_runtime_matches_shared_limit_faults():
