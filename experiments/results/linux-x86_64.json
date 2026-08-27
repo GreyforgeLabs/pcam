@@ -11,29 +11,29 @@
     "scope": "one complete 60-tick replay from the declared initial state",
     "subjects": {
       "fixed-tick-fsm": {
-        "max_ns": 380006,
-        "median_ns": 318761,
-        "min_ns": 309754
+        "max_ns": 377964,
+        "median_ns": 323712,
+        "min_ns": 315727
       },
       "frame-data": {
-        "max_ns": 391157,
-        "median_ns": 353406,
-        "min_ns": 347655
+        "max_ns": 518150,
+        "median_ns": 364279,
+        "min_ns": 354490
       },
       "pcam-core": {
-        "max_ns": 189768569,
-        "median_ns": 164607134,
-        "min_ns": 160766452
+        "max_ns": 219617212,
+        "median_ns": 196849809,
+        "min_ns": 188607584
       },
       "pcam-core-pcam24": {
-        "max_ns": 207117441,
-        "median_ns": 170069926,
-        "min_ns": 165562545
+        "max_ns": 227210012,
+        "median_ns": 196373313,
+        "min_ns": 190658416
       },
       "statechart-local-counters": {
-        "max_ns": 389013,
-        "median_ns": 348537,
-        "min_ns": 340292
+        "max_ns": 451433,
+        "median_ns": 355101,
+        "min_ns": 346254
       }
     },
     "warning": "host timing is descriptive, environment-specific, and excluded from report_digest"
@@ -44,7 +44,7 @@
     "clarity": "declared trace-field coverage is a proxy, not a subjective quality score",
     "timing_status": "host timing is descriptive and committed separately from the deterministic report digest"
   },
-  "report_digest": "4601bf31d3db19fdb5f4df49a993d5473ba85ccd0420849a2057a231d8df1595",
+  "report_digest": "6ba9f27f052d5f3d55a6a43d2bba9b26cd151b3eef0ca3f86759017a8600ff60",
   "results": [
     {
       "ambiguous_interaction_cases": {
@@ -279,7 +279,7 @@
       "runtime_state_bytes": 2844,
       "snapshot_bytes": 2844,
       "subject_id": "pcam-core",
-      "trace_digest": "1ac847bc0c413849ae91b05a3dc6f8e3cf620e32a842dd09687fb12fa8c990f5",
+      "trace_digest": "99c64f0b1eabe64084d7a0dadc259baf36529458939db41c699ce6cdfe86e5e6",
       "validation_coverage": {
         "checks": [
           "schema version",
@@ -347,7 +347,7 @@
       "runtime_state_bytes": 2844,
       "snapshot_bytes": 2844,
       "subject_id": "pcam-core-pcam24",
-      "trace_digest": "ba5f4a60051ba7210acea442476965dab5197ab8cb4cf946b4107ed651b48dfd",
+      "trace_digest": "819c9dfa3ac75244e3507f8ff650c0d6a05cd9bba23fc2c0c4909d3e6d06c728",
       "validation_coverage": {
         "checks": [
           "schema version",

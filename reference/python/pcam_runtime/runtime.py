@@ -129,8 +129,9 @@ class TickExecutor:
             )
         self._validate_limits(state, 0, 0)
         host = host or HostSnapshot()
-        trace: dict[str, object] = {"tick": state.tick, "stages": []}
+        trace = self._empty_trace(state)
         work = state
+        tick_buffers_before = self._buffer_trace_state(state)
         effects: list[Effect] = []
         typed_effects: list[EffectEnvelope] = []
         canonical_contacts = self._canonical_contacts(host.contacts)
@@ -142,16 +143,25 @@ class TickExecutor:
 
         self._stage(trace, 2, "input_ingestion")
         start_inputs = self._eligible_inputs(work.tick, inputs)
+        buffers_before = self._buffer_trace_state(work)
         work = self._capture_inputs(work, start_inputs)
+        buffers_after = self._buffer_trace_state(work)
+        trace["buffer_changes"] = [
+            {"after": list(buffers_after[key]), "before": list(buffers_before.get(key, ())), "instance_id": int(key)}
+            for key in sorted(buffers_after, key=int)
+            if buffers_after[key] != buffers_before.get(key, ())
+        ]
         trace["input_order"] = [item.input_id for item in start_inputs]
 
         self._stage(trace, 3, "pre_advance_intent_evaluation")
-        pre_intents = self._evaluate_transitions(work, "PRE_ADVANCE")
+        pre_intents, pre_eligible = self._evaluate_transitions(work, "PRE_ADVANCE")
+        trace["eligible_transitions"].extend(pre_eligible)  # type: ignore[union-attr]
 
         self._stage(trace, 4, "pre_advance_arbitration")
         work, emitted, pre_decisions = self._arbitrate_stage(work, pre_intents, start_inputs)
         effects.extend(emitted)
         trace["pre_advance_intents"] = pre_decisions
+        self._extend_arbitration_trace(trace, pre_decisions)
 
         self._stage(trace, 5, "action_progression")
         for key in sorted(work.action_instances, key=lambda item: int(item)):
@@ -159,17 +169,19 @@ class TickExecutor:
             if action.lifecycle_state != "RUNNING":
                 continue
             definition = self.definitions_by_hash[action.definition_hash]
-            work, emitted, quanta, node_changes = self._progress_action(work, action, definition)
+            work, emitted, quanta, node_changes = self._progress_action(work, action, definition, trace)
             effects.extend(emitted)
             trace.setdefault("progression_quanta", {})[key] = quanta  # type: ignore[index]
             if node_changes:
                 trace.setdefault("node_changes", []).extend(node_changes)  # type: ignore[union-attr]
 
         self._stage(trace, 6, "post_advance_intent_evaluation_and_arbitration")
-        post_intents = self._evaluate_transitions(work, "POST_ADVANCE")
+        post_intents, post_eligible = self._evaluate_transitions(work, "POST_ADVANCE")
+        trace["eligible_transitions"].extend(post_eligible)  # type: ignore[union-attr]
         work, emitted, post_decisions = self._arbitrate_stage(work, post_intents, [])
         effects.extend(emitted)
         trace["post_advance_intents"] = post_decisions
+        self._extend_arbitration_trace(trace, post_decisions)
 
         self._stage(trace, 7, "semantic_snapshot")
         work, predicate_changes, facts, active_bindings = self._semantic_snapshot(work)
@@ -178,6 +190,19 @@ class TickExecutor:
 
         self._stage(trace, 8, "contact_and_candidate_generation")
         candidates = list(canonical_contacts)
+        trace["contact_candidates"] = [
+            {
+                "candidate_id": candidate.candidate_id,
+                "contact_id": candidate.contact_id,
+                "contact_partition": candidate.contact_partition,
+                "defense_fact_id": candidate.defense_fact_id,
+                "offense_fact_id": candidate.fact_id,
+                "source_action_instance_id": candidate.source_instance_id,
+                "source_entity_id": candidate.source_entity_id,
+                "target_entity_id": candidate.target_entity_id,
+            }
+            for candidate in candidates
+        ]
         trace["candidate_order"] = [candidate.candidate_id for candidate in candidates]
 
         self._stage(trace, 9, "interaction_resolution")
@@ -189,6 +214,16 @@ class TickExecutor:
         effects.extend(interaction_effects)
         typed_effects.extend(resolved_typed_effects)
         trace["decision_record_mutations"] = receipts
+        trace["interaction_rules_fired"] = [
+            {"candidate_id": receipt["candidate_id"], **rule}
+            for receipt in receipts
+            for rule in receipt.get("rules_fired", [])
+        ]
+        trace["provisional_receipts"] = [
+            {"candidate_id": receipt["candidate_id"], "receipt_written": True}
+            for receipt in receipts
+            if receipt.get("receipt_written") is True
+        ]
 
         self._stage(trace, 10, "effect_reduction_and_commit")
         work, reduction_trace = self._commit_effects(work, effects, typed_effects)
@@ -202,10 +237,111 @@ class TickExecutor:
 
         self._stage(trace, 12, "snapshot_and_digest")
         work = replace(work, tick=work.tick + 1)
+        tick_buffers_after = self._buffer_trace_state(work)
+        trace["buffer_changes"] = [
+            {
+                "after": list(tick_buffers_after.get(key, ())),
+                "before": list(tick_buffers_before.get(key, ())),
+                "instance_id": int(key),
+            }
+            for key in sorted(set(tick_buffers_before).union(tick_buffers_after), key=int)
+            if tick_buffers_before.get(key, ()) != tick_buffers_after.get(key, ())
+        ]
         digest = work.state_hash()
         trace["state_digest"] = digest
         trace["state_changes"] = work.to_snapshot()
         return work, trace
+
+    def tick_with_fault_trace(
+        self,
+        state: SimulationState,
+        inputs: tuple[TickInput, ...] = (),
+        host: HostSnapshot | None = None,
+    ) -> tuple[SimulationState, dict[str, object], PCAMError | None]:
+        """Return a canonical fault trace while preserving the pre-tick state on failure."""
+
+        try:
+            next_state, trace = self.tick(state, inputs, host)
+            return next_state, trace, None
+        except PCAMError as error:
+            trace = self._empty_trace(state)
+            trace["faults"] = [
+                {
+                    "code": error.code.value,
+                    "fault": error.fault.value,
+                    "message": error.message,
+                }
+            ]
+            trace["state_changes"] = state.to_snapshot()
+            trace["state_digest"] = state.state_hash()
+            return state, trace, error
+
+    @staticmethod
+    def _empty_trace(state: SimulationState) -> dict[str, object]:
+        return {
+            "active_semantic_facts": [],
+            "buffer_changes": [],
+            "candidate_order": [],
+            "claim_failures": [],
+            "contact_candidates": [],
+            "decision_record_mutations": [],
+            "effect_reduction": [],
+            "effects_emitted": [],
+            "eligible_transitions": [],
+            "faults": [],
+            "input_order": [],
+            "interaction_rules_fired": [],
+            "node_changes": [],
+            "predicate_changes": [],
+            "progression_quanta": {},
+            "provisional_receipts": [],
+            "rejected_intents": [],
+            "resource_reservations": [],
+            "selected_transitions": [],
+            "stages": [],
+            "state_changes": {},
+            "state_digest": state.state_hash(),
+            "tick": state.tick,
+            "typed_effects_emitted": [],
+        }
+
+    @staticmethod
+    def _buffer_trace_state(state: SimulationState) -> dict[str, tuple[str, ...]]:
+        return {
+            key: tuple(entry.input_id for entry in action.input_buffer)
+            for key, action in state.action_instances.items()
+        }
+
+    @staticmethod
+    def _extend_arbitration_trace(trace: dict[str, object], decisions: list[dict[str, object]]) -> None:
+        for decision in decisions:
+            if decision["accepted"] and decision["intent_kind"] == "TRANSITION":
+                trace["selected_transitions"].append(  # type: ignore[union-attr]
+                    {
+                        "intent_id": decision["intent_id"],
+                        "transition_id": decision["transition_id"],
+                    }
+                )
+            if not decision["accepted"]:
+                rejected = {
+                    "intent_id": decision["intent_id"],
+                    "reason": decision["reason"],
+                    "transition_id": decision["transition_id"],
+                }
+                trace["rejected_intents"].append(rejected)  # type: ignore[union-attr]
+                if decision["claims"]:
+                    trace["claim_failures"].append(rejected)  # type: ignore[union-attr]
+            if decision["accepted"]:
+                for claim in decision["claims"]:
+                    if claim["kind"] == "RESOURCE":
+                        trace["resource_reservations"].append(  # type: ignore[union-attr]
+                            {
+                                "amount": claim["amount"],
+                                "intent_id": decision["intent_id"],
+                                "owner_entity_id": decision["owner_entity_id"],
+                                "resource": claim["key"],
+                            }
+                        )
 
     @staticmethod
     def _canonical_contacts(contacts: tuple[Contact, ...]) -> tuple[Contact, ...]:
@@ -397,8 +533,12 @@ class TickExecutor:
             decision_trace.append(
                 {
                     "accepted": decision.accepted,
+                    "claims": [claim.__dict__ for claim in decision.intent.claims],
                     "intent_id": decision.intent.identity,
+                    "intent_kind": decision.intent.intent_kind,
+                    "owner_entity_id": decision.intent.owner_entity_id,
                     "reason": decision.reason,
+                    "transition_id": decision.intent.transition_id,
                 }
             )
             if not decision.accepted:
@@ -573,6 +713,7 @@ class TickExecutor:
         state: SimulationState,
         action: ActionInstance,
         definition: ActionDefinition,
+        trace: dict[str, object],
     ) -> tuple[SimulationState, list[Effect], int, list[dict[str, object]]]:
         freeze_policy = progression_accrual(state.freeze_tokens, state.tick, action.instance_id)
         if freeze_policy == "HOLD":
@@ -596,7 +737,17 @@ class TickExecutor:
                 break
             current = replace(current, local_step=current.local_step + 1, node_step=current.node_step + 1)
             state = _put_action(state, current)
-            transition = self._select_transition(current, definition, "AFTER_QUANTUM")
+            eligible = self._eligible_transitions(current, definition, "AFTER_QUANTUM")
+            trace["eligible_transitions"].extend(  # type: ignore[union-attr]
+                {
+                    "evaluation_point": "AFTER_QUANTUM",
+                    "instance_id": action.instance_id,
+                    "priority": transition.priority,
+                    "transition_id": transition.id,
+                }
+                for transition in eligible
+            )
+            transition = eligible[0] if eligible else None
             if transition:
                 transition_count += 1
                 if transition_count > self.profile.max_internal_transitions_per_action_per_tick:
@@ -604,6 +755,12 @@ class TickExecutor:
                 before = current.current_node_id
                 state, emitted = self._apply_transition(state, action.instance_id, transition)
                 effects.extend(emitted)
+                trace["selected_transitions"].append(  # type: ignore[union-attr]
+                    {
+                        "instance_id": action.instance_id,
+                        "transition_id": transition.id,
+                    }
+                )
                 current = state.action_instances[str(action.instance_id)]
                 changes.append({"instance_id": action.instance_id, "from": before, "to": current.current_node_id})
         return _put_action(state, current), effects, quanta, changes
@@ -612,8 +769,9 @@ class TickExecutor:
         self,
         state: SimulationState,
         point: str,
-    ) -> list[tuple[int, TransitionDefinition]]:
+    ) -> tuple[list[tuple[int, TransitionDefinition]], list[dict[str, object]]]:
         selected: list[tuple[int, TransitionDefinition]] = []
+        eligible_trace: list[dict[str, object]] = []
         for key in sorted(state.action_instances, key=lambda item: int(item)):
             action = state.action_instances[key]
             if action.lifecycle_state == "RUNNING":
@@ -621,10 +779,20 @@ class TickExecutor:
                 if is_frozen(state.freeze_tokens, state.tick, action.instance_id, domain):
                     continue
                 definition = self.definitions_by_hash[action.definition_hash]
-                transition = self._select_transition(action, definition, point)
+                eligible = self._eligible_transitions(action, definition, point)
+                eligible_trace.extend(
+                    {
+                        "evaluation_point": point,
+                        "instance_id": action.instance_id,
+                        "priority": transition.priority,
+                        "transition_id": transition.id,
+                    }
+                    for transition in eligible
+                )
+                transition = eligible[0] if eligible else None
                 if transition:
                     selected.append((action.instance_id, transition))
-        return sorted(selected, key=lambda item: item[0])
+        return sorted(selected, key=lambda item: item[0]), eligible_trace
 
     def _select_transition(
         self,
@@ -632,6 +800,15 @@ class TickExecutor:
         definition: ActionDefinition,
         point: str,
     ) -> TransitionDefinition | None:
+        eligible = self._eligible_transitions(action, definition, point)
+        return eligible[0] if eligible else None
+
+    def _eligible_transitions(
+        self,
+        action: ActionInstance,
+        definition: ActionDefinition,
+        point: str,
+    ) -> list[TransitionDefinition]:
         eligible = []
         for transition in definition.transitions:
             if transition.source_node != action.current_node_id or transition.evaluation_point != point:
@@ -649,7 +826,7 @@ class TickExecutor:
                 if guard is not True:
                     continue
             eligible.append(transition)
-        return max(eligible, key=lambda item: item.priority) if eligible else None
+        return sorted(eligible, key=lambda item: (-item.priority, item.id.encode("utf-8")))
 
     def _apply_transition(
         self,
@@ -1047,6 +1224,7 @@ class TickExecutor:
                     "decision_tags": list(decision.decision_tags),
                     "receipt_written": receipt_written,
                     "redirect_count": decision.redirect_count,
+                    "rules_fired": list(decision.trace),
                 }
             )
         return replace(state, interaction_ledgers=ledgers), legacy_effects, typed_effects, receipts

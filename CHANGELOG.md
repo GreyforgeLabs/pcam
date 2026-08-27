@@ -41,3 +41,4 @@
 - Added bounded retained rollback history, fault-atomic correction, explicit RNG draw effects, and direct late-input, misprediction, hit-stop, child, ledger, and presentation-reconciliation evidence for every §45.6 case.
 - Added a fail-closed documentation claims audit for every §45.8 prohibition, conformance-class token, stability label, and machine claim state.
 - Closed the draft schema gate with fully typed action and interaction structures, six-category coverage, nine positive documents, 23 negative mutations, semantic diagnostics, and canonical transition-field alignment.
+- Completed the 22-field deterministic trace contract with eligibility, selection, buffer, arbitration, reservation, interaction-rule, receipt, effect, state, and fault evidence.

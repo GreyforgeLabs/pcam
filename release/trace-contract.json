@@ -1,0 +1,32 @@
+{
+  "pcam_trace_contract_version": "1",
+  "spec_section": "35",
+  "fields": {
+    "tick": "tick",
+    "input order": "input_order",
+    "buffer changes": "buffer_changes",
+    "eligible transitions": "eligible_transitions",
+    "selected transitions": "selected_transitions",
+    "rejected intents": "rejected_intents",
+    "claim failures": "claim_failures",
+    "resource reservations": "resource_reservations",
+    "progression quanta": "progression_quanta",
+    "node changes": "node_changes",
+    "predicate changes": "predicate_changes",
+    "active semantic facts": "active_semantic_facts",
+    "contact candidates": "contact_candidates",
+    "candidate order": "candidate_order",
+    "interaction rules fired": "interaction_rules_fired",
+    "decision-record mutations": "decision_record_mutations",
+    "provisional receipts": "provisional_receipts",
+    "effects emitted": "typed_effects_emitted",
+    "effect reduction": "effect_reduction",
+    "state changes": "state_changes",
+    "faults": "faults",
+    "state digest": "state_digest"
+  },
+  "evidence": [
+    "reference/python/tests/test_trace_contract.py",
+    "examples/heavy-strike.scenario.json"
+  ]
+}
