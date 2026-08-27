@@ -40,7 +40,9 @@ jobs:
           cache: pip
 
       - name: Select Rust toolchain
-        run: rustup default "${{ matrix.rust }}"
+        run: |
+          rustup toolchain install "${{ matrix.rust }}" --profile minimal --component rustfmt
+          rustup default "${{ matrix.rust }}"
 
       - name: Install Python validation dependencies
         run: python -m pip install --upgrade pip && python -m pip install -e ".[test]" ruff==0.15.0
