@@ -430,6 +430,7 @@ fn tick_inner(
     inputs: &[TickInput],
     freezes: &FreezeControls,
 ) -> Result<TickResult, ActionError> {
+    validate_predicate_limits(definition, limits)?;
     if !matches!(
         freezes.progression.as_deref(),
         None | Some("HOLD" | "ACCRUE")
@@ -780,6 +781,57 @@ fn validate_predicates(predicates: &[PredicateDefinition]) -> Result<(), ActionE
         validate_predicate(identifier, &definitions, &mut complete, &mut visiting)?;
     }
     Ok(())
+}
+
+fn validate_predicate_limits(
+    definition: &ActionDefinition,
+    limits: RuntimeLimits,
+) -> Result<(), ActionError> {
+    if definition.predicates.len() > limits.max_expression_nodes {
+        return Err(ActionError::StateInvariant);
+    }
+    let definitions: BTreeMap<&str, &PredicateDefinition> = definition
+        .predicates
+        .iter()
+        .map(|predicate| (predicate.id.as_str(), predicate))
+        .collect();
+    let mut depths = BTreeMap::new();
+    for identifier in definitions.keys() {
+        predicate_depth(
+            identifier,
+            &definitions,
+            &mut depths,
+            limits.max_expression_depth,
+        )?;
+    }
+    Ok(())
+}
+
+fn predicate_depth(
+    identifier: &str,
+    definitions: &BTreeMap<&str, &PredicateDefinition>,
+    depths: &mut BTreeMap<String, usize>,
+    max_depth: usize,
+) -> Result<usize, ActionError> {
+    if let Some(depth) = depths.get(identifier) {
+        return Ok(*depth);
+    }
+    let predicate = definitions
+        .get(identifier)
+        .ok_or(ActionError::InvalidDefinition)?;
+    let mut depth = 1;
+    for dependency in predicate_dependencies(&predicate.expression) {
+        depth = depth.max(
+            predicate_depth(&dependency, definitions, depths, max_depth)?
+                .checked_add(1)
+                .ok_or(ActionError::StateInvariant)?,
+        );
+        if depth > max_depth {
+            return Err(ActionError::StateInvariant);
+        }
+    }
+    depths.insert(identifier.to_owned(), depth);
+    Ok(depth)
 }
 
 fn validate_predicate(

@@ -677,3 +677,37 @@ def validate_definition(definition: ActionDefinition) -> None:
                 transition.id,
             )
         seen_priorities.add(key)
+
+
+def validate_predicate_graph_limits(
+    definition: ActionDefinition,
+    max_depth: int,
+    max_nodes: int,
+) -> None:
+    predicates = {predicate.id: predicate for predicate in definition.predicates}
+    if len(predicates) > max_nodes:
+        raise PCAMError(
+            ResultCode.DEFINITION_REJECTED,
+            PCAMFault.STATE_INVARIANT_FAILURE,
+            f"predicate graph exceeds max_expression_nodes: {definition.id}",
+        )
+    depths: dict[str, int] = {}
+    for root in sorted(predicates):
+        stack = [(root, False)]
+        while stack:
+            predicate_id, expanded = stack.pop()
+            if predicate_id in depths:
+                continue
+            dependencies = sorted(_predicate_dependencies(predicates[predicate_id].expression))
+            if expanded:
+                depth = 1 + max((depths[dependency] for dependency in dependencies), default=0)
+                if depth > max_depth:
+                    raise PCAMError(
+                        ResultCode.DEFINITION_REJECTED,
+                        PCAMFault.STATE_INVARIANT_FAILURE,
+                        f"predicate graph exceeds max_expression_depth: {definition.id}",
+                    )
+                depths[predicate_id] = depth
+                continue
+            stack.append((predicate_id, True))
+            stack.extend((dependency, False) for dependency in reversed(dependencies) if dependency not in depths)

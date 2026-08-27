@@ -2638,7 +2638,7 @@ max_expression_depth
 max_expression_nodes
 ```
 
-`max_expression_depth` and `max_expression_nodes` MUST be positive. Every guard, predicate, interaction condition, and expression-valued effect payload uses these same profile limits. Exceeding either limit produces `STATE_INVARIANT_FAILURE` before expression results are applied.
+`max_expression_depth` and `max_expression_nodes` MUST be positive. Every guard, predicate, interaction condition, and expression-valued effect payload uses these same profile limits. The predicate dependency graph also uses them: its longest dependency path MUST NOT exceed `max_expression_depth`, and its predicate count MUST NOT exceed `max_expression_nodes`. Exceeding either limit produces `STATE_INVARIANT_FAILURE` before expression results are applied.
 
 The reference profile SHOULD initially use conservative finite values and expose them in its definition-set hash.
 

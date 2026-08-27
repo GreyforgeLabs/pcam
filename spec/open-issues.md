@@ -73,3 +73,7 @@ Resolved in §11.3. Input and event matches select one canonical immutable recor
 ## PCAM-24 CLAMP progression control
 
 Resolved in §8.5 and §32.7. Core assignments may target the built-in U64 `action.current_rate_units` state field. The PCAM-24 compiler uses that target to set the rate to zero while seeking the timeline back to cell 23, so CLAMP remains running at the required cursor without implicit progression accrual.
+
+## Predicate graph resource bounds
+
+Resolved in §31. The longest predicate dependency path consumes `max_expression_depth`, and total predicate count consumes `max_expression_nodes`. Both checks occur before predicate results mutate authoritative truth or edge-serial state.

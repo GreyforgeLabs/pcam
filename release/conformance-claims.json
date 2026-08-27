@@ -22,7 +22,7 @@
         "normative_tick_pipeline": {"status": "OPEN", "evidence": ["reference/python/tests/test_runtime_slice.py", "tests/vectors/event-effect-runtime.json"]},
         "action_progression": {"status": "OPEN", "evidence": ["tests/vectors/action-runtime.json"]},
         "transitions": {"status": "OPEN", "evidence": ["tests/vectors/action-runtime.json", "tests/vectors/transition-context-runtime.json", "tests/vectors/initial-entry-effects-runtime.json", "tests/vectors/fault-target-runtime.json", "tests/vectors/collection-register-runtime.json"]},
-        "predicates": {"status": "OPEN", "evidence": ["tests/vectors/action-runtime.json"]},
+        "predicates": {"status": "PASS", "evidence": ["tests/vectors/action-runtime.json", "tests/vectors/transition-context-runtime.json", "tests/vectors/predicate-graphs.json"]},
         "buffers": {"status": "OPEN", "evidence": ["tests/vectors/action-runtime.json"]},
         "intents_and_claims": {"status": "OPEN", "evidence": ["reference/python/tests/test_intents.py"]},
         "parent_child_actions": {"status": "OPEN", "evidence": ["reference/python/tests/test_runtime_slice.py", "tests/vectors/parent-child.json", "tests/vectors/parent-policies.json", "tests/vectors/child-termination-policies.json", "tests/vectors/nesting-runtime.json", "tests/vectors/child-global-limit-runtime.json"]},

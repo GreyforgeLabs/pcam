@@ -1,0 +1,43 @@
+{
+  "pcam_vector_version": "1",
+  "kind": "predicate_graph_vector",
+  "id": "bounded-hostile-context-graphs",
+  "limits": {"max_expression_depth": 8, "max_expression_nodes": 16},
+  "accepted_chain_lengths": [1, 8],
+  "rejected_chain_lengths": [9],
+  "accepted_predicate_counts": [16],
+  "rejected_predicate_counts": [17],
+  "diamond_orders": [
+    ["BASE", "LEFT", "RIGHT", "TOP"],
+    ["TOP", "RIGHT", "LEFT", "BASE"]
+  ],
+  "diamond_expected": [
+    {
+      "node_step": 1,
+      "cycle": 0,
+      "truth": {"BASE": true, "LEFT": true, "RIGHT": true, "TOP": true},
+      "entries": {"BASE": 1, "LEFT": 1, "RIGHT": 1, "TOP": 1},
+      "exits": {}
+    },
+    {
+      "node_step": 0,
+      "cycle": 1,
+      "truth": {"BASE": false, "LEFT": false, "RIGHT": false, "TOP": false},
+      "entries": {"BASE": 1, "LEFT": 1, "RIGHT": 1, "TOP": 1},
+      "exits": {"BASE": 1, "LEFT": 1, "RIGHT": 1, "TOP": 1}
+    },
+    {
+      "node_step": 1,
+      "cycle": 1,
+      "truth": {"BASE": true, "LEFT": true, "RIGHT": true, "TOP": true},
+      "entries": {"BASE": 2, "LEFT": 2, "RIGHT": 2, "TOP": 2},
+      "exits": {"BASE": 1, "LEFT": 1, "RIGHT": 1, "TOP": 1}
+    }
+  ],
+  "definition_faults": [
+    {"id": "self-cycle", "kind": "SELF_CYCLE", "fault": "PREDICATE_CYCLE"},
+    {"id": "three-node-cycle", "kind": "THREE_CYCLE", "fault": "PREDICATE_CYCLE"},
+    {"id": "missing-dependency", "kind": "MISSING", "fault": "MISSING_REFERENCE"}
+  ],
+  "limit_fault": "STATE_INVARIANT_FAILURE"
+}

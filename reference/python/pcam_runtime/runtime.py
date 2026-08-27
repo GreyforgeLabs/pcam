@@ -28,6 +28,7 @@ from .model import (
     TickInput,
     TransitionDefinition,
     validate_definition,
+    validate_predicate_graph_limits,
 )
 from .numeric import U64_MAX, add_i64, apply_u64, mul_i64
 from .rng import PCG32Stream
@@ -64,6 +65,11 @@ class TickExecutor:
         self.custom_effect_registry = custom_effect_registry or CustomEffectRegistry()
         for definition in definitions:
             validate_definition(definition)
+            validate_predicate_graph_limits(
+                definition,
+                self.profile.max_expression_depth,
+                self.profile.max_expression_nodes,
+            )
             if len(canonical_dumps(definition.to_canonical())) > self.profile.max_definition_size_bytes:
                 raise PCAMError(
                     ResultCode.DEFINITION_REJECTED,
