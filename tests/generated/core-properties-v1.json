@@ -3043,6 +3043,272 @@
       "id": "candidate-031"
     }
   ],
+  "cross_stage_arbitration_cases": [
+    {
+      "claim_amount": 3,
+      "expected_transition_serial": 1,
+      "expected_winner": "TRANSITION_TARGET",
+      "id": "cross-stage-arbitration-000",
+      "input_order": [
+        "direct",
+        "go"
+      ],
+      "transition_priority": 2
+    },
+    {
+      "claim_amount": 4,
+      "expected_transition_serial": 1,
+      "expected_winner": "TRANSITION_TARGET",
+      "id": "cross-stage-arbitration-001",
+      "input_order": [
+        "direct",
+        "go"
+      ],
+      "transition_priority": 2
+    },
+    {
+      "claim_amount": 5,
+      "expected_transition_serial": 1,
+      "expected_winner": "TRANSITION_TARGET",
+      "id": "cross-stage-arbitration-002",
+      "input_order": [
+        "go",
+        "direct"
+      ],
+      "transition_priority": 6
+    },
+    {
+      "claim_amount": 13,
+      "expected_transition_serial": 0,
+      "expected_winner": "DIRECT_TARGET",
+      "id": "cross-stage-arbitration-003",
+      "input_order": [
+        "direct",
+        "go"
+      ],
+      "transition_priority": -3
+    },
+    {
+      "claim_amount": 6,
+      "expected_transition_serial": 1,
+      "expected_winner": "TRANSITION_TARGET",
+      "id": "cross-stage-arbitration-004",
+      "input_order": [
+        "direct",
+        "go"
+      ],
+      "transition_priority": 3
+    },
+    {
+      "claim_amount": 15,
+      "expected_transition_serial": 0,
+      "expected_winner": "DIRECT_TARGET",
+      "id": "cross-stage-arbitration-005",
+      "input_order": [
+        "direct",
+        "go"
+      ],
+      "transition_priority": -4
+    },
+    {
+      "claim_amount": 8,
+      "expected_transition_serial": 0,
+      "expected_winner": "DIRECT_TARGET",
+      "id": "cross-stage-arbitration-006",
+      "input_order": [
+        "go",
+        "direct"
+      ],
+      "transition_priority": -5
+    },
+    {
+      "claim_amount": 14,
+      "expected_transition_serial": 1,
+      "expected_winner": "TRANSITION_TARGET",
+      "id": "cross-stage-arbitration-007",
+      "input_order": [
+        "go",
+        "direct"
+      ],
+      "transition_priority": 6
+    },
+    {
+      "claim_amount": 2,
+      "expected_transition_serial": 1,
+      "expected_winner": "TRANSITION_TARGET",
+      "id": "cross-stage-arbitration-008",
+      "input_order": [
+        "go",
+        "direct"
+      ],
+      "transition_priority": 1
+    },
+    {
+      "claim_amount": 12,
+      "expected_transition_serial": 1,
+      "expected_winner": "TRANSITION_TARGET",
+      "id": "cross-stage-arbitration-009",
+      "input_order": [
+        "go",
+        "direct"
+      ],
+      "transition_priority": 2
+    },
+    {
+      "claim_amount": 15,
+      "expected_transition_serial": 1,
+      "expected_winner": "TRANSITION_TARGET",
+      "id": "cross-stage-arbitration-010",
+      "input_order": [
+        "direct",
+        "go"
+      ],
+      "transition_priority": 5
+    },
+    {
+      "claim_amount": 11,
+      "expected_transition_serial": 1,
+      "expected_winner": "TRANSITION_TARGET",
+      "id": "cross-stage-arbitration-011",
+      "input_order": [
+        "go",
+        "direct"
+      ],
+      "transition_priority": 6
+    },
+    {
+      "claim_amount": 12,
+      "expected_transition_serial": 1,
+      "expected_winner": "TRANSITION_TARGET",
+      "id": "cross-stage-arbitration-012",
+      "input_order": [
+        "go",
+        "direct"
+      ],
+      "transition_priority": 1
+    },
+    {
+      "claim_amount": 2,
+      "expected_transition_serial": 1,
+      "expected_winner": "TRANSITION_TARGET",
+      "id": "cross-stage-arbitration-013",
+      "input_order": [
+        "go",
+        "direct"
+      ],
+      "transition_priority": 1
+    },
+    {
+      "claim_amount": 14,
+      "expected_transition_serial": 0,
+      "expected_winner": "DIRECT_TARGET",
+      "id": "cross-stage-arbitration-014",
+      "input_order": [
+        "direct",
+        "go"
+      ],
+      "transition_priority": -1
+    },
+    {
+      "claim_amount": 9,
+      "expected_transition_serial": 1,
+      "expected_winner": "TRANSITION_TARGET",
+      "id": "cross-stage-arbitration-015",
+      "input_order": [
+        "go",
+        "direct"
+      ],
+      "transition_priority": 6
+    },
+    {
+      "claim_amount": 8,
+      "expected_transition_serial": 1,
+      "expected_winner": "TRANSITION_TARGET",
+      "id": "cross-stage-arbitration-016",
+      "input_order": [
+        "direct",
+        "go"
+      ],
+      "transition_priority": 5
+    },
+    {
+      "claim_amount": 11,
+      "expected_transition_serial": 1,
+      "expected_winner": "TRANSITION_TARGET",
+      "id": "cross-stage-arbitration-017",
+      "input_order": [
+        "go",
+        "direct"
+      ],
+      "transition_priority": 1
+    },
+    {
+      "claim_amount": 7,
+      "expected_transition_serial": 0,
+      "expected_winner": "DIRECT_TARGET",
+      "id": "cross-stage-arbitration-018",
+      "input_order": [
+        "go",
+        "direct"
+      ],
+      "transition_priority": -3
+    },
+    {
+      "claim_amount": 8,
+      "expected_transition_serial": 0,
+      "expected_winner": "DIRECT_TARGET",
+      "id": "cross-stage-arbitration-019",
+      "input_order": [
+        "direct",
+        "go"
+      ],
+      "transition_priority": -6
+    },
+    {
+      "claim_amount": 13,
+      "expected_transition_serial": 0,
+      "expected_winner": "DIRECT_TARGET",
+      "id": "cross-stage-arbitration-020",
+      "input_order": [
+        "go",
+        "direct"
+      ],
+      "transition_priority": -7
+    },
+    {
+      "claim_amount": 11,
+      "expected_transition_serial": 1,
+      "expected_winner": "TRANSITION_TARGET",
+      "id": "cross-stage-arbitration-021",
+      "input_order": [
+        "go",
+        "direct"
+      ],
+      "transition_priority": 1
+    },
+    {
+      "claim_amount": 5,
+      "expected_transition_serial": 1,
+      "expected_winner": "TRANSITION_TARGET",
+      "id": "cross-stage-arbitration-022",
+      "input_order": [
+        "go",
+        "direct"
+      ],
+      "transition_priority": 1
+    },
+    {
+      "claim_amount": 1,
+      "expected_transition_serial": 0,
+      "expected_winner": "DIRECT_TARGET",
+      "id": "cross-stage-arbitration-023",
+      "input_order": [
+        "direct",
+        "go"
+      ],
+      "transition_priority": -4
+    }
+  ],
   "effect_aggregation_cases": [
     {
       "effects": [

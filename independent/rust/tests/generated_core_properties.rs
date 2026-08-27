@@ -302,6 +302,85 @@ fn independent_shared_generated_input_orders_produce_one_buffer_snapshot() {
     }
 }
 
+fn cross_stage_document(case: &Value, order: &[Value]) -> Value {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let mut document: Value = serde_json::from_slice(
+        &fs::read(root.join("tests/vectors/pre-stage-arbitration.json")).unwrap(),
+    )
+    .unwrap();
+    document.as_object_mut().unwrap().remove("cases");
+    document["id"] = case["id"].clone();
+    document["runtime_profile"]["id"] = json!(format!(
+        "pcam.generated.{}.v1",
+        case["id"].as_str().unwrap()
+    ));
+    document["definitions"][0]["transitions"][0]["priority"] = case["transition_priority"].clone();
+    for index in 1..3 {
+        document["definitions"][index]["start_claims"][0]["amount"] = case["claim_amount"].clone();
+    }
+    document["initial_state"]["resource_banks"]["1"]["STAMINA"] = case["claim_amount"].clone();
+    let inputs = document["ticks"][1]["inputs"].as_array().unwrap().clone();
+    document["ticks"][1]["inputs"] = Value::Array(
+        order
+            .iter()
+            .map(|input_id| {
+                inputs
+                    .iter()
+                    .find(|input| input["input_id"] == *input_id)
+                    .unwrap()
+                    .clone()
+            })
+            .collect(),
+    );
+    document
+}
+
+#[test]
+fn independent_shared_generated_cross_stage_arbitration_is_atomic_and_permutation_invariant() {
+    let corpus = corpus();
+    for case in corpus["cross_stage_arbitration_cases"].as_array().unwrap() {
+        let original = case["input_order"].as_array().unwrap().clone();
+        let mut reversed = original.clone();
+        reversed.reverse();
+        let mut states = Vec::new();
+        for order in [&original, &reversed] {
+            let document = cross_stage_document(case, order);
+            let runtime = SimulationRuntime::from_vector(&document).unwrap();
+            let mut state = runtime.initial_state(&document).unwrap();
+            for tick in document["ticks"].as_array().unwrap() {
+                (state, _) = runtime.tick(&state, tick).unwrap();
+            }
+            assert_eq!(state.action_instances.len(), 2, "{}:count", case["id"]);
+            assert_eq!(
+                state.action_instances[0].transition_serial,
+                case["expected_transition_serial"].as_u64().unwrap(),
+                "{}:transition",
+                case["id"]
+            );
+            assert_eq!(
+                state.resource_banks["1"]["STAMINA"],
+                json!(0),
+                "{}:resource",
+                case["id"]
+            );
+            assert_eq!(
+                state.action_slots["1"]["FULL_BODY"],
+                json!({"capacity": 1, "instance_ids": [2], "usage": 1}),
+                "{}:slot",
+                case["id"]
+            );
+            states.push(state);
+        }
+        assert_eq!(states[0], states[1], "{}:permutation", case["id"]);
+        assert_eq!(
+            states[0].digest().unwrap(),
+            states[1].digest().unwrap(),
+            "{}:digest",
+            case["id"]
+        );
+    }
+}
+
 #[test]
 fn independent_shared_generated_freeze_token_combinations_match_timing_and_domains() {
     let corpus = corpus();

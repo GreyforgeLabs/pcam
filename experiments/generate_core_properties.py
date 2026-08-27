@@ -466,6 +466,30 @@ def _rule_cases(generator: random.Random) -> list[dict[str, object]]:
     return cases
 
 
+def _cross_stage_arbitration_cases(
+    generator: random.Random,
+) -> list[dict[str, object]]:
+    cases = []
+    for case_index in range(24):
+        priority = generator.choice(tuple(range(-8, 0)) + tuple(range(1, 9)))
+        amount = generator.randint(1, 16)
+        input_order = ["go", "direct"]
+        generator.shuffle(input_order)
+        cases.append(
+            {
+                "id": f"cross-stage-arbitration-{case_index:03d}",
+                "transition_priority": priority,
+                "claim_amount": amount,
+                "input_order": input_order,
+                "expected_transition_serial": 1 if priority > 0 else 0,
+                "expected_winner": (
+                    "TRANSITION_TARGET" if priority > 0 else "DIRECT_TARGET"
+                ),
+            }
+        )
+    return cases
+
+
 def build_corpus() -> dict[str, object]:
     generator = random.Random(SEED)
     rate_restore_cases = _rate_cases(generator)
@@ -481,6 +505,7 @@ def build_corpus() -> dict[str, object]:
     numeric_division_cases = _numeric_division_cases(generator)
     numeric_ratio_cases = _numeric_ratio_cases(generator)
     numeric_overflow_cases = _numeric_overflow_cases(generator)
+    cross_stage_arbitration_cases = _cross_stage_arbitration_cases(generator)
     return {
         "pcam_generated_corpus_version": "1",
         "kind": "generated_core_properties",
@@ -500,6 +525,7 @@ def build_corpus() -> dict[str, object]:
         "effect_aggregation_cases": effect_aggregation_cases,
         "candidate_permutation_cases": candidate_permutation_cases,
         "interaction_rule_cases": interaction_rule_cases,
+        "cross_stage_arbitration_cases": cross_stage_arbitration_cases,
     }
 
 

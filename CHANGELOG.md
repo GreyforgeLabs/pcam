@@ -54,6 +54,7 @@
 - Closed the §42 reference tooling gate with stable canonical JSON result codes for success, command-specific rejection, argument errors, and I/O errors across all eleven commands.
 - Completed bounded PCAM-24 lifecycle execution by adding the authoritative U64 rate-control assignment, correcting CLAMP to remain at timeline cell 23 with progression held, and matching TERMINATE, LOOP, projection, edge-serial, restore, and continuation evidence in Python and Rust.
 - Completed bounded Core expression and predicate coverage by applying hashed depth and node budgets to the full dependency graph and adding shared diamond-order, boundary-chain, count-limit, cycle, missing-reference, edge-serial, restore, and atomic-fault evidence in Python and Rust.
+- Completed bounded Core intent and claim arbitration with 24 seed-pinned cross-stage transition-versus-start cases that vary priority, resource amount, and raw input order while preserving atomic claims, deterministic winners, exact restore, and permutation-invariant state in Python and Rust.
 - Added independent runtime freeze controls and shared schedules for HOLD/ACCRUE progression, transition domains, input capture, and buffer expiry.
 - Added canonical cross-language action-state projection hashes plus restore-and-continue digest vectors for every shared runtime case.
 - Added a schema-valid conformance claim manifest with exact §37 requirement sets, evidence-path validation, dependency enforcement, and fail-closed premature-claim tests.

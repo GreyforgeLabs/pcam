@@ -29,6 +29,7 @@ from pcam_runtime import (
     progression_accrual,
     reduce_effects,
     resolve_candidate,
+    run_vector,
     scale_ratio,
 )
 
@@ -272,6 +273,52 @@ def test_python_shared_generated_input_orders_produce_one_buffer_snapshot():
         entries = states[0].action_instances["1"].input_buffer
         assert [entry.input_id for entry in entries] == case["expected_input_ids"], case["id"]
         assert all(entry.remaining_eligibility_ticks == 2 for entry in entries), case["id"]
+
+
+def _cross_stage_document(case, order):
+    document = json.loads((ROOT / "tests/vectors/pre-stage-arbitration.json").read_text())
+    document.pop("cases")
+    document["id"] = case["id"]
+    document["runtime_profile"]["id"] = f"pcam.generated.{case['id']}.v1"
+    document["definitions"][0]["transitions"][0]["priority"] = case[
+        "transition_priority"
+    ]
+    for definition in document["definitions"][1:]:
+        definition["start_claims"][0]["amount"] = case["claim_amount"]
+    document["initial_state"]["resource_banks"]["1"]["STAMINA"] = case[
+        "claim_amount"
+    ]
+    inputs = {item["input_id"]: item for item in document["ticks"][1]["inputs"]}
+    document["ticks"][1]["inputs"] = [inputs[input_id] for input_id in order]
+    return document
+
+
+def test_python_shared_generated_cross_stage_arbitration_is_atomic_and_permutation_invariant():
+    for case in _corpus()["cross_stage_arbitration_cases"]:
+        runs = []
+        for order in (case["input_order"], list(reversed(case["input_order"]))):
+            run = run_vector(_cross_stage_document(case, order))
+            runs.append(run)
+            state = run.final_state
+            assert len(state.action_instances) == 2, case["id"]
+            assert state.action_instances["1"].transition_serial == case[
+                "expected_transition_serial"
+            ], case["id"]
+            assert state.resource_banks["1"]["STAMINA"] == 0, case["id"]
+            assert state.action_slots["1"]["FULL_BODY"] == {
+                "capacity": 1,
+                "instance_ids": [2],
+                "usage": 1,
+            }, case["id"]
+            winner_hash = run.executor.definitions_by_id[case["expected_winner"]].definition_hash
+            assert state.action_instances["2"].definition_hash == winner_hash, case["id"]
+            assert run.executor.restore(run.executor.save(state)) == state
+        assert runs[0].final_state.to_snapshot() == runs[1].final_state.to_snapshot(), case[
+            "id"
+        ]
+        assert runs[0].final_state.state_hash() == runs[1].final_state.state_hash(), case[
+            "id"
+        ]
 
 
 def _freeze_tokens(values):
