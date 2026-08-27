@@ -7,7 +7,7 @@ from dataclasses import replace
 
 from .buffers import BufferEntry, apply_consumption, capture_entry, end_tick as expire_buffers, select_entry
 from .canonical import canonical_dumps, canonical_hash
-from .effects import EffectEnvelope, reduce_effects
+from .effects import CustomEffectRegistry, EffectEnvelope, reduce_effects
 from .errors import PCAMError, PCAMFault, ResultCode
 from .events import EventEnvelope, canonical_events, deliver_due, event_from_snapshot, event_snapshot
 from .expressions import evaluate
@@ -41,6 +41,7 @@ class TickExecutor:
         profile: RuntimeProfile | None = None,
         interaction_rules: tuple[InteractionRule, ...] = (),
         effect_registry: dict[str, tuple[str, int]] | None = None,
+        custom_effect_registry: CustomEffectRegistry | None = None,
         extension_registry: ExtensionRegistry | None = None,
     ):
         self.profile = profile or RuntimeProfile()
@@ -60,6 +61,7 @@ class TickExecutor:
                 "combat.stagger": ("stagger", 1),
             }
         )
+        self.custom_effect_registry = custom_effect_registry or CustomEffectRegistry()
         for definition in definitions:
             validate_definition(definition)
             if len(canonical_dumps(definition.to_canonical())) > self.profile.max_definition_size_bytes:
@@ -104,13 +106,29 @@ class TickExecutor:
                 {
                     "definition_hash": definition.definition_hash,
                     "definition_id": definition.id,
-                    "effect_registry_hash": canonical_hash(self.effect_registry),
+                    "effect_registry_hash": self._effect_registry_hash(),
                     "extension_registry_hash": self.extension_registry.identity_hash,
                     "interaction_profile_hash": canonical_hash(self.interaction_rules),
                     "runtime_profile_hash": self.profile.profile_hash,
                 }
                 for definition in sorted(definitions, key=lambda item: item.id)
             ]
+        )
+
+    def _effect_registry_hash(self) -> str:
+        if not self.custom_effect_registry.registrations:
+            return canonical_hash(self.effect_registry)
+        return canonical_hash(
+            {
+                "commit_registry": self.effect_registry,
+                "custom_reducers": [
+                    item.identity_record()
+                    for item in sorted(
+                        self.custom_effect_registry.registrations,
+                        key=lambda item: item.effect_type.encode("utf-8"),
+                    )
+                ],
+            }
         )
 
     def initial_state(
@@ -2029,7 +2047,7 @@ class TickExecutor:
             banks[entity][effect.resource] = banks[entity].get(effect.resource, 0) + effect.amount
         authoritative = tuple(item for item in typed_effects if item.authoritative)
         try:
-            reduced, rejected = reduce_effects(authoritative)
+            reduced, rejected = reduce_effects(authoritative, self.custom_effect_registry)
         except PCAMError as error:
             message = (
                 "effect reduction integer overflow"

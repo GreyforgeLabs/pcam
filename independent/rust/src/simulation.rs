@@ -2,7 +2,10 @@ use crate::arbitration::{
     ArbitrationState, Claim as ArbitrationClaim, Intent as ArbitrationIntent,
     arbitrate as arbitrate_intents,
 };
-use crate::effects::{EffectEnvelope, EffectError, ReducedEffect, RejectedEffect, reduce_effects};
+use crate::effects::{
+    CustomEffectRegistration, EffectEnvelope, EffectError, ReducedEffect, RejectedEffect,
+    custom_registry, custom_registry_identity, reduce_effects_with_registry,
+};
 use crate::events::{EventEnvelope, canonical_events, deliver_due};
 use crate::expression::{EvalError, evaluate as evaluate_expression};
 use crate::faults::{FaultContext, contain_fault};
@@ -237,6 +240,7 @@ pub struct SimulationTrace {
 pub struct SimulationRuntime {
     definitions: BTreeMap<String, Definition>,
     effect_registry: BTreeMap<String, (String, i64)>,
+    custom_effect_registry: BTreeMap<String, CustomEffectRegistration>,
     definition_set_hash: String,
     fault_policy: String,
     interaction_rules: Vec<InteractionRule>,
@@ -420,6 +424,15 @@ impl SimulationRuntime {
         let profile = object_value(vector, "runtime_profile")?;
         let rules = array(vector, "interaction_rules")?;
         let registry = object_value(vector, "effect_registry")?;
+        let custom_registrations = vector
+            .get("custom_effect_registry")
+            .cloned()
+            .unwrap_or_else(|| Value::Array(Vec::new()));
+        let custom_registrations =
+            serde_json::from_value::<Vec<CustomEffectRegistration>>(custom_registrations)
+                .map_err(|_| SimulationError::InvalidVector)?;
+        let custom_effect_registry =
+            custom_registry(custom_registrations).map_err(|_| SimulationError::InvalidVector)?;
 
         let profile_hash = canonical_hash(&canonical_profile(profile)?)?;
         let max_actions_per_entity = profile["limits"]["max_actions_per_entity"]
@@ -454,7 +467,14 @@ impl SimulationRuntime {
                     .map_err(|_| SimulationError::InvalidVector)
             })
             .collect::<Result<Vec<_>, _>>()?;
-        let effect_registry_hash = canonical_hash(registry)?;
+        let effect_registry_hash = if custom_effect_registry.is_empty() {
+            canonical_hash(registry)?
+        } else {
+            canonical_hash(&json!({
+                "commit_registry": registry,
+                "custom_reducers": custom_registry_identity(&custom_effect_registry),
+            }))?
+        };
         let extension_registry_hash = canonical_hash(&Value::Array(Vec::new()))?;
         let mut definitions = BTreeMap::new();
         let mut identities = Vec::new();
@@ -512,6 +532,7 @@ impl SimulationRuntime {
         Ok(Self {
             definitions,
             effect_registry,
+            custom_effect_registry,
             definition_set_hash,
             fault_policy,
             interaction_rules,
@@ -948,8 +969,9 @@ impl SimulationRuntime {
             .filter(|effect| effect.authoritative)
             .cloned()
             .collect::<Vec<_>>();
-        let (reduced, rejected) = reduce_effects(&authoritative_effects)
-            .map_err(|error| effect_runtime_fault(error, &authoritative_effects, &work))?;
+        let (reduced, rejected) =
+            reduce_effects_with_registry(&authoritative_effects, &self.custom_effect_registry)
+                .map_err(|error| effect_runtime_fault(error, &authoritative_effects, &work))?;
         for effect in &reduced {
             let sources = authoritative_effects
                 .iter()
@@ -2871,7 +2893,9 @@ fn effect_runtime_fault(
 ) -> SimulationError {
     let (fault, message) = match error {
         EffectError::IntegerOverflow => ("INTEGER_OVERFLOW", "effect reduction integer overflow"),
-        EffectError::UnknownEffect => ("UNKNOWN_EFFECT", "effect reduction failed"),
+        EffectError::UnknownEffect | EffectError::InvalidRegistration => {
+            ("UNKNOWN_EFFECT", "effect reduction failed")
+        }
     };
     effect_fault_context(fault, message, effects, state)
 }

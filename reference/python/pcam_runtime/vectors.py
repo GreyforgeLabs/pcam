@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
+from .effects import CustomEffectRegistration, CustomEffectRegistry
 from .freezes import FreezeToken
 from .interactions import EffectTemplate, InteractionRule, RuleOperation, SemanticFact
 from .intents import Claim
@@ -55,7 +57,13 @@ def run_vector(document: dict[str, Any], max_ticks: int = 10_000) -> VectorRun:
         str(effect_type): (str(value[0]), int(value[1]))
         for effect_type, value in document.get("effect_registry", {}).items()
     }
-    executor = TickExecutor(definitions, profile, interaction_rules=rules, effect_registry=registry)
+    executor = TickExecutor(
+        definitions,
+        profile,
+        interaction_rules=rules,
+        effect_registry=registry,
+        custom_effect_registry=_custom_effect_registry(document.get("custom_effect_registry", [])),
+    )
     initial = document.get("initial_state", {})
     state = executor.initial_state(
         resource_banks={str(key): dict(value) for key, value in initial.get("resource_banks", {}).items()},
@@ -83,6 +91,41 @@ def run_vector(document: dict[str, Any], max_ticks: int = 10_000) -> VectorRun:
         state, trace = executor.tick(state, inputs, host)
         traces.append(trace)
     return VectorRun(executor, initial_snapshot, state, tuple(traces), input_history, host_history)
+
+
+def _custom_effect_registry(values: object) -> CustomEffectRegistry:
+    if not isinstance(values, list):
+        raise ValueError("custom_effect_registry must be an array")
+    root = Path(__file__).resolve().parents[3]
+    registrations = []
+    for value in values:
+        if not isinstance(value, dict):
+            raise ValueError("custom effect registration must be an object")
+        implementation_path = value.get("implementation_path")
+        if not isinstance(implementation_path, str):
+            raise ValueError("custom effect registration requires implementation_path")
+        source_path = (root / implementation_path).resolve()
+        try:
+            source_path.relative_to(root)
+        except ValueError as error:
+            raise ValueError("custom effect implementation_path escapes repository root") from error
+        registrations.append(
+            CustomEffectRegistration(
+                effect_type=str(value["effect_type"]),
+                implementation_id=str(value["implementation_id"]),
+                implementation_hash=str(value["implementation_hash"]),
+                payload_schema=dict(value["payload_schema"]),
+                determinism_vectors=tuple(str(item) for item in value["determinism_vectors"]),
+                reducer=str(value.get("reducer", "CUSTOM_DETERMINISTIC")),  # type: ignore[arg-type]
+                runtime_semantics_id=str(value["runtime_semantics_id"]),
+                ordering_id=str(value["ordering_id"]),
+                overflow_behavior_id=str(value["overflow_behavior_id"]),
+                save_restore_id=str(value["save_restore_id"]),
+                rollback_behavior_id=str(value["rollback_behavior_id"]),
+                implementation_source=source_path.read_bytes(),
+            )
+        )
+    return CustomEffectRegistry(tuple(registrations))
 
 
 def rollback_vector(document: dict[str, Any]) -> tuple[SimulationState, SimulationState, tuple[dict[str, object], ...]]:

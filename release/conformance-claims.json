@@ -29,7 +29,7 @@
         "freeze_tokens": {"status": "OPEN", "evidence": ["tests/vectors/action-runtime.json"]},
         "interaction_resolution": {"status": "OPEN", "evidence": ["reference/python/tests/test_interactions.py"]},
         "ledgers": {"status": "OPEN", "evidence": ["reference/python/tests/test_ledgers.py"]},
-        "effect_reduction": {"status": "OPEN", "evidence": ["reference/python/tests/test_effects.py", "tests/vectors/event-effect-runtime.json"]},
+        "effect_reduction": {"status": "OPEN", "evidence": ["reference/python/tests/test_effects.py", "tests/vectors/event-effect-runtime.json", "tests/vectors/custom-effect-ordered-fold.json", "tests/vectors/custom-effect-runtime.json"]},
         "snapshot_and_restore": {"status": "OPEN", "evidence": ["reference/python/tests/test_runtime_slice.py", "tests/vectors/action-runtime.json"]},
         "canonical_state_digest": {"status": "OPEN", "evidence": ["tests/vectors/action-runtime.json"]}
       }

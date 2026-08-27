@@ -1,0 +1,45 @@
+{
+  "pcam_vector_version": "1",
+  "kind": "custom_effect_determinism_vector",
+  "id": "ordered-i64-fold-v1",
+  "implementation_path": "reference/effects/ordered-i64-fold-v1.json",
+  "implementation_sha256": "6316bc089aaf70e9db41fc7556475b8213181b68da9eddd980b8d1971f632a35",
+  "effect_type": "test.ordered-fold",
+  "payload_schema": {"type": "integer"},
+  "permutations": [
+    [
+      {"effect_id": "low", "effect_type": "test.ordered-fold", "effect_class": "TEST", "source_entity_id": 2, "target_entity_id": 1, "source_action_instance_id": 2, "origin_tick": 4, "priority": 0, "payload": 7, "reducer": "CUSTOM_DETERMINISTIC"},
+      {"effect_id": "high", "effect_type": "test.ordered-fold", "effect_class": "TEST", "source_entity_id": 1, "target_entity_id": 1, "source_action_instance_id": 1, "origin_tick": 4, "priority": 10, "payload": 2, "reducer": "CUSTOM_DETERMINISTIC"},
+      {"effect_id": "mid", "effect_type": "test.ordered-fold", "effect_class": "TEST", "source_entity_id": 1, "target_entity_id": 1, "source_action_instance_id": 3, "origin_tick": 4, "priority": 5, "payload": 5, "reducer": "CUSTOM_DETERMINISTIC"}
+    ],
+    [
+      {"effect_id": "mid", "effect_type": "test.ordered-fold", "effect_class": "TEST", "source_entity_id": 1, "target_entity_id": 1, "source_action_instance_id": 3, "origin_tick": 4, "priority": 5, "payload": 5, "reducer": "CUSTOM_DETERMINISTIC"},
+      {"effect_id": "low", "effect_type": "test.ordered-fold", "effect_class": "TEST", "source_entity_id": 2, "target_entity_id": 1, "source_action_instance_id": 2, "origin_tick": 4, "priority": 0, "payload": 7, "reducer": "CUSTOM_DETERMINISTIC"},
+      {"effect_id": "high", "effect_type": "test.ordered-fold", "effect_class": "TEST", "source_entity_id": 1, "target_entity_id": 1, "source_action_instance_id": 1, "origin_tick": 4, "priority": 10, "payload": 2, "reducer": "CUSTOM_DETERMINISTIC"}
+    ]
+  ],
+  "expected": {
+    "target_entity_id": 1,
+    "effect_type": "test.ordered-fold",
+    "reducer": "CUSTOM_DETERMINISTIC",
+    "value": 257,
+    "source_effect_ids": ["high", "mid", "low"]
+  },
+  "fault_cases": [
+    {
+      "id": "payload-schema-rejection",
+      "effects": [
+        {"effect_id": "invalid", "effect_type": "test.ordered-fold", "effect_class": "TEST", "source_entity_id": 1, "target_entity_id": 1, "source_action_instance_id": 1, "origin_tick": 0, "priority": 0, "payload": "7", "reducer": "CUSTOM_DETERMINISTIC"}
+      ],
+      "fault": "UNKNOWN_EFFECT"
+    },
+    {
+      "id": "checked-fold-overflow",
+      "effects": [
+        {"effect_id": "max", "effect_type": "test.ordered-fold", "effect_class": "TEST", "source_entity_id": 1, "target_entity_id": 1, "source_action_instance_id": 1, "origin_tick": 0, "priority": 1, "payload": 9223372036854775807, "reducer": "CUSTOM_DETERMINISTIC"},
+        {"effect_id": "one", "effect_type": "test.ordered-fold", "effect_class": "TEST", "source_entity_id": 1, "target_entity_id": 1, "source_action_instance_id": 1, "origin_tick": 0, "priority": 0, "payload": 1, "reducer": "CUSTOM_DETERMINISTIC"}
+      ],
+      "fault": "INTEGER_OVERFLOW"
+    }
+  ]
+}

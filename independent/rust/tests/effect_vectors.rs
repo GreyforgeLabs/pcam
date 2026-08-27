@@ -34,7 +34,7 @@ fn vectors() -> VectorFile {
 fn fault_code(error: EffectError) -> &'static str {
     match error {
         EffectError::IntegerOverflow => "INTEGER_OVERFLOW",
-        EffectError::UnknownEffect => "UNKNOWN_EFFECT",
+        EffectError::UnknownEffect | EffectError::InvalidRegistration => "UNKNOWN_EFFECT",
     }
 }
 

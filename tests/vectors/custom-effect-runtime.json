@@ -1,0 +1,134 @@
+{
+  "pcam_vector_version": "1",
+  "kind": "runtime_vector",
+  "id": "custom-effect-runtime",
+  "runtime_profile": {
+    "pcam_version": "3.0",
+    "kind": "runtime_profile",
+    "id": "pcam.reference.custom-effect.v1",
+    "revision": 1,
+    "fault_policy": "ABORT_SIMULATION",
+    "limits": {
+      "max_actions_per_entity": 8,
+      "max_action_nesting_depth": 4,
+      "max_children_per_action": 4,
+      "max_quanta_per_action_per_tick": 8,
+      "max_internal_transitions_per_action_per_tick": 8,
+      "max_buffer_entries_per_action": 8,
+      "max_pending_events_per_entity": 8,
+      "max_candidates_per_tick": 32,
+      "max_effects_per_tick": 32,
+      "max_redirects_per_candidate": 4,
+      "max_definition_size_bytes": 65536,
+      "max_snapshot_size_bytes": 262144,
+      "max_extension_state_bytes": 4096,
+      "max_expression_depth": 64,
+      "max_expression_nodes": 4096
+    },
+    "rng_profiles": ["pcam.pcg32.v1"],
+    "network_profiles": [{"id": "pcam.local.v1", "topology": "LOCAL_DETERMINISTIC"}],
+    "extensions": {}
+  },
+  "definitions": [
+    {
+      "id": "CUSTOM_SOURCE",
+      "rate_scale": 1,
+      "units_per_tick": 0,
+      "nodes": [
+        {
+          "id": "RUN",
+          "mode": "EVENT_DRIVEN",
+          "entry_effects": [
+            {
+              "effect_type": "test.ordered-fold",
+              "effect_class": "TEST",
+              "authoritative": true,
+              "reducer": "CUSTOM_DETERMINISTIC",
+              "priority": 0,
+              "payload": {"literal": 7}
+            },
+            {
+              "effect_type": "test.ordered-fold",
+              "effect_class": "TEST",
+              "authoritative": true,
+              "reducer": "CUSTOM_DETERMINISTIC",
+              "priority": 10,
+              "payload": {"literal": 2}
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "interaction_rules": [],
+  "effect_registry": {"test.ordered-fold": ["score", 1]},
+  "custom_effect_registry": [
+    {
+      "effect_type": "test.ordered-fold",
+      "implementation_id": "greyforge.effect.ordered-i64-fold.v1",
+      "implementation_hash": "6316bc089aaf70e9db41fc7556475b8213181b68da9eddd980b8d1971f632a35",
+      "implementation_path": "reference/effects/ordered-i64-fold-v1.json",
+      "payload_schema": {"type": "integer"},
+      "determinism_vectors": ["cd14a75292221115aa6b05fe3a5331d9cb81a79f42a845e9365edbff6da9332d"],
+      "reducer": "CUSTOM_DETERMINISTIC",
+      "runtime_semantics_id": "pcam.runtime.custom.ordered-i64-fold.v1",
+      "ordering_id": "pcam.order.canonical-effect.v1",
+      "overflow_behavior_id": "pcam.overflow.checked-i64.v1",
+      "save_restore_id": "pcam.save.stateless.v1",
+      "rollback_behavior_id": "pcam.rollback.snapshot-restore.v1"
+    }
+  ],
+  "initial_state": {"resource_banks": {"1": {"score": 0}}},
+  "ticks": [
+    {
+      "inputs": [
+        {"input_id": "start-1", "source_entity_id": 1, "sequence": 0, "command_id": "START", "assigned_tick": 0, "action_definition_id": "CUSTOM_SOURCE"}
+      ],
+      "contacts": []
+    },
+    {
+      "inputs": [
+        {"input_id": "start-2", "source_entity_id": 1, "sequence": 1, "command_id": "START", "assigned_tick": 1, "action_definition_id": "CUSTOM_SOURCE"}
+      ],
+      "contacts": []
+    }
+  ],
+  "rollback": {
+    "corrected_tick": 1,
+    "predicted_inputs": [],
+    "corrected_inputs": [
+      {"input_id": "start-2", "source_entity_id": 1, "sequence": 1, "command_id": "START", "assigned_tick": 1, "action_definition_id": "CUSTOM_SOURCE"}
+    ],
+    "until_tick": 2
+  },
+  "expected": {
+    "definition_hashes": {"CUSTOM_SOURCE": "b8d3482dfab520509f4008dc27be067245396a3d83ee6466b43c1f6051b91070"},
+    "definition_set_hash": "08f0297bca03cc4ab9e6776b80d15d6c1716f8fd0d39ace7e73246377a65b77e",
+    "tick_state_digests": [
+      "fab446e2968548ed8cad83f1bc69e2ce4e847f654816aff78ec10bf2e20172b1",
+      "07a4060bc32a7a5852fc0ef326af0976c131460df6ce84252e4d58f5b1d978bd"
+    ],
+    "final_state_digest": "07a4060bc32a7a5852fc0ef326af0976c131460df6ce84252e4d58f5b1d978bd",
+    "score": 54,
+    "traces": [
+      {
+        "emitted": [
+          {"effect_id": "0:1:0", "effect_type": "test.ordered-fold", "effect_class": "TEST", "source_entity_id": 1, "target_entity_id": 1, "source_action_instance_id": 1, "origin_tick": 0, "priority": 0, "payload": 7, "reducer": "CUSTOM_DETERMINISTIC", "authoritative": true},
+          {"effect_id": "0:1:1", "effect_type": "test.ordered-fold", "effect_class": "TEST", "source_entity_id": 1, "target_entity_id": 1, "source_action_instance_id": 1, "origin_tick": 0, "priority": 10, "payload": 2, "reducer": "CUSTOM_DETERMINISTIC", "authoritative": true}
+        ],
+        "reduced": [
+          {"effect_type": "test.ordered-fold", "reducer": "CUSTOM_DETERMINISTIC", "source_effect_ids": ["0:1:1", "0:1:0"], "target_entity_id": 1, "value": 27}
+        ]
+      },
+      {
+        "emitted": [
+          {"effect_id": "1:2:0", "effect_type": "test.ordered-fold", "effect_class": "TEST", "source_entity_id": 1, "target_entity_id": 1, "source_action_instance_id": 2, "origin_tick": 1, "priority": 0, "payload": 7, "reducer": "CUSTOM_DETERMINISTIC", "authoritative": true},
+          {"effect_id": "1:2:1", "effect_type": "test.ordered-fold", "effect_class": "TEST", "source_entity_id": 1, "target_entity_id": 1, "source_action_instance_id": 2, "origin_tick": 1, "priority": 10, "payload": 2, "reducer": "CUSTOM_DETERMINISTIC", "authoritative": true}
+        ],
+        "reduced": [
+          {"effect_type": "test.ordered-fold", "reducer": "CUSTOM_DETERMINISTIC", "source_effect_ids": ["1:2:1", "1:2:0"], "target_entity_id": 1, "value": 27}
+        ]
+      }
+    ]
+  }
+}

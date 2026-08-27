@@ -29,7 +29,15 @@ from .pcam24 import compile_pcam24
 from .expressions import evaluate
 from .buffers import BufferEntry, apply_consumption, capture_entry, end_tick as expire_buffer_entries, select_entry
 from .freezes import FreezeToken, add_token, end_tick as expire_freeze_tokens, is_frozen, progression_accrual
-from .effects import EffectEnvelope, ReducedEffect, RejectedEffect, canonical_effects, reduce_effects
+from .effects import (
+    CustomEffectRegistration,
+    CustomEffectRegistry,
+    EffectEnvelope,
+    ReducedEffect,
+    RejectedEffect,
+    canonical_effects,
+    reduce_effects,
+)
 from .events import EventEnvelope, canonical_events, deliver_due, event_from_snapshot, event_snapshot
 from .intents import ArbitrationState, Claim, Intent, IntentDecision, allocate_action_instance_ids, arbitrate, canonical_intents
 from .interactions import (
@@ -59,6 +67,8 @@ __all__ = [
     "BufferEntry",
     "Claim",
     "Contact",
+    "CustomEffectRegistration",
+    "CustomEffectRegistry",
     "Diagnostic",
     "DefinitionEffect",
     "Effect",

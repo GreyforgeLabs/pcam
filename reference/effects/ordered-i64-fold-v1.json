@@ -1,0 +1,14 @@
+{
+  "kind": "pcam_custom_effect_reducer",
+  "id": "greyforge.effect.ordered-i64-fold.v1",
+  "reducer": "CUSTOM_DETERMINISTIC",
+  "runtime_semantics_id": "pcam.runtime.custom.ordered-i64-fold.v1",
+  "ordering_id": "pcam.order.canonical-effect.v1",
+  "overflow_behavior_id": "pcam.overflow.checked-i64.v1",
+  "save_restore_id": "pcam.save.stateless.v1",
+  "rollback_behavior_id": "pcam.rollback.snapshot-restore.v1",
+  "algorithm": {
+    "initial": 0,
+    "for_each_canonical_effect": "accumulator = checked_i64(accumulator * 10 + payload)"
+  }
+}
