@@ -31,7 +31,7 @@ python3 -m pytest reference/python/tests
 cargo test --manifest-path independent/rust/Cargo.toml
 ```
 
-The Rust lane currently covers independent PCAM-CJ1 canonicalization and hashing, checked integer and ratio semantics, PCG32 output and restore state, the bounded pure expression language, and a first action-runtime slice for progression, local transitions, and semantic predicates. The full independent action runtime remains open. Additional commands become authoritative only when their implementation and machine-readable result contracts are covered by vectors.
+The Rust lane currently covers independent PCAM-CJ1 canonicalization and hashing, checked integer and ratio semantics, PCG32 output and restore state, the bounded pure expression language, and a first action-runtime slice for progression, local transitions, semantic predicates, and input buffers. The full independent action runtime remains open. Additional commands become authoritative only when their implementation and machine-readable result contracts are covered by vectors.
 
 `pcam migrate-v2` accepts explicit PCAM v1 and v2 legacy inputs and emits review-only PCAM-24 drafts. It does not provide wire compatibility, and every migrated result requires manual review.
 

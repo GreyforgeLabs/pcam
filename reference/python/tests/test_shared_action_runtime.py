@@ -23,6 +23,9 @@ def _definition(raw):
         rate_scale=raw["rate"]["scale"],
         units_per_tick=raw["rate"]["units_per_tick"],
         initial_node_id=raw["initial_node"],
+        buffer_capacity=raw.get("buffer_capacity", 8),
+        buffer_overflow_policy=raw.get("buffer_overflow_policy", "DROP_OLDEST"),
+        default_buffer_lifetime=raw.get("default_buffer_lifetime", 1),
         nodes=tuple(NodeDefinition(**node) for node in raw["nodes"]),
         predicates=tuple(PredicateDefinition(**predicate) for predicate in raw.get("predicates", ())),
         transitions=tuple(TransitionDefinition(**transition) for transition in raw["transitions"]),
@@ -47,6 +50,7 @@ def _projection(action):
         "predicate_truth_state": action.predicate_truth_state,
         "predicate_entry_serials": action.predicate_entry_serials,
         "predicate_exit_serials": action.predicate_exit_serials,
+        "input_buffer": [entry.__dict__ for entry in action.input_buffer],
     }
 
 
@@ -61,9 +65,9 @@ def test_python_runtime_matches_shared_progression_and_transition_vectors():
         executor = TickExecutor((definition,), profile=_profile(vectors["limits"]))
         state = executor.initial_state()
         for tick_index, expected in enumerate(case["expected"]):
-            inputs = ()
+            inputs = tuple(TickInput(**item) for item in case.get("inputs", [])[tick_index]) if case.get("inputs") else ()
             if tick_index == 0:
-                inputs = (
+                inputs = (*inputs,
                     TickInput(
                         input_id=f"start-{case['id']}",
                         source_entity_id=1,
@@ -71,7 +75,7 @@ def test_python_runtime_matches_shared_progression_and_transition_vectors():
                         command_id="START",
                         assigned_tick=0,
                         action_definition_id=definition.id,
-                    ),
+                    )
                 )
             state, _ = executor.tick(state, inputs)
             actual = _projection(state.action_instances["1"])
@@ -92,7 +96,11 @@ def test_python_runtime_matches_shared_limit_faults():
             action_definition_id=definition.id,
         )
         with pytest.raises(PCAMError) as raised:
-            executor.tick(state, (start_input,))
+            for tick_index in range(case.get("fault_tick", 0) + 1):
+                inputs = tuple(TickInput(**item) for item in case.get("inputs", [])[tick_index]) if case.get("inputs") else ()
+                if tick_index == 0:
+                    inputs = (*inputs, start_input)
+                state, _ = executor.tick(state, inputs)
         assert raised.value.fault.value == case["fault"], case["id"]
 
 

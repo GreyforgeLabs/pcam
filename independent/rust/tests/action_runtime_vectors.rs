@@ -1,5 +1,6 @@
 use pcam_independent::action::{
-    ActionDefinition, ActionError, RuntimeLimits, start, tick, validate_definition,
+    ActionDefinition, ActionError, RuntimeLimits, TickInput, start, tick_with_inputs,
+    validate_definition,
 };
 use serde::Deserialize;
 use serde_json::Value;
@@ -34,6 +35,8 @@ struct Case {
     id: String,
     definition: ActionDefinition,
     ticks: usize,
+    #[serde(default)]
+    inputs: Vec<Vec<TickInput>>,
     expected: Vec<Value>,
 }
 
@@ -42,6 +45,10 @@ struct FaultCase {
     id: String,
     definition: ActionDefinition,
     limits: RuntimeLimitsVector,
+    #[serde(default)]
+    fault_tick: usize,
+    #[serde(default)]
+    inputs: Vec<Vec<TickInput>>,
     fault: String,
 }
 
@@ -83,11 +90,16 @@ fn independent_runtime_matches_shared_progression_and_transition_vectors() {
         assert_eq!(case.ticks, case.expected.len(), "{}", case.id);
         let mut action = start(&case.definition).unwrap();
         for (tick_index, expected) in case.expected.iter().enumerate() {
-            tick(
+            tick_with_inputs(
                 &mut action,
                 &case.definition,
                 vectors.limits.clone().into(),
                 tick_index != 0,
+                tick_index as u64,
+                case.inputs
+                    .get(tick_index)
+                    .map(Vec::as_slice)
+                    .unwrap_or(&[]),
             )
             .unwrap();
             assert_expected(&serde_json::to_value(&action).unwrap(), expected, &case.id);
@@ -99,7 +111,27 @@ fn independent_runtime_matches_shared_progression_and_transition_vectors() {
 fn independent_runtime_matches_shared_limit_faults() {
     for case in vectors().fault_cases {
         let mut action = start(&case.definition).unwrap();
-        let error = tick(&mut action, &case.definition, case.limits.into(), false).unwrap_err();
+        let mut error = None;
+        for tick_index in 0..=case.fault_tick {
+            let before = action.clone();
+            error = tick_with_inputs(
+                &mut action,
+                &case.definition,
+                case.limits.clone().into(),
+                tick_index != 0,
+                tick_index as u64,
+                case.inputs
+                    .get(tick_index)
+                    .map(Vec::as_slice)
+                    .unwrap_or(&[]),
+            )
+            .err();
+            if error.is_some() {
+                assert_eq!(action, before, "fault atomicity: {}", case.id);
+                break;
+            }
+        }
+        let error = error.expect("expected runtime fault");
         assert_eq!(fault_code(error), case.fault, "{}", case.id);
     }
 }

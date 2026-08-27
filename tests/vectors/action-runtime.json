@@ -94,6 +94,107 @@
         {"lifecycle_state": "RUNNING", "current_node_id": "B", "node_step": 0, "local_step": 1, "transition_serial": 1, "quantum_accumulator": 0, "predicate_truth_state": {"ACTIVE": true, "DERIVED": true}, "predicate_entry_serials": {"ACTIVE": 1, "DERIVED": 1}, "predicate_exit_serials": {}},
         {"lifecycle_state": "RUNNING", "current_node_id": "A", "node_step": 0, "local_step": 2, "transition_serial": 2, "quantum_accumulator": 0, "predicate_truth_state": {"ACTIVE": false, "DERIVED": false}, "predicate_entry_serials": {"ACTIVE": 1, "DERIVED": 1}, "predicate_exit_serials": {"ACTIVE": 1, "DERIVED": 1}}
       ]
+    },
+    {
+      "id": "buffered-pre-advance-consumption",
+      "definition": {
+        "id": "BUFFERED_PRE",
+        "rate": {"scale": 1, "units_per_tick": 0},
+        "initial_node": "WAIT",
+        "buffer_capacity": 2,
+        "buffer_overflow_policy": "DROP_OLDEST",
+        "default_buffer_lifetime": 2,
+        "nodes": [{"id": "WAIT", "mode": "EVENT_DRIVEN"}, {"id": "DONE", "mode": "EVENT_DRIVEN"}],
+        "transitions": [
+          {"id": "accept", "source_node": "WAIT", "evaluation_point": "PRE_ADVANCE", "priority": 1, "target_kind": "NODE", "target_node": "DONE", "input_command": "DODGE", "consume_policy": "ON_ACCEPT"}
+        ]
+      },
+      "ticks": 2,
+      "inputs": [
+        [],
+        [{"assigned_tick": 1, "source_entity_id": 1, "sequence": 1, "command_id": "DODGE", "payload": {}, "input_id": "dodge"}]
+      ],
+      "expected": [
+        {"lifecycle_state": "RUNNING", "current_node_id": "WAIT", "transition_serial": 0, "input_buffer": []},
+        {"lifecycle_state": "RUNNING", "current_node_id": "DONE", "transition_serial": 1, "input_buffer": []}
+      ]
+    },
+    {
+      "id": "buffered-post-advance-consumption",
+      "definition": {
+        "id": "BUFFERED_POST",
+        "rate": {"scale": 1, "units_per_tick": 1},
+        "initial_node": "WINDUP",
+        "buffer_capacity": 2,
+        "buffer_overflow_policy": "DROP_OLDEST",
+        "default_buffer_lifetime": 2,
+        "nodes": [{"id": "WINDUP", "mode": "EVENT_DRIVEN"}, {"id": "ACTIVE", "mode": "EVENT_DRIVEN"}, {"id": "DONE", "mode": "EVENT_DRIVEN"}],
+        "transitions": [
+          {"id": "activate", "source_node": "WINDUP", "evaluation_point": "AFTER_QUANTUM", "priority": 1, "target_kind": "NODE", "target_node": "ACTIVE"},
+          {"id": "cancel", "source_node": "ACTIVE", "evaluation_point": "POST_ADVANCE", "priority": 1, "target_kind": "NODE", "target_node": "DONE", "input_command": "CANCEL", "consume_policy": "ON_ACCEPT"}
+        ]
+      },
+      "ticks": 2,
+      "inputs": [
+        [],
+        [{"assigned_tick": 1, "source_entity_id": 1, "sequence": 1, "command_id": "CANCEL", "payload": {}, "input_id": "cancel"}]
+      ],
+      "expected": [
+        {"lifecycle_state": "RUNNING", "current_node_id": "ACTIVE", "local_step": 1, "transition_serial": 1, "input_buffer": []},
+        {"lifecycle_state": "RUNNING", "current_node_id": "DONE", "local_step": 2, "transition_serial": 2, "input_buffer": []}
+      ]
+    },
+    {
+      "id": "canonical-buffer-order-and-drop-oldest",
+      "definition": {
+        "id": "DROP_OLDEST",
+        "rate": {"scale": 1, "units_per_tick": 0},
+        "initial_node": "WAIT",
+        "buffer_capacity": 1,
+        "buffer_overflow_policy": "DROP_OLDEST",
+        "default_buffer_lifetime": 2,
+        "nodes": [{"id": "WAIT", "mode": "EVENT_DRIVEN"}],
+        "transitions": []
+      },
+      "ticks": 2,
+      "inputs": [
+        [],
+        [
+          {"assigned_tick": 1, "source_entity_id": 1, "sequence": 2, "command_id": "B", "payload": {}, "input_id": "b"},
+          {"assigned_tick": 1, "source_entity_id": 1, "sequence": 1, "command_id": "A", "payload": {}, "input_id": "a"}
+        ]
+      ],
+      "expected": [
+        {"input_buffer": []},
+        {"input_buffer": [{"buffer_entry_id": "buffer:b", "input_id": "b", "command_id": "B", "payload": {}, "captured_tick": 1, "remaining_eligibility_ticks": 1, "priority": 0, "sequence": 2}]}
+      ]
+    },
+    {
+      "id": "drop-newest-and-lifetime",
+      "definition": {
+        "id": "DROP_NEWEST",
+        "rate": {"scale": 1, "units_per_tick": 0},
+        "initial_node": "WAIT",
+        "buffer_capacity": 1,
+        "buffer_overflow_policy": "DROP_NEWEST",
+        "default_buffer_lifetime": 2,
+        "nodes": [{"id": "WAIT", "mode": "EVENT_DRIVEN"}],
+        "transitions": []
+      },
+      "ticks": 3,
+      "inputs": [
+        [],
+        [
+          {"assigned_tick": 1, "source_entity_id": 1, "sequence": 2, "command_id": "B", "payload": {}, "input_id": "b"},
+          {"assigned_tick": 1, "source_entity_id": 1, "sequence": 1, "command_id": "A", "payload": {}, "input_id": "a"}
+        ],
+        []
+      ],
+      "expected": [
+        {"input_buffer": []},
+        {"input_buffer": [{"buffer_entry_id": "buffer:a", "input_id": "a", "command_id": "A", "payload": {}, "captured_tick": 1, "remaining_eligibility_ticks": 1, "priority": 0, "sequence": 1}]},
+        {"input_buffer": []}
+      ]
     }
   ],
   "definition_fault_cases": [
@@ -160,6 +261,29 @@
       },
       "limits": {"max_quanta_per_action_per_tick": 8, "max_internal_transitions_per_tick": 1},
       "fault": "TRANSITION_LIMIT_EXCEEDED"
+    },
+    {
+      "id": "buffer-capacity-fault",
+      "definition": {
+        "id": "BUFFER_FAULT",
+        "rate": {"scale": 1, "units_per_tick": 0},
+        "initial_node": "WAIT",
+        "buffer_capacity": 1,
+        "buffer_overflow_policy": "FAULT",
+        "default_buffer_lifetime": 2,
+        "nodes": [{"id": "WAIT", "mode": "EVENT_DRIVEN"}],
+        "transitions": []
+      },
+      "limits": {"max_quanta_per_action_per_tick": 8, "max_internal_transitions_per_tick": 8},
+      "fault_tick": 1,
+      "inputs": [
+        [],
+        [
+          {"assigned_tick": 1, "source_entity_id": 1, "sequence": 1, "command_id": "A", "payload": {}, "input_id": "a"},
+          {"assigned_tick": 1, "source_entity_id": 1, "sequence": 2, "command_id": "B", "payload": {}, "input_id": "b"}
+        ]
+      ],
+      "fault": "STATE_INVARIANT_FAILURE"
     }
   ]
 }
