@@ -14,11 +14,11 @@ This matrix preserves the complete target. A row is complete only when its named
 | §9 numeric semantics | arithmetic unit/property vectors including Euclidean division and overflow | partial: checked I64/U64 policies, Euclidean division, exact ratio vectors |
 | §10 progression | rational accumulator and bounded quantum vectors | partial: targeted rational-rate and limit slice |
 | §11-12 expressions and predicates | pure evaluator, cycle validator, edge serial vectors | partial: bounded core evaluator, cycle validation, slice edge serials |
-| §13 inputs | canonical ordering, buffering, TTL, overflow, and consumption vectors | missing |
+| §13 inputs | canonical ordering, buffering, TTL, overflow, and consumption vectors | partial: pure capacity, TTL, ordering, and consumption primitives |
 | §14 transitions | all evaluation points, priorities, targets, mutation order, seek/skip vectors | missing |
 | §15-16 intents, claims, slots | atomic arbitration and replacement vectors | missing |
 | §17 parent-child | lifecycle, freeze, result event, nesting, restore vectors | missing |
-| §18 freezes | domains, timing, expiry, stacking, accrual vectors | missing |
+| §18 freezes | domains, timing, expiry, stacking, accrual vectors | partial: pure activation, expiry, provisional stacking, and accrual primitives; normative gap open |
 | §19-22 facts, candidates, interactions, ledgers | frozen snapshot, typed stages, redirection, receipt vectors | partial: directed once-per-action slice only |
 | §23 effects | identifiers, canonical order, reducers, exclusive/custom vectors | missing |
 | §24 tick pipeline | deterministic twelve-stage trace vectors | partial: ordered vertical-slice trace |

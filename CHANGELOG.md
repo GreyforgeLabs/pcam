@@ -8,3 +8,4 @@
 - Corrected the source draft's stability reference from §27 to the actual release gates in §45.
 - Added initial Draft 2020-12 schemas, positive and negative vectors, semantic validation, stable JSON command envelopes, PCAM-CJ1 hashing, PCAM-24 compilation, and a tested Python runtime vertical slice.
 - Added checked integer policies, Euclidean division, exact ratio scaling, a bounded pure expression evaluator, the canonical PCG32 stream with restore vectors, logical-map canonicalization, and Unicode key-collision rejection.
+- Added deterministic input-buffer and freeze-token primitives, including TTL, overflow, consumption, activation, expiry, provisional stacking, and explicit open-issue tracking for underspecified stack semantics.

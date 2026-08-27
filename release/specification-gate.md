@@ -14,3 +14,5 @@ The source draft header pointed to release gates in §27. Release gates are defi
 - all ordering rules explicit
 - all fault behavior explicit
 - PCAM-24 clearly separated from Core
+
+Open normative gaps are tracked in `../spec/open-issues.md`.
