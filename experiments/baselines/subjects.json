@@ -1,0 +1,124 @@
+{
+  "experiment_version": "1",
+  "scenario": {
+    "id": "heavy-strike-trade-v1",
+    "ticks": 60,
+    "rate_scale": 1000,
+    "units_per_tick": 400,
+    "node_durations": {"startup": 10, "active": 4, "recovery": 10},
+    "contact_tick": 24,
+    "damage": 30,
+    "stagger": 25,
+    "expected_hp": {"1": 70, "2": 70},
+    "expected_stagger": {"1": 0, "2": 0}
+  },
+  "subjects": [
+    {
+      "id": "fixed-tick-fsm",
+      "label": "Conventional fixed-tick finite-state machine",
+      "adapter": "fixed_fsm",
+      "definition": {
+        "states": ["startup", "active", "recovery", "terminated"],
+        "tick_windows": {"startup": [0, 23], "active": [24, 33], "recovery": [34, 58], "terminated": [59, 59]},
+        "contact_rule": "first canonical contact per source action and target",
+        "armor_rule": "active source also has incoming stagger immunity"
+      },
+      "validation_checks": ["positive bounded timing", "reference integrity"],
+      "hidden_assumptions": [
+        "the host tick rate is permanently coupled to the authored windows",
+        "active-state armor is embedded in host combat code",
+        "contact uniqueness is embedded in host combat code",
+        "termination is inferred from the last window"
+      ],
+      "ambiguous_interaction_cases": ["redirect semantics", "several simultaneous defense facts"],
+      "trace_capabilities": ["tick", "node changes", "candidate order", "effects emitted", "state changes"]
+    },
+    {
+      "id": "statechart-local-counters",
+      "label": "Statechart with state-local counters",
+      "adapter": "statechart",
+      "definition": {
+        "states": {
+          "startup": {"duration_quanta": 10, "next": "active"},
+          "active": {"duration_quanta": 4, "next": "recovery"},
+          "recovery": {"duration_quanta": 10, "next": "terminated"}
+        },
+        "rate": {"scale": 1000, "units_per_tick": 400},
+        "contact_rule": "first canonical contact per source action and target",
+        "armor_rule": "active state suppresses incoming stagger"
+      },
+      "validation_checks": ["positive bounded timing", "reference integrity"],
+      "hidden_assumptions": [
+        "entry and exit ordering follows the adapter implementation",
+        "active-state armor is embedded in host combat code",
+        "contact uniqueness is embedded in host combat code"
+      ],
+      "ambiguous_interaction_cases": ["redirect semantics", "several simultaneous defense facts"],
+      "trace_capabilities": ["tick", "progression quanta", "node changes", "candidate order", "effects emitted", "state changes"]
+    },
+    {
+      "id": "frame-data",
+      "label": "Animation-independent frame-data action system",
+      "adapter": "frame_data",
+      "definition": {
+        "frames": 24,
+        "ranges": {"startup": [0, 9], "active": [10, 13], "recovery": [14, 23]},
+        "rate": {"scale": 1000, "units_per_tick": 400},
+        "facts": {"10-13": ["strike", "armor"]},
+        "contact_rule": "first canonical contact per source action and target"
+      },
+      "validation_checks": ["positive bounded timing", "reference integrity", "hit policy"],
+      "hidden_assumptions": [
+        "frame-range boundaries imply transition behavior",
+        "frame tags imply interaction behavior in host code",
+        "contact uniqueness is embedded in host combat code"
+      ],
+      "ambiguous_interaction_cases": ["redirect semantics", "several simultaneous defense facts"],
+      "trace_capabilities": ["tick", "progression quanta", "node changes", "active semantic facts", "candidate order", "effects emitted", "state changes"]
+    },
+    {
+      "id": "pcam-core",
+      "label": "PCAM Core without PCAM-24",
+      "adapter": "pcam_core",
+      "definition_files": [
+        "examples/heavy-strike.action.yaml",
+        "examples/dodge.action.yaml",
+        "examples/combat.interaction.yaml"
+      ],
+      "validation_checks": [
+        "schema version", "identifier syntax", "positive bounded timing", "transition priority uniqueness",
+        "reference integrity", "hit policy", "interaction stage order", "bounded expression shape"
+      ],
+      "hidden_assumptions": ["host contacts satisfy the declared deterministic host contract"],
+      "ambiguous_interaction_cases": [],
+      "trace_capabilities": [
+        "tick", "input order", "progression quanta", "node changes", "predicate changes",
+        "active semantic facts", "candidate order", "decision-record mutations", "effects emitted",
+        "effect reduction", "state changes", "state digest"
+      ]
+    },
+    {
+      "id": "pcam-core-pcam24",
+      "label": "PCAM Core with PCAM-24",
+      "adapter": "pcam24",
+      "definition_files": [
+        "examples/heavy-strike.action.yaml",
+        "examples/dodge.action.yaml",
+        "examples/combat.interaction.yaml"
+      ],
+      "projection_source": "profiles.pcam24",
+      "validation_checks": [
+        "schema version", "identifier syntax", "positive bounded timing", "transition priority uniqueness",
+        "reference integrity", "hit policy", "interaction stage order", "bounded expression shape",
+        "phase projection coverage", "phase range bounds"
+      ],
+      "hidden_assumptions": ["host contacts satisfy the declared deterministic host contract"],
+      "ambiguous_interaction_cases": [],
+      "trace_capabilities": [
+        "tick", "input order", "progression quanta", "node changes", "predicate changes",
+        "active semantic facts", "candidate order", "decision-record mutations", "effects emitted",
+        "effect reduction", "state changes", "state digest", "phase projection"
+      ]
+    }
+  ]
+}

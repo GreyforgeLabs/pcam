@@ -1,0 +1,372 @@
+{
+  "environment": {
+    "machine": "x86_64",
+    "platform": "linux",
+    "python": "3.12.3"
+  },
+  "experiment_version": "1",
+  "host_timing": {
+    "clock": "time.perf_counter_ns",
+    "repetitions": 11,
+    "scope": "one complete 60-tick replay from the declared initial state",
+    "subjects": {
+      "fixed-tick-fsm": {
+        "max_ns": 352139,
+        "median_ns": 319958,
+        "min_ns": 314917
+      },
+      "frame-data": {
+        "max_ns": 412443,
+        "median_ns": 359192,
+        "min_ns": 352079
+      },
+      "pcam-core": {
+        "max_ns": 172223946,
+        "median_ns": 150839514,
+        "min_ns": 149034347
+      },
+      "pcam-core-pcam24": {
+        "max_ns": 205408651,
+        "median_ns": 177382529,
+        "min_ns": 166311077
+      },
+      "statechart-local-counters": {
+        "max_ns": 358220,
+        "median_ns": 351337,
+        "min_ns": 349223
+      }
+    },
+    "warning": "host timing is descriptive, environment-specific, and excluded from report_digest"
+  },
+  "measurement_policy": {
+    "assumptions": "counts come from the reviewed subject manifest and are not inferred performance rankings",
+    "authoring_effort": "definition size and leaf counts are disclosed proxies, not labor measurements",
+    "clarity": "declared trace-field coverage is a proxy, not a subjective quality score",
+    "timing_status": "host timing is descriptive and committed separately from the deterministic report digest"
+  },
+  "report_digest": "84ce13f38bae6f053bf98977e90746b68aeee296fc31888995bfd144f47bba65",
+  "results": [
+    {
+      "ambiguous_interaction_cases": {
+        "count": 2,
+        "items": [
+          "redirect semantics",
+          "several simultaneous defense facts"
+        ]
+      },
+      "authoring_effort_proxy": {
+        "canonical_definition_bytes": 280,
+        "definition_leaf_values": 14,
+        "not_human_time": true
+      },
+      "debug_trace_clarity_proxy": {
+        "contract_fields": 22,
+        "declared_contract_fields": 5,
+        "fields": [
+          "tick",
+          "node changes",
+          "candidate order",
+          "effects emitted",
+          "state changes"
+        ]
+      },
+      "definition_complexity": {
+        "canonical_bytes": 280,
+        "leaf_values": 14
+      },
+      "hidden_assumptions": {
+        "count": 4,
+        "items": [
+          "the host tick rate is permanently coupled to the authored windows",
+          "active-state armor is embedded in host combat code",
+          "contact uniqueness is embedded in host combat code",
+          "termination is inferred from the last window"
+        ]
+      },
+      "observable_digest": "d3b96248e0ca9d9c24a39da04bd5cd9856fc60183bf3171537c6f5e3a4e6d58c",
+      "replay_divergence": {
+        "contact_permutations": 6,
+        "divergent_runs": 0
+      },
+      "resimulation_cost": {
+        "deterministic_work_units": 129,
+        "logical_ticks": 60,
+        "unit_definition": "action-tick, canonical candidate, or node-transition commit"
+      },
+      "runtime_state_bytes": 189,
+      "snapshot_bytes": 189,
+      "subject_id": "fixed-tick-fsm",
+      "trace_digest": "c5a57054fb34c1d5ee4b0db49333add5651beda9a73be8b0724b08d7793218fb",
+      "validation_coverage": {
+        "checks": [
+          "positive bounded timing",
+          "reference integrity"
+        ],
+        "comparison_universe": 10,
+        "declared_checks": 2
+      }
+    },
+    {
+      "ambiguous_interaction_cases": {
+        "count": 2,
+        "items": [
+          "redirect semantics",
+          "several simultaneous defense facts"
+        ]
+      },
+      "authoring_effort_proxy": {
+        "canonical_definition_bytes": 333,
+        "definition_leaf_values": 10,
+        "not_human_time": true
+      },
+      "debug_trace_clarity_proxy": {
+        "contract_fields": 22,
+        "declared_contract_fields": 6,
+        "fields": [
+          "tick",
+          "progression quanta",
+          "node changes",
+          "candidate order",
+          "effects emitted",
+          "state changes"
+        ]
+      },
+      "definition_complexity": {
+        "canonical_bytes": 333,
+        "leaf_values": 10
+      },
+      "hidden_assumptions": {
+        "count": 3,
+        "items": [
+          "entry and exit ordering follows the adapter implementation",
+          "active-state armor is embedded in host combat code",
+          "contact uniqueness is embedded in host combat code"
+        ]
+      },
+      "observable_digest": "d3b96248e0ca9d9c24a39da04bd5cd9856fc60183bf3171537c6f5e3a4e6d58c",
+      "replay_divergence": {
+        "contact_permutations": 6,
+        "divergent_runs": 0
+      },
+      "resimulation_cost": {
+        "deterministic_work_units": 129,
+        "logical_ticks": 60,
+        "unit_definition": "action-tick, canonical candidate, or node-transition commit"
+      },
+      "runtime_state_bytes": 215,
+      "snapshot_bytes": 215,
+      "subject_id": "statechart-local-counters",
+      "trace_digest": "a0ec3589936507eeb92851e361c87430c86d3acfabecf9ca55a9307153ac1447",
+      "validation_coverage": {
+        "checks": [
+          "positive bounded timing",
+          "reference integrity"
+        ],
+        "comparison_universe": 10,
+        "declared_checks": 2
+      }
+    },
+    {
+      "ambiguous_interaction_cases": {
+        "count": 2,
+        "items": [
+          "redirect semantics",
+          "several simultaneous defense facts"
+        ]
+      },
+      "authoring_effort_proxy": {
+        "canonical_definition_bytes": 226,
+        "definition_leaf_values": 12,
+        "not_human_time": true
+      },
+      "debug_trace_clarity_proxy": {
+        "contract_fields": 22,
+        "declared_contract_fields": 7,
+        "fields": [
+          "tick",
+          "progression quanta",
+          "node changes",
+          "active semantic facts",
+          "candidate order",
+          "effects emitted",
+          "state changes"
+        ]
+      },
+      "definition_complexity": {
+        "canonical_bytes": 226,
+        "leaf_values": 12
+      },
+      "hidden_assumptions": {
+        "count": 3,
+        "items": [
+          "frame-range boundaries imply transition behavior",
+          "frame tags imply interaction behavior in host code",
+          "contact uniqueness is embedded in host combat code"
+        ]
+      },
+      "observable_digest": "d3b96248e0ca9d9c24a39da04bd5cd9856fc60183bf3171537c6f5e3a4e6d58c",
+      "replay_divergence": {
+        "contact_permutations": 6,
+        "divergent_runs": 0
+      },
+      "resimulation_cost": {
+        "deterministic_work_units": 129,
+        "logical_ticks": 60,
+        "unit_definition": "action-tick, canonical candidate, or node-transition commit"
+      },
+      "runtime_state_bytes": 165,
+      "snapshot_bytes": 165,
+      "subject_id": "frame-data",
+      "trace_digest": "a0ec3589936507eeb92851e361c87430c86d3acfabecf9ca55a9307153ac1447",
+      "validation_coverage": {
+        "checks": [
+          "positive bounded timing",
+          "reference integrity",
+          "hit policy"
+        ],
+        "comparison_universe": 10,
+        "declared_checks": 3
+      }
+    },
+    {
+      "ambiguous_interaction_cases": {
+        "count": 0,
+        "items": []
+      },
+      "authoring_effort_proxy": {
+        "canonical_definition_bytes": 6875,
+        "definition_leaf_values": 234,
+        "not_human_time": true
+      },
+      "debug_trace_clarity_proxy": {
+        "contract_fields": 22,
+        "declared_contract_fields": 12,
+        "fields": [
+          "tick",
+          "input order",
+          "progression quanta",
+          "node changes",
+          "predicate changes",
+          "active semantic facts",
+          "candidate order",
+          "decision-record mutations",
+          "effects emitted",
+          "effect reduction",
+          "state changes",
+          "state digest"
+        ]
+      },
+      "definition_complexity": {
+        "canonical_bytes": 6875,
+        "leaf_values": 234
+      },
+      "hidden_assumptions": {
+        "count": 1,
+        "items": [
+          "host contacts satisfy the declared deterministic host contract"
+        ]
+      },
+      "observable_digest": "d3b96248e0ca9d9c24a39da04bd5cd9856fc60183bf3171537c6f5e3a4e6d58c",
+      "replay_divergence": {
+        "contact_permutations": 6,
+        "divergent_runs": 0
+      },
+      "resimulation_cost": {
+        "deterministic_work_units": 129,
+        "logical_ticks": 60,
+        "unit_definition": "action-tick, canonical candidate, or node-transition commit"
+      },
+      "runtime_state_bytes": 2844,
+      "snapshot_bytes": 2844,
+      "subject_id": "pcam-core",
+      "trace_digest": "1ac847bc0c413849ae91b05a3dc6f8e3cf620e32a842dd09687fb12fa8c990f5",
+      "validation_coverage": {
+        "checks": [
+          "schema version",
+          "identifier syntax",
+          "positive bounded timing",
+          "transition priority uniqueness",
+          "reference integrity",
+          "hit policy",
+          "interaction stage order",
+          "bounded expression shape"
+        ],
+        "comparison_universe": 10,
+        "declared_checks": 8
+      }
+    },
+    {
+      "ambiguous_interaction_cases": {
+        "count": 0,
+        "items": []
+      },
+      "authoring_effort_proxy": {
+        "canonical_definition_bytes": 7242,
+        "definition_leaf_values": 259,
+        "not_human_time": true
+      },
+      "debug_trace_clarity_proxy": {
+        "contract_fields": 22,
+        "declared_contract_fields": 12,
+        "fields": [
+          "tick",
+          "input order",
+          "progression quanta",
+          "node changes",
+          "predicate changes",
+          "active semantic facts",
+          "candidate order",
+          "decision-record mutations",
+          "effects emitted",
+          "effect reduction",
+          "state changes",
+          "state digest",
+          "phase projection"
+        ]
+      },
+      "definition_complexity": {
+        "canonical_bytes": 7242,
+        "leaf_values": 259
+      },
+      "hidden_assumptions": {
+        "count": 1,
+        "items": [
+          "host contacts satisfy the declared deterministic host contract"
+        ]
+      },
+      "observable_digest": "d3b96248e0ca9d9c24a39da04bd5cd9856fc60183bf3171537c6f5e3a4e6d58c",
+      "replay_divergence": {
+        "contact_permutations": 6,
+        "divergent_runs": 0
+      },
+      "resimulation_cost": {
+        "deterministic_work_units": 129,
+        "logical_ticks": 60,
+        "unit_definition": "action-tick, canonical candidate, or node-transition commit"
+      },
+      "runtime_state_bytes": 2844,
+      "snapshot_bytes": 2844,
+      "subject_id": "pcam-core-pcam24",
+      "trace_digest": "ba5f4a60051ba7210acea442476965dab5197ab8cb4cf946b4107ed651b48dfd",
+      "validation_coverage": {
+        "checks": [
+          "schema version",
+          "identifier syntax",
+          "positive bounded timing",
+          "transition priority uniqueness",
+          "reference integrity",
+          "hit policy",
+          "interaction stage order",
+          "bounded expression shape",
+          "phase projection coverage",
+          "phase range bounds"
+        ],
+        "comparison_universe": 10,
+        "declared_checks": 10
+      }
+    }
+  ],
+  "scenario_digest": "a5b6af4a924ad4ca448fbc1154e2dd154737182558d776b37c01d66fccd5ed0f",
+  "scenario_id": "heavy-strike-trade-v1",
+  "subjects_manifest_digest": "882862b1c52d5962025f70a53dd5eb44dd89caac0f0fc41d91c5edd3de155a16"
+}

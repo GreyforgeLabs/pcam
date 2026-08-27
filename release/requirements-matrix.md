@@ -40,7 +40,7 @@ This matrix preserves the complete target. A row is complete only when its named
 | §42 tooling | all eleven commands with stable machine-readable result codes | partial: all eleven command paths execute with JSON envelopes; broader normative vectors and diagnostics remain open |
 | §43 licenses | CC BY 4.0 spec, Apache-2.0 or MIT code, vector permissions, trademark separation | complete: per-path license map, full CC BY 4.0, MIT, and CC0 1.0 texts, attribution, separate trademark policy, and explicit patent statement |
 | §44 security | bounded untrusted-data validation and adversarial vectors | complete: machine-checked evidence covers every listed untrusted surface and bound, including pre-ingestion tick-input bytes, definition/snapshot bytes, runtime collections, nesting and parent cycles, candidates/effects/redirects, identifiers, integers, recursion, and extensions; hash authentication and extension sandboxing are explicitly disclaimed |
-| §45 release gates | eight evidence reports with no unresolved requirement | partial: specification gate is closed and independent-language execution evidence exists; schemas, complete runtimes, ARM64, rollback breadth, experiments, and claims gates remain open |
+| §45 release gates | eight evidence reports with no unresolved requirement | partial: specification and bounded comparative experiment gates are closed and independent-language execution evidence exists; schemas, complete runtimes, ARM64, rollback breadth, and claims gates remain open |
 
 ## Completion rule
 

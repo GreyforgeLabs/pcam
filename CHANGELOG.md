@@ -37,3 +37,4 @@
 - Completed the normative §41 repository lanes with a machine-checked layout manifest and explicit adapters to the packaged reference implementation.
 - Completed the §44 robustness inventory with definition, snapshot, tick-input, action, event, buffer, child, nesting, candidate, and effect bounds plus a machine-checked evidence map.
 - Closed the current candidate specification audit by resolving every tracked normative ambiguity and making expression budgets declared, hashed runtime limits in both implementations.
+- Added a reproducible, claim-neutral §45.7 comparison across all five named subjects with six contact permutations, raw host evidence, deterministic report hashing, and explicit proxy limitations.

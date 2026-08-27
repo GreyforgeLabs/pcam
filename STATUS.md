@@ -16,7 +16,7 @@
 | Independent implementation | open | `release/independent-implementation-gate.md` |
 | Cross-platform | open | `release/cross-platform-gate.md` |
 | Rollback | open | `release/rollback-gate.md` |
-| Comparative experiments | open | `release/comparative-experiment-gate.md` |
+| Comparative experiments | closed for bounded draft experiment | `release/comparative-experiment-gate.md` |
 | Claims | open | `release/claims-gate.md` |
 
-The current Normative Candidate specification audit is closed. Stable, Normative status remains prohibited until every other §45 gate closes.
+The current Normative Candidate specification audit and bounded comparative experiment are closed. Stable, Normative status remains prohibited until every other §45 gate closes.
