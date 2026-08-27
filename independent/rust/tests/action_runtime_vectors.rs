@@ -1,4 +1,6 @@
-use pcam_independent::action::{ActionDefinition, ActionError, RuntimeLimits, start, tick};
+use pcam_independent::action::{
+    ActionDefinition, ActionError, RuntimeLimits, start, tick, validate_definition,
+};
 use serde::Deserialize;
 use serde_json::Value;
 use std::fs;
@@ -8,6 +10,7 @@ use std::path::PathBuf;
 struct VectorFile {
     limits: RuntimeLimitsVector,
     cases: Vec<Case>,
+    definition_fault_cases: Vec<DefinitionFaultCase>,
     fault_cases: Vec<FaultCase>,
 }
 
@@ -40,6 +43,12 @@ struct FaultCase {
     definition: ActionDefinition,
     limits: RuntimeLimitsVector,
     fault: String,
+}
+
+#[derive(Deserialize)]
+struct DefinitionFaultCase {
+    id: String,
+    definition: ActionDefinition,
 }
 
 fn repository_root() -> PathBuf {
@@ -92,5 +101,17 @@ fn independent_runtime_matches_shared_limit_faults() {
         let mut action = start(&case.definition).unwrap();
         let error = tick(&mut action, &case.definition, case.limits.into(), false).unwrap_err();
         assert_eq!(fault_code(error), case.fault, "{}", case.id);
+    }
+}
+
+#[test]
+fn independent_runtime_rejects_shared_invalid_definitions() {
+    for case in vectors().definition_fault_cases {
+        assert_eq!(
+            validate_definition(&case.definition).unwrap_err(),
+            ActionError::InvalidDefinition,
+            "{}",
+            case.id
+        );
     }
 }

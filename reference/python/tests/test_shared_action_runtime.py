@@ -7,6 +7,7 @@ from pcam_runtime import (
     ActionDefinition,
     NodeDefinition,
     PCAMError,
+    PredicateDefinition,
     RuntimeProfile,
     TickExecutor,
     TickInput,
@@ -23,6 +24,7 @@ def _definition(raw):
         units_per_tick=raw["rate"]["units_per_tick"],
         initial_node_id=raw["initial_node"],
         nodes=tuple(NodeDefinition(**node) for node in raw["nodes"]),
+        predicates=tuple(PredicateDefinition(**predicate) for predicate in raw.get("predicates", ())),
         transitions=tuple(TransitionDefinition(**transition) for transition in raw["transitions"]),
     )
 
@@ -42,6 +44,9 @@ def _projection(action):
         "local_step": action.local_step,
         "transition_serial": action.transition_serial,
         "quantum_accumulator": action.quantum_accumulator,
+        "predicate_truth_state": action.predicate_truth_state,
+        "predicate_entry_serials": action.predicate_entry_serials,
+        "predicate_exit_serials": action.predicate_exit_serials,
     }
 
 
@@ -69,7 +74,8 @@ def test_python_runtime_matches_shared_progression_and_transition_vectors():
                     ),
                 )
             state, _ = executor.tick(state, inputs)
-            assert _projection(state.action_instances["1"]) == expected, case["id"]
+            actual = _projection(state.action_instances["1"])
+            assert {key: actual[key] for key in expected} == expected, case["id"]
 
 
 def test_python_runtime_matches_shared_limit_faults():
@@ -88,3 +94,9 @@ def test_python_runtime_matches_shared_limit_faults():
         with pytest.raises(PCAMError) as raised:
             executor.tick(state, (start_input,))
         assert raised.value.fault.value == case["fault"], case["id"]
+
+
+def test_python_runtime_rejects_shared_invalid_definitions():
+    for case in _vectors()["definition_fault_cases"]:
+        with pytest.raises(PCAMError):
+            TickExecutor((_definition(case["definition"]),))

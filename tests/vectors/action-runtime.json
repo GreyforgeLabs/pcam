@@ -69,6 +69,68 @@
       "expected": [
         {"lifecycle_state": "TERMINATED", "current_node_id": "END", "node_step": 0, "local_step": 1, "transition_serial": 1, "quantum_accumulator": 0}
       ]
+    },
+    {
+      "id": "predicate-dependencies-and-edge-serials",
+      "definition": {
+        "id": "PREDICATES",
+        "rate": {"scale": 1, "units_per_tick": 1},
+        "initial_node": "A",
+        "nodes": [
+          {"id": "A", "mode": "EVENT_DRIVEN"},
+          {"id": "B", "mode": "EVENT_DRIVEN"}
+        ],
+        "predicates": [
+          {"id": "ACTIVE", "expression": {"op": "eq", "args": [{"ref": "action.node"}, {"literal": "B"}]}, "track_edges": true},
+          {"id": "DERIVED", "expression": {"op": "and", "args": [{"ref": "action.predicate.ACTIVE"}, {"literal": true}]}, "track_edges": true}
+        ],
+        "transitions": [
+          {"id": "enter", "source_node": "A", "evaluation_point": "AFTER_QUANTUM", "priority": 1, "target_kind": "NODE", "target_node": "B"},
+          {"id": "leave", "source_node": "B", "evaluation_point": "AFTER_QUANTUM", "priority": 1, "target_kind": "NODE", "target_node": "A"}
+        ]
+      },
+      "ticks": 2,
+      "expected": [
+        {"lifecycle_state": "RUNNING", "current_node_id": "B", "node_step": 0, "local_step": 1, "transition_serial": 1, "quantum_accumulator": 0, "predicate_truth_state": {"ACTIVE": true, "DERIVED": true}, "predicate_entry_serials": {"ACTIVE": 1, "DERIVED": 1}, "predicate_exit_serials": {}},
+        {"lifecycle_state": "RUNNING", "current_node_id": "A", "node_step": 0, "local_step": 2, "transition_serial": 2, "quantum_accumulator": 0, "predicate_truth_state": {"ACTIVE": false, "DERIVED": false}, "predicate_entry_serials": {"ACTIVE": 1, "DERIVED": 1}, "predicate_exit_serials": {"ACTIVE": 1, "DERIVED": 1}}
+      ]
+    }
+  ],
+  "definition_fault_cases": [
+    {
+      "id": "missing-initial-node",
+      "definition": {
+        "id": "MISSING_INITIAL",
+        "rate": {"scale": 1, "units_per_tick": 1},
+        "initial_node": "MISSING",
+        "nodes": [{"id": "RUN", "mode": "EVENT_DRIVEN"}],
+        "transitions": []
+      }
+    },
+    {
+      "id": "duplicate-transition-priority",
+      "definition": {
+        "id": "DUPLICATE_PRIORITY",
+        "rate": {"scale": 1, "units_per_tick": 1},
+        "initial_node": "A",
+        "nodes": [{"id": "A", "mode": "EVENT_DRIVEN"}, {"id": "B", "mode": "EVENT_DRIVEN"}],
+        "transitions": [
+          {"id": "first", "source_node": "A", "evaluation_point": "PRE_ADVANCE", "priority": 1, "target_kind": "NODE", "target_node": "B"},
+          {"id": "second", "source_node": "A", "evaluation_point": "PRE_ADVANCE", "priority": 1, "target_kind": "TERMINATE"}
+        ]
+      }
+    },
+    {
+      "id": "seek-into-unseekable-node",
+      "definition": {
+        "id": "INVALID_SEEK",
+        "rate": {"scale": 1, "units_per_tick": 1},
+        "initial_node": "A",
+        "nodes": [{"id": "A", "mode": "EVENT_DRIVEN"}, {"id": "B", "mode": "TIMED", "duration_quanta": 4}],
+        "transitions": [
+          {"id": "seek", "source_node": "A", "evaluation_point": "PRE_ADVANCE", "priority": 1, "target_kind": "NODE", "target_node": "B", "target_step": 2}
+        ]
+      }
     }
   ],
   "fault_cases": [
