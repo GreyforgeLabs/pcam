@@ -17,9 +17,9 @@
     "heavy_strike_document_hash": "5a75c693e7075f877253633d4c4fd50152ea4c6667976d190d3a3de05abb8771",
     "heavy_strike_runtime_hash": "2c7f20d040ce6e0196caf5f5a6d35d9451adc5dc2bbfa9ef683b1a828f2e0364",
     "interaction_document_hash": "7675dab973b71d447cdb55b622c73d86da03e05577dbc4676beb2a071639f5d9",
-    "definition_set_hash": "8944187c97470985ea452a5706392643c8a44e126a05b0570dd021713e401b83",
-    "trace_digest": "d0af0a5be56850f200d42f638d231956f1a961189fa968d563ff90eca174f1a4",
-    "final_state_digest": "e7d98511d21821e1e57b42cb1fbe3bf002496efa867b729a4c0561137e50f286",
+    "definition_set_hash": "9b585f3d8b8acec3cd8c8e8277faa5d8cc94d6da1e7e91b40e648eb4897c2382",
+    "trace_digest": "39111856dcf69063a653366120e66aa87d31ee43ab51f9e218a89b7d5c6a0e8d",
+    "final_state_digest": "74cfc64254121b616920c959f21b01d1285788ac922f5787f4534d37176beccf",
     "node_change_ticks": [24, 34, 59],
     "candidate_order": ["a-to-b", "a-to-b-dup", "b-to-a"],
     "resource_banks": {

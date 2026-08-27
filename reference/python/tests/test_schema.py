@@ -1,3 +1,4 @@
+from copy import deepcopy
 from pathlib import Path
 
 from pcam_runtime.schema import load_document, validate_document
@@ -25,3 +26,10 @@ def test_negative_schema_vectors_are_rejected_with_stable_faults():
 def test_runtime_snapshot_matches_snapshot_schema():
     executor = TickExecutor((ActionDefinition("SNAPSHOT", 1, 0, (NodeDefinition("RUN"),)),))
     assert validate_document(executor.initial_state().to_snapshot()) == []
+
+
+def test_runtime_profile_rejects_zero_expression_budgets():
+    profile = load_document(ROOT / "tests" / "valid" / "minimal-runtime-profile.json")
+    invalid = deepcopy(profile)
+    invalid["limits"]["max_expression_depth"] = 0
+    assert validate_document(invalid)[0].code == "SCHEMA_VALIDATION_FAILED"

@@ -2,7 +2,9 @@
   "profile": "pcam.action-runtime.v1",
   "limits": {
     "max_quanta_per_action_per_tick": 8,
-    "max_internal_transitions_per_tick": 8
+    "max_internal_transitions_per_tick": 8,
+    "max_expression_depth": 64,
+    "max_expression_nodes": 4096
   },
   "cases": [
     {
@@ -337,7 +339,7 @@
         "nodes": [{"id": "RUN", "mode": "EVENT_DRIVEN"}],
         "transitions": []
       },
-      "limits": {"max_quanta_per_action_per_tick": 2, "max_internal_transitions_per_tick": 8},
+      "limits": {"max_quanta_per_action_per_tick": 2, "max_internal_transitions_per_tick": 8, "max_expression_depth": 64, "max_expression_nodes": 4096},
       "fault": "QUANTUM_LIMIT_EXCEEDED"
     },
     {
@@ -352,7 +354,7 @@
           {"id": "b-to-a", "source_node": "B", "evaluation_point": "AFTER_QUANTUM", "priority": 1, "target_kind": "NODE", "target_node": "A"}
         ]
       },
-      "limits": {"max_quanta_per_action_per_tick": 8, "max_internal_transitions_per_tick": 1},
+      "limits": {"max_quanta_per_action_per_tick": 8, "max_internal_transitions_per_tick": 1, "max_expression_depth": 64, "max_expression_nodes": 4096},
       "fault": "TRANSITION_LIMIT_EXCEEDED"
     },
     {
@@ -367,7 +369,7 @@
         "nodes": [{"id": "WAIT", "mode": "EVENT_DRIVEN"}],
         "transitions": []
       },
-      "limits": {"max_quanta_per_action_per_tick": 8, "max_internal_transitions_per_tick": 8},
+      "limits": {"max_quanta_per_action_per_tick": 8, "max_internal_transitions_per_tick": 8, "max_expression_depth": 64, "max_expression_nodes": 4096},
       "fault_tick": 1,
       "inputs": [
         [],
@@ -376,6 +378,34 @@
           {"assigned_tick": 1, "source_entity_id": 1, "sequence": 2, "command_id": "B", "payload": {}, "input_id": "b"}
         ]
       ],
+      "fault": "STATE_INVARIANT_FAILURE"
+    },
+    {
+      "id": "expression-depth-limit",
+      "definition": {
+        "id": "EXPRESSION_DEPTH",
+        "rate": {"scale": 1, "units_per_tick": 1},
+        "initial_node": "RUN",
+        "nodes": [{"id": "RUN", "mode": "EVENT_DRIVEN"}],
+        "transitions": [
+          {"id": "deep", "source_node": "RUN", "evaluation_point": "AFTER_QUANTUM", "priority": 1, "target_kind": "TERMINATE", "guard_expression": {"op": "not", "args": [{"op": "not", "args": [{"literal": true}]}]}}
+        ]
+      },
+      "limits": {"max_quanta_per_action_per_tick": 8, "max_internal_transitions_per_tick": 8, "max_expression_depth": 1, "max_expression_nodes": 4096},
+      "fault": "STATE_INVARIANT_FAILURE"
+    },
+    {
+      "id": "expression-node-limit",
+      "definition": {
+        "id": "EXPRESSION_NODES",
+        "rate": {"scale": 1, "units_per_tick": 1},
+        "initial_node": "RUN",
+        "nodes": [{"id": "RUN", "mode": "EVENT_DRIVEN"}],
+        "transitions": [
+          {"id": "wide", "source_node": "RUN", "evaluation_point": "AFTER_QUANTUM", "priority": 1, "target_kind": "TERMINATE", "guard_expression": {"op": "and", "args": [{"literal": true}, {"literal": true}, {"literal": true}]}}
+        ]
+      },
+      "limits": {"max_quanta_per_action_per_tick": 8, "max_internal_transitions_per_tick": 8, "max_expression_depth": 64, "max_expression_nodes": 2},
       "fault": "STATE_INVARIANT_FAILURE"
     }
   ]

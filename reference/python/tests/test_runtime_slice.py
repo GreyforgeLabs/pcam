@@ -483,3 +483,60 @@ def test_max_actions_per_entity_is_enforced_for_slotless_actions():
     state, trace = executor.tick(executor.initial_state(), inputs)
     assert len(state.action_instances) == 1
     assert [item["accepted"] for item in trace["pre_advance_intents"]] == [True, False, False]
+
+
+def test_terminate_parent_applies_old_child_policy_but_exempts_new_child():
+    child = ActionDefinition(
+        id="TERMINATE_CHILD_CASE",
+        rate_scale=1,
+        units_per_tick=0,
+        nodes=(NodeDefinition(id="RUN"),),
+    )
+    parent = ActionDefinition(
+        id="TERMINATE_PARENT_CASE",
+        rate_scale=1,
+        units_per_tick=0,
+        nodes=(NodeDefinition(id="RUN"),),
+        child_slot_capacities={"SUB": 2},
+        child_termination_policies={"SUB": "TERMINATE_CHILD"},
+        default_buffer_lifetime=2,
+        transitions=(
+            TransitionDefinition(
+                id="first-child",
+                source_node="RUN",
+                evaluation_point="PRE_ADVANCE",
+                priority=20,
+                input_command="FIRST",
+                target_kind="CHILD_ACTION",
+                target_action=child.id,
+                child_slot_id="SUB",
+                parent_policy="CONTINUE",
+            ),
+            TransitionDefinition(
+                id="terminating-child",
+                source_node="RUN",
+                evaluation_point="PRE_ADVANCE",
+                priority=10,
+                input_command="SECOND",
+                target_kind="CHILD_ACTION",
+                target_action=child.id,
+                child_slot_id="SUB",
+                parent_policy="TERMINATE_PARENT",
+            ),
+        ),
+    )
+    executor = TickExecutor((parent, child))
+    state = executor.initial_state()
+    state, _ = executor.tick(
+        state,
+        (TickInput("start", 1, 0, "START", 0, action_definition_id=parent.id),),
+    )
+    state, _ = executor.tick(state, (TickInput("first", 1, 1, "FIRST", 1),))
+    assert state.action_instances["2"].lifecycle_state == "RUNNING"
+
+    state, _ = executor.tick(state, (TickInput("second", 1, 2, "SECOND", 2),))
+    assert state.action_instances["1"].lifecycle_state == "TERMINATED"
+    assert state.action_instances["2"].lifecycle_state == "TERMINATED"
+    assert state.action_instances["3"].lifecycle_state == "RUNNING"
+    assert state.action_instances["1"].child_instance_ids == (3,)
+    assert [event["payload"]["child_instance_id"] for event in state.pending_events] == [2]

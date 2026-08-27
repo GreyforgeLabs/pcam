@@ -1,51 +1,47 @@
-# PCAM v3 Open Normative Issues
+# PCAM v3 Normative Issue Ledger
 
-Status: ACTIVE
+Status: CLOSED for the current Normative Candidate text
 
 Owner: PCAM specification gate
 
-These issues prevent Stable, Normative status even when a reference behavior exists.
+This ledger records issues found during the contradiction audit and the normative decisions now incorporated into `PCAM-v3.md`. New issues reopen the specification gate until they receive an explicit resolution.
 
 ## Freeze stack merge semantics
 
-Section 18.5 names `INDEPENDENT`, `MAX_DURATION`, `SUM_DURATION`, `REPLACE`, and `REJECT_NEW`, but does not completely define:
-
-- the stack-group identity key
-- whether tokens merge or remain individually serialized
-- behavior when one group mixes domains or accrual policies
-- which source identity and metadata survive a merge
-- the exact activation schedule for summed durations
-
-The Python reference currently uses `(target_id, stack_group)` as the group key, keeps tokens individually serialized, queues compatible `SUM_DURATION` tokens, lets `HOLD` dominate overlapping progression freezes, and faults incompatible `MAX_DURATION` or `SUM_DURATION` groups. This is provisional reference policy, not a closed normative decision.
+Resolved in §18.5. The group key is `(target_id, stack_group)`; tokens remain separate records; compatible `MAX_DURATION` tokens overlap; compatible `SUM_DURATION` tokens queue by exclusive expiration; `REPLACE` and `REJECT_NEW` are exact; incompatible duration groups fault before mutation; and `HOLD` dominates overlapping progression freezes.
 
 ## Deferred progression state
 
-Section 10.3 requires generated quanta under `ACCRUE` to remain authoritative state. The §7.3 minimum action-instance field list does not name a deferred-quanta field. The Python reference now serializes `deferred_quanta`; the specification should still name it explicitly before the issue closes.
+Resolved in §7.3 and §10.3. `deferred_quanta` is required authoritative action-instance state.
 
 ## Intent atomic groups
 
-Section 15.2 includes `atomic_group_id` in the intent structure, while §15.4 defines atomicity only for all claims within one intent. Cross-intent group acceptance, rejection, ordering, and identifier allocation are not defined. The Python reference currently arbitrates each intent atomically and preserves the group identifier without assigning cross-intent behavior.
+Resolved in §15.2. `atomic_group_id` is optional correlation metadata only in Core. It does not couple acceptance across intents. Cross-intent atomicity requires an authoritative extension with complete ordering and allocation semantics.
 
 ## Defense-fact selection
 
-The interaction expression vocabulary includes `defense.<field>`, but the candidate structure identifies only the offense fact and target entity. The specification does not define how one defense fact is selected when a target emits several simultaneous defense facts, nor how conflicting defense attributes combine. The Python reference currently requires an explicit defense fact per target for the pure interaction resolver.
+Resolved in §20.2, §20.5, and §20.6. A candidate has an optional defense selector. Zero matches selects no defense, one selects that fact, and multiple matches fault as ambiguous. Multi-fact composition requires an authoritative extension.
 
 ## Materialization operation registry
 
-Section 21.5 lists core rule operations but omits `MATERIALIZE`, while the canonical interaction example uses `op: MATERIALIZE` and §21.3 requires a materialization stage. The Python reference recognizes `MATERIALIZE` provisionally. The master operation registry must be corrected before the specification gate closes.
+Resolved in §21.5. `MATERIALIZE` is a core operation with explicit status and effect-class filtering.
 
 ## Parry reaction materialization
 
-The §34 parry rule rejects the candidate, appends a `combat.parry_success` reaction template, and then stops the pipeline. The specification does not say whether an appended reaction on a rejected candidate is emitted immediately, survives a pipeline stop for later materialization, or remains an unmaterialized decision record. The Python reference currently preserves the resolved reaction template in the decision but emits no authoritative effect after `stop_pipeline`.
+Resolved in §21.5-21.6. Appending a reaction template does not emit it. Rejected-status materialization must be explicit, class-restricted to `REACTION`, and occur before the pipeline stops. The §34 parry example preserves a decision template but emits no authoritative reaction effect.
 
 ## Event-delivery freeze lifetime
 
-Sections 18.2 and 25 define `EVENT_DELIVERY` freezes and one-tick event availability, but do not state whether an event frozen on its delivery tick expires, faults, or moves to a later delivery tick. The Python reference provisionally defers the event by one tick and serializes the changed `delivery_tick`.
+Resolved in §25.4. A frozen target-action event advances its authoritative `delivery_tick` by one and remains pending; repeated freezes repeat the deferral.
 
 ## Terminate-parent composition
 
-Section 17.2 allows a child start to use `TERMINATE_PARENT`, while §17.4 independently requires a parent termination policy for each child slot. The ordering and precedence between the newly started child's parent policy and that slot's termination policy are not stated. The Python reference lets the newly started child continue when `TERMINATE_PARENT` is the launch policy and applies slot termination policies to later parent termination paths.
+Resolved in §17.4. The new child starts first and is exempt from the parent termination-policy pass applied to previously occupying children. It remains linked and continues after the parent terminates.
 
 ## Freeze-all action domains
 
-`FREEZE_ALL_ACTION_LOGIC` is named but its exact domain expansion is not enumerated. The Python reference provisionally expands it to progression, pre/post transitions, input capture, and interaction emission/reception. Event delivery and buffer expiry remain separate explicit domains.
+Resolved in §17.2. `FREEZE_ALL_ACTION_LOGIC` expands to progression, PRE/POST transitions, input capture, and interaction emission/reception. Buffer expiry, event delivery, resource regeneration, and RNG consumption remain separate domains.
+
+## Adjacent audit corrections
+
+The audit also added `input_id` to the intent structure, added `target.<field>` to interaction references, and removed reliance on map insertion order for initial-node selection.

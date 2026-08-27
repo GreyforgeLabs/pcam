@@ -17,7 +17,9 @@
     "max_redirects_per_candidate": 8,
     "max_definition_size_bytes": 1048576,
     "max_snapshot_size_bytes": 16777216,
-    "max_extension_state_bytes": 1048576
+    "max_extension_state_bytes": 1048576,
+    "max_expression_depth": 64,
+    "max_expression_nodes": 4096
   },
   "rng_profiles": ["pcam.pcg32.v1"],
   "network_profiles": [

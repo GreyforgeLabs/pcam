@@ -1,3 +1,4 @@
+from dataclasses import replace
 from itertools import permutations
 
 from pcam_runtime import ArbitrationState, Claim, Intent, allocate_action_instance_ids, arbitrate
@@ -92,3 +93,15 @@ def test_replacement_release_is_atomic_with_target_claims():
     assert decisions[0].accepted
     assert accepted_state.usages[("ACTION_SLOT", 1, "FULL_BODY")] == 1
     assert accepted_state.resource_banks[1]["STAMINA"] == 0
+
+
+def test_atomic_group_identifier_does_not_couple_core_intent_acceptance():
+    first = replace(_intent(1, 10, 6, "a"), atomic_group_id="correlation")
+    second = replace(_intent(1, 9, 6, "b"), atomic_group_id="correlation")
+    initial = ArbitrationState(
+        resource_banks={1: {"STAMINA": 10}},
+        capacities={("ACTION_SLOT", 1, "FULL_BODY"): 2},
+    )
+    state, decisions = arbitrate((second, first), initial)
+    assert [decision.accepted for decision in decisions] == [True, False]
+    assert state.resource_banks[1]["STAMINA"] == 4

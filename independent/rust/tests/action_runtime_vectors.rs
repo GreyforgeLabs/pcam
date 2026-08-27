@@ -20,6 +20,8 @@ struct VectorFile {
 struct RuntimeLimitsVector {
     max_quanta_per_action_per_tick: u64,
     max_internal_transitions_per_tick: u64,
+    max_expression_depth: usize,
+    max_expression_nodes: usize,
 }
 
 impl From<RuntimeLimitsVector> for RuntimeLimits {
@@ -27,6 +29,8 @@ impl From<RuntimeLimitsVector> for RuntimeLimits {
         Self {
             max_quanta_per_action_per_tick: value.max_quanta_per_action_per_tick,
             max_internal_transitions_per_tick: value.max_internal_transitions_per_tick,
+            max_expression_depth: value.max_expression_depth,
+            max_expression_nodes: value.max_expression_nodes,
         }
     }
 }

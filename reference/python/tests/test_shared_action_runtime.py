@@ -39,6 +39,8 @@ def _profile(raw):
     return RuntimeProfile(
         max_quanta_per_action_per_tick=raw["max_quanta_per_action_per_tick"],
         max_internal_transitions_per_action_per_tick=raw["max_internal_transitions_per_tick"],
+        max_expression_depth=raw.get("max_expression_depth", 64),
+        max_expression_nodes=raw.get("max_expression_nodes", 4096),
     )
 
 

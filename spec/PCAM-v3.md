@@ -436,6 +436,7 @@ local_step
 cycle
 transition_serial
 quantum_accumulator
+deferred_quanta
 current_rate_units
 captured_parameters
 registers
@@ -897,6 +898,7 @@ offense.<field>
 defense.<field>
 decision.<field>
 contact.<field>
+target.<field>
 ```
 
 ## 11.4 Core Operators
@@ -1314,10 +1316,13 @@ owner_entity_id
 source_action_instance_id
 transition_id
 input_sequence
+input_id
 claims
 operations
 atomic_group_id
 ```
+
+`atomic_group_id` is an optional opaque correlation identifier. PCAM Core does not grant cross-intent acceptance semantics to equal group identifiers. Each intent remains its own atomic arbitration unit. An extension that adds cross-intent group atomicity MUST define group ordering, all-or-nothing acceptance, claim visibility, input consumption, and identifier allocation, and MUST include that extension in definition-set identity.
 
 ## 15.3 Canonical Intent Order
 
@@ -1439,6 +1444,19 @@ TERMINATE_PARENT
 
 Parent freezes are represented using explicit freeze tokens.
 
+`FREEZE_ALL_ACTION_LOGIC` expands exactly to:
+
+```text
+PROGRESSION
+PRE_ADVANCE_TRANSITIONS
+POST_ADVANCE_TRANSITIONS
+INPUT_CAPTURE
+INTERACTION_EMISSION
+INTERACTION_RECEPTION
+```
+
+It does not freeze `BUFFER_EXPIRY`, `EVENT_DELIVERY`, `RESOURCE_REGENERATION`, or `RNG_CONSUMPTION`. Those domains require separate explicit tokens.
+
 ## 17.3 Child Completion
 
 A terminating child emits a deterministic child-result event containing:
@@ -1463,6 +1481,15 @@ DETACH_CHILD
 ALLOW_CHILD_TO_COMPLETE
 FAULT_IF_OCCUPIED
 ```
+
+When an accepted child-start intent uses `TERMINATE_PARENT`, the runtime MUST atomically:
+
+1. Start and link the new child.
+2. Apply the parent termination policy to children that occupied parent slots before that intent.
+3. Exempt the newly started child from that termination-policy pass.
+4. Terminate the parent.
+
+The newly started child remains linked, continues according to its own lifecycle, and emits its normal child-result event. This launch-specific precedence does not change policies applied by any later independent parent-termination operation.
 
 ## 17.5 Nesting Limits
 
@@ -1550,6 +1577,14 @@ REJECT_NEW
 ```
 
 The stack policy is evaluated by `stack_group`.
+
+The stack-group identity key is `(target_id, stack_group)`. Tokens remain separate authoritative records; stacking never merges source identity, metadata, or token identifiers.
+
+`INDEPENDENT` always inserts the new token. `REPLACE` removes every existing token with the same group key before inserting the new token. `REJECT_NEW` leaves the existing group unchanged when that group is nonempty.
+
+`MAX_DURATION` and `SUM_DURATION` require every token in the group to have identical `domains`, `accrual_policy`, and `stack_policy`; an incompatible insertion produces `STATE_INVARIANT_FAILURE` before mutation. `MAX_DURATION` inserts the token normally, so the group remains active wherever any compatible member is active and expires at the latest member expiration. `SUM_DURATION` sets the new token's activation tick to the later of its normal activation tick and the latest exclusive expiration tick in the group, thereby serializing group durations without merging token records.
+
+When overlapping active `PROGRESSION` tokens use different accrual policies, `HOLD` dominates `ACCRUE`. Other frozen domains use set-union semantics: a domain is frozen when any active token includes it.
 
 ## 18.6 Hit-Stop
 
@@ -1663,6 +1698,7 @@ source_entity_id
 target_entity_id
 source_action_instance_id
 offense_fact_id
+defense_fact_id, optional
 contact_id
 contact_partition
 host_context
@@ -1688,13 +1724,20 @@ Candidates are sorted by:
 2. `target_entity_id`
 3. `source_action_instance_id`
 4. `offense_fact_id`
-5. `contact_partition`
-6. `contact_id`
-7. `candidate_id`
+5. `defense_fact_id`, with absence ordered before any identifier
+6. `contact_partition`
+7. `contact_id`
+8. `candidate_id`
 
 Host enumeration order is ignored.
 
-## 20.6 Simultaneity
+## 20.6 Defense-Fact Selection
+
+Defense facts are selected from the frozen semantic-fact snapshot for the candidate's current target. When `defense_fact_id` is present, only a matching `DEFENSE` fact is eligible. When it is absent, zero eligible facts yields no defense and exactly one eligible fact selects that fact. More than one eligible defense fact is ambiguous and produces `INVALID_CONTACT` before rule evaluation.
+
+A profile that combines several defense facts MUST declare a deterministic defense-set extension defining applicability, composition, ordering, references, and trace behavior. Redirection repeats defense selection for the new current target using the same selector. No map or emission order may select among ambiguous defense facts.
+
+## 20.7 Simultaneity
 
 All candidates observe the same frozen semantic-fact snapshot.
 
@@ -1827,6 +1870,7 @@ SCALE_EFFECT_CLASS
 CAP_EFFECT_CLASS
 REPLACE_EFFECT_CLASS
 APPEND_EFFECT_TEMPLATE
+MATERIALIZE
 ADD_DECISION_TAG
 REQUEST_RECEIPT
 STOP_STAGE
@@ -1835,11 +1879,15 @@ STOP_PIPELINE
 
 All scales and caps MUST use deterministic integer or ratio semantics.
 
+`MATERIALIZE` converts the currently selected active templates into concrete effects in template order. Its optional `statuses` list defaults to `[ACCEPTED]` and, when present, MUST be a nonempty duplicate-free subset of `ACCEPTED` and `REJECTED`. Its optional `effect_classes` list restricts materialization to matching classes and, when present, MUST be nonempty, duplicate-free, and contain only nonempty identifiers. Materializing while the decision status is `REJECTED` requires `statuses` to include `REJECTED`, requires a nonempty `effect_classes` list, and every selected template MUST have class `REACTION`; otherwise the runtime faults before emitting effects.
+
 ## 21.6 Rejection
 
 A rejected candidate does not materialize remaining offense effect templates.
 
 Reaction rules MAY still emit explicitly permitted effects based on the rejection reason.
+
+Appending a template does not emit it. `STOP_STAGE` or `STOP_PIPELINE` preserves the template in the decision record but prevents later stages from materializing it. A rejected candidate therefore emits a reaction only when an eligible rule executes an explicit rejected-status `MATERIALIZE` operation before the pipeline stops.
 
 ## 21.7 Redirection
 
@@ -2206,6 +2254,8 @@ CHILD
 
 Core events are available only during their delivery tick.
 
+When `EVENT_DELIVERY` is frozen for a target action on an event's delivery tick, the event is not visible or expired. The runtime MUST set `delivery_tick` to the next logical tick and retain the modified envelope in authoritative pending-event state. Repeated frozen delivery ticks repeat this one-tick deferral. Entity and broadcast delivery are unaffected unless an authoritative extension defines corresponding freeze targeting.
+
 Persistent conditions MUST be represented as:
 
 - Registers
@@ -2552,7 +2602,11 @@ max_redirects_per_candidate
 max_definition_size_bytes
 max_snapshot_size_bytes
 max_extension_state_bytes
+max_expression_depth
+max_expression_nodes
 ```
+
+`max_expression_depth` and `max_expression_nodes` MUST be positive. Every guard, predicate, interaction condition, and expression-valued effect payload uses these same profile limits. Exceeding either limit produces `STATE_INVARIANT_FAILURE` before expression results are applied.
 
 The reference profile SHOULD initially use conservative finite values and expose them in its definition-set hash.
 

@@ -17,8 +17,13 @@
         "max_quanta_per_action_per_tick", "max_internal_transitions_per_action_per_tick",
         "max_buffer_entries_per_action", "max_pending_events_per_entity", "max_candidates_per_tick",
         "max_effects_per_tick", "max_redirects_per_candidate", "max_definition_size_bytes",
-        "max_snapshot_size_bytes", "max_extension_state_bytes"
+        "max_snapshot_size_bytes", "max_extension_state_bytes", "max_expression_depth",
+        "max_expression_nodes"
       ],
+      "properties": {
+        "max_expression_depth": {"type": "integer", "minimum": 1},
+        "max_expression_nodes": {"type": "integer", "minimum": 1}
+      },
       "additionalProperties": {"type": "integer", "minimum": 0},
       "propertyNames": {
         "enum": [
@@ -26,7 +31,8 @@
           "max_quanta_per_action_per_tick", "max_internal_transitions_per_action_per_tick",
           "max_buffer_entries_per_action", "max_pending_events_per_entity", "max_candidates_per_tick",
           "max_effects_per_tick", "max_redirects_per_candidate", "max_definition_size_bytes",
-          "max_snapshot_size_bytes", "max_extension_state_bytes"
+          "max_snapshot_size_bytes", "max_extension_state_bytes", "max_expression_depth",
+          "max_expression_nodes"
         ]
       }
     },

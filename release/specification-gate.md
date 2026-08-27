@@ -1,12 +1,14 @@
 # Specification Gate
 
-State: OPEN
+State: CLOSED for `3.0.0-draft.1`
 
-## Resolved contradiction
+## Resolved contradictions and ambiguities
 
 The source draft header pointed to release gates in §27. Release gates are defined in §45, while §27 defines canonical serialization and hashing. The repository specification now points to §45. A complete contradiction audit remains open.
 
 The source draft also required actions to enter an initial node without declaring how that node was selected. The repository specification and action schema now require an explicit `initial_node`; map insertion order has no semantic effect.
+
+The complete audit resolved deferred progression state, atomic-group scope, freeze stacking and domain expansion, parent termination precedence, defense selection, materialization and rejected reactions, frozen-event lifetime, undeclared ordering/reference fields, and expression evaluation budgets. Exact decisions remain recorded in `../spec/open-issues.md`.
 
 ## Required evidence
 
@@ -17,4 +19,6 @@ The source draft also required actions to enter an initial node without declarin
 - all fault behavior explicit
 - PCAM-24 clearly separated from Core
 
-Open normative gaps are tracked in `../spec/open-issues.md`.
+Evidence: `specification-audit.md` and `../reference/python/tests/test_specification_audit.py`.
+
+This gate closure applies only to the current Normative Candidate text. Any new normative issue reopens the gate. It does not permit Stable, Normative status while the other §45 gates remain open.

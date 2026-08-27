@@ -45,6 +45,7 @@ class InteractionCandidate:
     contact_id: str
     contact_partition: str = "default"
     host_context: dict[str, object] | None = None
+    defense_fact_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -87,6 +88,7 @@ def canonical_candidates(candidates: tuple[InteractionCandidate, ...]) -> tuple[
                 item.target_entity_id,
                 item.source_action_instance_id,
                 item.offense_fact_id.encode("utf-8"),
+                (item.defense_fact_id or "").encode("utf-8"),
                 item.contact_partition.encode("utf-8"),
                 item.contact_id.encode("utf-8"),
                 item.candidate_id.encode("utf-8"),
@@ -115,6 +117,8 @@ def resolve_candidate(
     rules: tuple[InteractionRule, ...],
     max_redirects: int = 8,
     redirect_limit_policy: Literal["FAULT", "REJECT"] = "FAULT",
+    max_expression_depth: int = 64,
+    max_expression_nodes: int = 4096,
 ) -> InteractionDecision:
     validate_rules(rules)
     ordered_rules = tuple(sorted(rules, key=lambda item: (STAGES.index(item.stage), item.order)))
@@ -137,7 +141,12 @@ def resolve_candidate(
             stop_stage = False
             for rule in (item for item in ordered_rules if item.stage == stage):
                 context = _context(candidate, current_target, offense, defense, status, tags)
-                if evaluate(rule.condition, context) is not True:
+                if evaluate(
+                    rule.condition,
+                    context,
+                    max_depth=max_expression_depth,
+                    max_nodes=max_expression_nodes,
+                ) is not True:
                     continue
                 trace.append({"rule_id": rule.rule_id, "stage": stage, "order": rule.order})
                 for operation_index, operation in enumerate(rule.operations):
@@ -199,7 +208,12 @@ def resolve_candidate(
                         templates.append(
                             replace(
                                 template,
-                                payload=_resolve_payload(template.payload, context),
+                                payload=_resolve_payload(
+                                    template.payload,
+                                    context,
+                                    max_expression_depth,
+                                    max_expression_nodes,
+                                ),
                             )
                         )
                     elif operation.op == "ADD_DECISION_TAG":
@@ -207,9 +221,30 @@ def resolve_candidate(
                     elif operation.op == "REQUEST_RECEIPT":
                         receipts.append(str(data["condition"]))
                     elif operation.op == "MATERIALIZE":
-                        if status == "ACCEPTED":
+                        statuses = _materialize_list(
+                            data.get("statuses", ("ACCEPTED",)),
+                            "statuses",
+                        )
+                        if not set(statuses).issubset({"ACCEPTED", "REJECTED"}):
+                            raise _fault("materialization statuses contain an unknown status")
+                        effect_classes = _materialize_list(
+                            data.get("effect_classes", ()),
+                            "effect_classes",
+                            allow_empty=True,
+                        )
+                        selected = [
+                            template
+                            for template in templates
+                            if not effect_classes or template.effect_class in effect_classes
+                        ]
+                        if status == "REJECTED" and status in statuses:
+                            if not effect_classes or any(template.effect_class != "REACTION" for template in selected):
+                                raise _fault(
+                                    "rejected materialization requires explicit REACTION effect classes"
+                                )
+                        if status in statuses:
                             generated.extend(
-                                _materialize(candidate, current_target, templates, rule.rule_id, operation_index)
+                                _materialize(candidate, current_target, selected, rule.rule_id, operation_index)
                             )
                     elif operation.op == "STOP_STAGE":
                         stop_stage = True
@@ -260,6 +295,7 @@ def _context(
         "candidate.target_entity_id": current_target,
         "candidate.source_action_instance_id": candidate.source_action_instance_id,
         "candidate.offense_fact_id": candidate.offense_fact_id,
+        "candidate.defense_fact_id": candidate.defense_fact_id,
         "offense.channels": frozenset(offense.channels),
         "offense.tags": frozenset(offense.tags),
         "offense.fact_id": offense.fact_id,
@@ -272,13 +308,29 @@ def _context(
     }
 
 
-def _resolve_payload(payload: object, context: dict[str, object]) -> object:
+def _resolve_payload(
+    payload: object,
+    context: dict[str, object],
+    max_expression_depth: int,
+    max_expression_nodes: int,
+) -> object:
     if isinstance(payload, dict):
         if set(payload) in ({"literal"}, {"ref"}, {"op", "args"}):
-            return evaluate(payload, context)
-        return {key: _resolve_payload(value, context) for key, value in payload.items()}
+            return evaluate(
+                payload,
+                context,
+                max_depth=max_expression_depth,
+                max_nodes=max_expression_nodes,
+            )
+        return {
+            key: _resolve_payload(value, context, max_expression_depth, max_expression_nodes)
+            for key, value in payload.items()
+        }
     if isinstance(payload, list):
-        return [_resolve_payload(value, context) for value in payload]
+        return [
+            _resolve_payload(value, context, max_expression_depth, max_expression_nodes)
+            for value in payload
+        ]
     return payload
 
 
@@ -308,6 +360,22 @@ def _materialize(
         )
         for index, template in enumerate(templates)
     ]
+
+
+def _materialize_list(
+    value: object,
+    field: str,
+    *,
+    allow_empty: bool = False,
+) -> tuple[str, ...]:
+    if not isinstance(value, (list, tuple)):
+        raise _fault(f"materialization {field} must be a list")
+    items = tuple(value)
+    if (not items and not allow_empty) or any(type(item) is not str or not item for item in items):
+        raise _fault(f"materialization {field} must contain nonempty strings")
+    if len(set(items)) != len(items):
+        raise _fault(f"materialization {field} must not contain duplicates")
+    return items
 
 
 def _integer_payload(template: EffectTemplate) -> int:

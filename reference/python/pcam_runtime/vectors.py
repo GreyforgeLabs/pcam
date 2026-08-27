@@ -115,6 +115,8 @@ def _runtime_profile(value: dict[str, Any]) -> RuntimeProfile:
         max_definition_size_bytes=int(limits["max_definition_size_bytes"]),
         max_snapshot_size_bytes=int(limits["max_snapshot_size_bytes"]),
         max_extension_state_bytes=int(limits["max_extension_state_bytes"]),
+        max_expression_depth=int(limits.get("max_expression_depth", 64)),
+        max_expression_nodes=int(limits.get("max_expression_nodes", 4096)),
         fault_policy=str(value["fault_policy"]),
         network_profiles=tuple(_network_profile(item) for item in value["network_profiles"]),
         id=str(value["id"]),

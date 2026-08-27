@@ -10,7 +10,7 @@
 
 | Gate | State | Evidence |
 |---|---|---|
-| Specification | open | `release/specification-gate.md` |
+| Specification | closed | `release/specification-gate.md` |
 | Schemas | open | `release/schema-gate.md` |
 | Reference runtime | open | `release/reference-runtime-gate.md` |
 | Independent implementation | open | `release/independent-implementation-gate.md` |
@@ -19,4 +19,4 @@
 | Comparative experiments | open | `release/comparative-experiment-gate.md` |
 | Claims | open | `release/claims-gate.md` |
 
-The source draft's §27/§45 release-gate reference contradiction is corrected in the repository specification. The complete specification audit remains open.
+The current Normative Candidate specification audit is closed. Stable, Normative status remains prohibited until every other §45 gate closes.

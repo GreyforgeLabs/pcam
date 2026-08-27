@@ -141,6 +141,8 @@ class RuntimeProfile:
     max_definition_size_bytes: int = 65536
     max_snapshot_size_bytes: int = 262144
     max_extension_state_bytes: int = 4096
+    max_expression_depth: int = 64
+    max_expression_nodes: int = 4096
     fault_policy: str = "ABORT_SIMULATION"
     network_profiles: tuple[NetworkProfile, ...] = (NetworkProfile(),)
     id: str = "pcam.reference.runtime.v1"
@@ -177,12 +179,20 @@ class RuntimeProfile:
             self.max_definition_size_bytes,
             self.max_snapshot_size_bytes,
             self.max_extension_state_bytes,
+            self.max_expression_depth,
+            self.max_expression_nodes,
         )
         if any(value < 0 for value in limit_values):
             raise PCAMError(
                 ResultCode.DEFINITION_REJECTED,
                 PCAMFault.STATE_INVARIANT_FAILURE,
                 "runtime limits must be non-negative",
+            )
+        if self.max_expression_depth == 0 or self.max_expression_nodes == 0:
+            raise PCAMError(
+                ResultCode.DEFINITION_REJECTED,
+                PCAMFault.STATE_INVARIANT_FAILURE,
+                "expression limits must be positive",
             )
         if not self.network_profiles:
             raise PCAMError(
@@ -238,6 +248,8 @@ class RuntimeProfile:
                 "max_definition_size_bytes": self.max_definition_size_bytes,
                 "max_snapshot_size_bytes": self.max_snapshot_size_bytes,
                 "max_extension_state_bytes": self.max_extension_state_bytes,
+                "max_expression_depth": self.max_expression_depth,
+                "max_expression_nodes": self.max_expression_nodes,
             },
             "rng_profiles": sorted(self.rng_profiles),
             "network_profiles": sorted(self.network_profiles, key=lambda profile: profile.id),

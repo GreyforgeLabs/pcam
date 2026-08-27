@@ -213,6 +213,7 @@ class TickExecutor:
                 item.target_entity_id,
                 item.source_instance_id,
                 item.fact_id.encode("utf-8"),
+                (item.defense_fact_id or "").encode("utf-8"),
                 item.contact_partition.encode("utf-8"),
                 item.contact_id.encode("utf-8"),
                 item.candidate_id.encode("utf-8"),
@@ -699,7 +700,6 @@ class TickExecutor:
             )
             action = replace(
                 action,
-                child_instance_ids=(*action.child_instance_ids, child_id),
                 transition_serial=action.transition_serial + 1,
                 input_buffer=apply_consumption(
                     action.input_buffer,
@@ -710,8 +710,10 @@ class TickExecutor:
                 ),
             )
             if transition.parent_policy == "TERMINATE_PARENT":
-                action = replace(action, lifecycle_state="TERMINATED")
+                state, action = self._terminate_action(state, action, "TERMINATED")
+                action = replace(action, child_instance_ids=(*action.child_instance_ids, child_id))
             else:
+                action = replace(action, child_instance_ids=(*action.child_instance_ids, child_id))
                 domains = {
                     "CONTINUE": (),
                     "FREEZE_PROGRESSION": ("PROGRESSION",),
@@ -864,6 +866,8 @@ class TickExecutor:
                         reference,
                         predicate_value,
                     ),
+                    max_depth=self.profile.max_expression_depth,
+                    max_nodes=self.profile.max_expression_nodes,
                 )
                 if type(result) is not bool:
                     raise PCAMError(
@@ -893,6 +897,8 @@ class TickExecutor:
                 reference,
                 predicates.__getitem__,
             ),
+            max_depth=self.profile.max_expression_depth,
+            max_nodes=self.profile.max_expression_nodes,
         )
 
     @staticmethod
@@ -1011,6 +1017,7 @@ class TickExecutor:
                 contact_id=candidate.contact_id,
                 contact_partition=candidate.contact_partition,
                 host_context=candidate.host_context,
+                defense_fact_id=candidate.defense_fact_id,
             )
             defenses = self._defense_map(state, active_bindings, candidate.defense_fact_id)
             definition = self.definitions_by_hash[action.definition_hash]
@@ -1021,6 +1028,8 @@ class TickExecutor:
                 defenses,
                 self.interaction_rules,
                 max_redirects=self.profile.max_redirects_per_candidate,
+                max_expression_depth=self.profile.max_expression_depth,
+                max_expression_nodes=self.profile.max_expression_nodes,
             )
             typed_effects.extend(decision.generated_effects)
             accepted = decision.status == "ACCEPTED"

@@ -40,6 +40,7 @@ def test_networked_profiles_require_mechanism_and_limits():
 def test_runtime_profile_hash_binds_limits_and_network_declarations():
     base = RuntimeProfile()
     changed_limit = RuntimeProfile(max_effects_per_tick=base.max_effects_per_tick + 1)
+    changed_expression_limit = RuntimeProfile(max_expression_nodes=base.max_expression_nodes + 1)
     changed_network = RuntimeProfile(
         network_profiles=(
             NetworkProfile(
@@ -53,7 +54,14 @@ def test_runtime_profile_hash_binds_limits_and_network_declarations():
             ),
         )
     )
-    assert len({base.profile_hash, changed_limit.profile_hash, changed_network.profile_hash}) == 3
+    assert len(
+        {
+            base.profile_hash,
+            changed_limit.profile_hash,
+            changed_expression_limit.profile_hash,
+            changed_network.profile_hash,
+        }
+    ) == 4
 
     definition = ActionDefinition("PROFILE", 1, 0, (NodeDefinition("RUN"),))
     assert TickExecutor((definition,), base).definition_set_hash != TickExecutor(

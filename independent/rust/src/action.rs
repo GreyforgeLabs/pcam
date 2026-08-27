@@ -98,6 +98,8 @@ pub struct BufferEntry {
 pub struct RuntimeLimits {
     pub max_quanta_per_action_per_tick: u64,
     pub max_internal_transitions_per_tick: u64,
+    pub max_expression_depth: usize,
+    pub max_expression_nodes: usize,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -362,7 +364,7 @@ fn tick_inner(
             capture_inputs(action, definition, current_tick, inputs)?;
         }
         if !freezes.pre_advance_transitions {
-            apply_selected(action, definition, "PRE_ADVANCE", &mut applied)?;
+            apply_selected(action, definition, "PRE_ADVANCE", &mut applied, limits)?;
         }
     }
     if action.lifecycle_state != "RUNNING" {
@@ -412,7 +414,7 @@ fn tick_inner(
             .ok_or(ActionError::IntegerOverflow)?;
         action.local_step = local_step;
         action.node_step = node_step;
-        if let Some(transition) = select(action, definition, "AFTER_QUANTUM")? {
+        if let Some(transition) = select(action, definition, "AFTER_QUANTUM", limits)? {
             if internal_transitions >= limits.max_internal_transitions_per_tick {
                 return Err(ActionError::TransitionLimitExceeded);
             }
@@ -424,9 +426,9 @@ fn tick_inner(
         }
     }
     if action.lifecycle_state == "RUNNING" && !freezes.post_advance_transitions {
-        apply_selected(action, definition, "POST_ADVANCE", &mut applied)?;
+        apply_selected(action, definition, "POST_ADVANCE", &mut applied, limits)?;
     }
-    semantic_snapshot(action, definition)?;
+    semantic_snapshot(action, definition, limits)?;
     if !freezes.buffer_expiry {
         expire_buffer(&mut action.input_buffer);
     }
@@ -441,8 +443,9 @@ fn apply_selected(
     definition: &ActionDefinition,
     point: &str,
     applied: &mut Vec<String>,
+    limits: RuntimeLimits,
 ) -> Result<bool, ActionError> {
-    let Some(transition) = select(action, definition, point)? else {
+    let Some(transition) = select(action, definition, point, limits)? else {
         return Ok(false);
     };
     apply_transition(action, definition, transition)?;
@@ -454,6 +457,7 @@ fn select<'a>(
     action: &ActionInstance,
     definition: &'a ActionDefinition,
     point: &str,
+    limits: RuntimeLimits,
 ) -> Result<Option<&'a TransitionDefinition>, ActionError> {
     let mut eligible = definition
         .transitions
@@ -467,7 +471,7 @@ fn select<'a>(
                 .as_ref()
                 .is_none_or(|command| select_buffer_entry(&action.input_buffer, command).is_some())
         })
-        .filter_map(|transition| match guard(action, transition) {
+        .filter_map(|transition| match guard(action, transition, limits) {
             Ok(true) => Some(Ok(transition)),
             Ok(false) => None,
             Err(error) => Some(Err(error)),
@@ -477,15 +481,24 @@ fn select<'a>(
     Ok(eligible.pop())
 }
 
-fn guard(action: &ActionInstance, transition: &TransitionDefinition) -> Result<bool, ActionError> {
+fn guard(
+    action: &ActionInstance,
+    transition: &TransitionDefinition,
+    limits: RuntimeLimits,
+) -> Result<bool, ActionError> {
     let Some(expression) = &transition.guard_expression else {
         return Ok(true);
     };
     let context = action_context(action);
-    evaluate(expression, &context, 64, 4096)
-        .map_err(map_expression)?
-        .as_bool()
-        .ok_or(ActionError::StateInvariant)
+    evaluate(
+        expression,
+        &context,
+        limits.max_expression_depth,
+        limits.max_expression_nodes,
+    )
+    .map_err(map_expression)?
+    .as_bool()
+    .ok_or(ActionError::StateInvariant)
 }
 
 fn action_context(action: &ActionInstance) -> BTreeMap<String, Value> {
@@ -509,6 +522,7 @@ fn action_context(action: &ActionInstance) -> BTreeMap<String, Value> {
 fn semantic_snapshot(
     action: &mut ActionInstance,
     definition: &ActionDefinition,
+    limits: RuntimeLimits,
 ) -> Result<(), ActionError> {
     let definitions: BTreeMap<&str, &PredicateDefinition> = definition
         .predicates
@@ -525,6 +539,7 @@ fn semantic_snapshot(
             &mut values,
             &mut visiting,
             &mut context,
+            limits,
         )?;
     }
     for predicate in &definition.predicates {
@@ -561,6 +576,7 @@ fn evaluate_predicate(
     values: &mut BTreeMap<String, bool>,
     visiting: &mut BTreeSet<String>,
     context: &mut BTreeMap<String, Value>,
+    limits: RuntimeLimits,
 ) -> Result<bool, ActionError> {
     if let Some(value) = values.get(identifier) {
         return Ok(*value);
@@ -572,13 +588,19 @@ fn evaluate_predicate(
         .get(identifier)
         .ok_or(ActionError::InvalidDefinition)?;
     for dependency in predicate_dependencies(&predicate.expression) {
-        let value = evaluate_predicate(&dependency, definitions, values, visiting, context)?;
+        let value =
+            evaluate_predicate(&dependency, definitions, values, visiting, context, limits)?;
         context.insert(format!("action.predicate.{dependency}"), json!(value));
     }
-    let value = evaluate(&predicate.expression, context, 64, 4096)
-        .map_err(map_expression)?
-        .as_bool()
-        .ok_or(ActionError::StateInvariant)?;
+    let value = evaluate(
+        &predicate.expression,
+        context,
+        limits.max_expression_depth,
+        limits.max_expression_nodes,
+    )
+    .map_err(map_expression)?
+    .as_bool()
+    .ok_or(ActionError::StateInvariant)?;
     visiting.remove(identifier);
     values.insert(identifier.to_owned(), value);
     context.insert(format!("action.predicate.{identifier}"), json!(value));

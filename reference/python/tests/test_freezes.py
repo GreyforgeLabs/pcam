@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import pytest
 
 from pcam_runtime import FreezeToken, add_token, expire_freeze_tokens, is_frozen, progression_accrual
@@ -57,3 +59,18 @@ def test_incompatible_sum_group_faults():
     )
     with pytest.raises(PCAMError):
         add_token((first,), second)
+
+
+def test_max_duration_keeps_individual_tokens_and_reject_new_is_group_scoped():
+    shorter = _token(1, duration=2, stack_policy="MAX_DURATION")
+    longer = _token(2, duration=5, stack_policy="MAX_DURATION")
+    tokens = add_token(add_token((), shorter), longer)
+    assert tokens == (shorter, longer)
+    assert max(token.expiration_tick for token in tokens) == longer.expiration_tick
+
+    existing = _token(3, stack_group="reject")
+    rejected = _token(4, stack_group="reject", stack_policy="REJECT_NEW")
+    assert add_token((existing,), rejected) == (existing,)
+
+    other_target = replace(rejected, target_id=21, token_id=5)
+    assert add_token((existing,), other_target) == (existing, other_target)
