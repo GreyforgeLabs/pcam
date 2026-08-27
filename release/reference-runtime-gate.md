@@ -20,5 +20,5 @@ Direct starts now validate declared parameter bindings before allocation, deep-c
 
 ## Known remaining gate gaps
 
-- No bounded mixed-stage interpreter divergence is known after the shared vector, and all 18 action-document fields now have exact cross-language hash-binding evidence. Complete runtime conformance remains unclaimed until the remaining hostile canonicalization, networking-service, and cross-platform evidence in the requirements matrix is closed.
+- No bounded mixed-stage interpreter divergence is known after the shared vector, all 18 action-document fields have exact cross-language hash-binding evidence, and the hostile PCAM-CJ1 corpus covers every serialization rule. Complete runtime conformance remains unclaimed until the remaining networking-service and cross-platform evidence in the requirements matrix is closed.
 - Linux ARM64 digest evidence is unavailable, so this gate cannot contribute to cross-platform closure.

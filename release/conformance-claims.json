@@ -12,7 +12,7 @@
         "predicate_cycle_detection": {"status": "PASS", "evidence": ["reference/python/tests/test_schema.py", "independent/rust/src/action.rs"]},
         "priority_validation": {"status": "PASS", "evidence": ["tests/vectors/action-runtime.json"]},
         "limit_validation": {"status": "PASS", "evidence": ["schemas/runtime-profile.schema.json", "reference/python/tests/test_security_limits.py"]},
-        "canonical_hashing": {"status": "PASS", "evidence": ["tests/vectors/pcam-cj1.json", "tests/vectors/full-definition-hashes.json", "reference/python/tests/test_full_definition_hashes.py", "independent/rust/tests/shared_vectors.rs", "independent/rust/tests/full_definition_hash_vectors.rs"]},
+        "canonical_hashing": {"status": "PASS", "evidence": ["tests/vectors/pcam-cj1.json", "tests/vectors/pcam-cj1-hostile.json", "tests/vectors/full-definition-hashes.json", "reference/python/tests/test_full_definition_hashes.py", "reference/python/tests/test_hostile_canonical.py", "independent/rust/tests/shared_vectors.rs", "independent/rust/tests/full_definition_hash_vectors.rs", "independent/rust/tests/hostile_canonical_vectors.rs"]},
         "meaningful_diagnostics": {"status": "PASS", "evidence": ["reference/python/pcam_runtime/schema.py", "release/schema-audit.json", "reference/python/tests/test_schema_audit.py"]}
       }
     },

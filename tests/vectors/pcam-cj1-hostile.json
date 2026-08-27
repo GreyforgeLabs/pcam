@@ -1,0 +1,166 @@
+{
+  "profile": "PCAM-CJ1",
+  "kind": "hostile_canonicalization_vectors",
+  "id": "pcam-cj1-hostile",
+  "rule_coverage": {
+    "1": ["raw-invalid-utf8", "raw-bom", "unicode-key-order"],
+    "2": ["nfc-composition", "raw-escaped-nfc", "set-nfc-collision", "logical-map-nfc-collision"],
+    "3": ["full-definition-hashes", "schema-mutations"],
+    "4": ["unicode-key-order", "extension-field-order"],
+    "5": ["raw-whitespace-and-order"],
+    "6": ["integer-and-array-order", "raw-decimal-float", "raw-exponent-float", "raw-positive-overflow", "raw-negative-overflow"],
+    "7": ["raw-leading-zero", "raw-integer-boundaries", "raw-positive-overflow", "raw-negative-overflow"],
+    "8": ["raw-negative-zero-root", "raw-negative-zero-nested", "raw-string-negative-zero"],
+    "9": ["integer-and-array-order"],
+    "10": ["integer-and-array-order", "explicit-null", "absent-field"],
+    "11": ["integer-and-array-order"],
+    "12": ["set-unicode-order", "set-scalar-order", "set-nfc-collision"],
+    "13": ["logical-map-integer-order", "logical-map-mixed-order", "logical-map-nfc-collision"],
+    "14": ["explicit-null", "absent-field"],
+    "15": ["all-control-escapes"],
+    "16": ["nfc-composition", "raw-escaped-nfc"],
+    "17": ["extension-field-order"],
+    "18": ["raw-decimal-float", "raw-exponent-float", "raw-nonfinite"]
+  },
+  "external_evidence": {
+    "full-definition-hashes": "tests/vectors/full-definition-hashes.json",
+    "schema-mutations": "tests/invalid/schema-mutations.json"
+  },
+  "value_cases": [
+    {
+      "id": "unicode-key-order",
+      "input": {"😀": 6, "中": 5, "Ω": 4, "é": 3, "a": 2, "A": 1},
+      "canonical": "{\"A\":1,\"a\":2,\"é\":3,\"Ω\":4,\"中\":5,\"😀\":6}",
+      "sha256": "507a35101f577f460548a2c56dfa4c6e9119df1ffd7e4ab370b5f198a7fc5852"
+    },
+    {
+      "id": "nfc-composition",
+      "input": {"angstrom": "Å", "hangul": "가", "reordered": "é"},
+      "canonical": "{\"angstrom\":\"Å\",\"hangul\":\"가\",\"reordered\":\"é\"}",
+      "sha256": "6ce30607164a9e3a4c09dd299732254acb3a265116c87028c52cb2ea8ea1dff2"
+    },
+    {
+      "id": "all-control-escapes",
+      "input": "\u0000\u0001\u0002\u0003\u0004\u0005\u0006\u0007\b\t\n\u000b\f\r\u000e\u000f\u0010\u0011\u0012\u0013\u0014\u0015\u0016\u0017\u0018\u0019\u001a\u001b\u001c\u001d\u001e\u001f\"\\/",
+      "canonical": "\"\\u0000\\u0001\\u0002\\u0003\\u0004\\u0005\\u0006\\u0007\\b\\t\\n\\u000b\\f\\r\\u000e\\u000f\\u0010\\u0011\\u0012\\u0013\\u0014\\u0015\\u0016\\u0017\\u0018\\u0019\\u001a\\u001b\\u001c\\u001d\\u001e\\u001f\\\"\\\\/\"",
+      "sha256": "46b9428a671e87af4df906df5537d97d0e6fb0f1cc3551d6c2740ef39da00395"
+    },
+    {
+      "id": "integer-and-array-order",
+      "input": [null, false, true, 0, -1, 9223372036854775807, 18446744073709551615, [3, 2, 1]],
+      "canonical": "[null,false,true,0,-1,9223372036854775807,18446744073709551615,[3,2,1]]",
+      "sha256": "d7d5b98c7549eaed5017033236458594ac4aeaa83b8233840e9186afe3946a6a"
+    },
+    {
+      "id": "explicit-null",
+      "input": {"optional": null},
+      "canonical": "{\"optional\":null}",
+      "sha256": "f66ec4e197d912a196b9eb28968da156ab0d83c729c6d029d978e4b1b9d6bc26"
+    },
+    {
+      "id": "absent-field",
+      "input": {},
+      "canonical": "{}",
+      "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+    },
+    {
+      "id": "extension-field-order",
+      "input": {
+        "extensions": {
+          "zeta.example": {"z": 1, "a": 2},
+          "alpha.example": {"field.z": 3, "field.a": 4}
+        }
+      },
+      "canonical": "{\"extensions\":{\"alpha.example\":{\"field.a\":4,\"field.z\":3},\"zeta.example\":{\"a\":2,\"z\":1}}}",
+      "sha256": "fb49a4d3b111058fd29702281afaa746bf93e76eaa71d501510908cbce6e11be"
+    }
+  ],
+  "raw_json_cases": [
+    {
+      "id": "raw-whitespace-and-order",
+      "source": " { \"z\" : 1, \"a\" : [ true, null ] } \n",
+      "outcome": "OK",
+      "canonical": "{\"a\":[true,null],\"z\":1}",
+      "sha256": "ca6da02fba3343778761e7785f2b55f7fb17b36ce16eee3492dc392fa7c9deaa"
+    },
+    {
+      "id": "raw-escaped-nfc",
+      "source": "{\"e\\u0301\":\"A\\u030a\",\"line\":\"\\u2028\\u2029\"}",
+      "outcome": "OK",
+      "canonical": "{\"line\":\"  \",\"é\":\"Å\"}",
+      "sha256": "12ccdea2ccbfd9c005208c309ee30efedb8cc2bf5cdc97266416916918fa38a9"
+    },
+    {
+      "id": "raw-integer-boundaries",
+      "source": "[-9223372036854775808,18446744073709551615,0,7]",
+      "outcome": "OK",
+      "canonical": "[-9223372036854775808,18446744073709551615,0,7]",
+      "sha256": "f25d697e535fed3c9b4842692104e311bb1f5150f99ef1384ffd5c5bf48b761e"
+    },
+    {
+      "id": "raw-string-negative-zero",
+      "source": "{\"escaped\":\"\\\"-0\\\"\",\"text\":\"-0\"}",
+      "outcome": "OK",
+      "canonical": "{\"escaped\":\"\\\"-0\\\"\",\"text\":\"-0\"}",
+      "sha256": "44bf09b8a19ca4f45a9ef27d0ad68c3162a63f986e416310cdff84dbc1de3a99"
+    },
+    {"id": "raw-negative-zero-root", "source": "-0", "outcome": "REJECT", "error": "NEGATIVE_ZERO"},
+    {"id": "raw-negative-zero-nested", "source": "{\"value\":[1,-0]}", "outcome": "REJECT", "error": "NEGATIVE_ZERO"},
+    {"id": "raw-decimal-float", "source": "{\"value\":1.0}", "outcome": "REJECT", "error": "FLOATING_POINT"},
+    {"id": "raw-exponent-float", "source": "1e2", "outcome": "REJECT", "error": "FLOATING_POINT"},
+    {"id": "raw-positive-overflow", "source": "18446744073709551616", "outcome": "REJECT", "error": "INTEGER_DOMAIN"},
+    {"id": "raw-negative-overflow", "source": "-9223372036854775809", "outcome": "REJECT", "error": "INTEGER_DOMAIN"},
+    {"id": "raw-nonfinite", "source": "NaN", "outcome": "REJECT", "error": "INVALID_JSON"},
+    {"id": "raw-leading-zero", "source": "01", "outcome": "REJECT", "error": "INVALID_JSON"},
+    {"id": "raw-duplicate-key", "source": "{\"a\":1,\"a\":2}", "outcome": "REJECT", "error": "KEY_COLLISION"},
+    {"id": "raw-normalized-key-collision", "source": "{\"e\\u0301\":1,\"\\u00e9\":2}", "outcome": "REJECT", "error": "KEY_COLLISION"},
+    {"id": "raw-trailing-data", "source": "{}[]", "outcome": "REJECT", "error": "INVALID_JSON"},
+    {"id": "raw-lone-surrogate", "source": "\"\\ud800\"", "outcome": "REJECT", "error": "INVALID_JSON"},
+    {"id": "raw-invalid-utf8", "source_hex": "22ff22", "outcome": "REJECT", "error": "INVALID_JSON"},
+    {"id": "raw-bom", "source_hex": "efbbbf7b7d", "outcome": "REJECT", "error": "INVALID_JSON"}
+  ],
+  "set_cases": [
+    {
+      "id": "set-unicode-order",
+      "items": ["é", "z", "a", "Ω", "中"],
+      "outcome": "OK",
+      "canonical": "[\"a\",\"z\",\"é\",\"Ω\",\"中\"]",
+      "sha256": "d0e8346eef75442621dbc84aa6d2267c63ffa13f20292b7441e7baf85357650c"
+    },
+    {
+      "id": "set-scalar-order",
+      "items": [10, -1, 2, 0],
+      "outcome": "OK",
+      "canonical": "[-1,0,10,2]",
+      "sha256": "087f3f9b9f7a223857d2de58b71da6fb271aaa950bab9793d461ede61162aa5a"
+    },
+    {
+      "id": "set-nfc-collision",
+      "items": ["é", "é"],
+      "outcome": "REJECT",
+      "error": "SET_COLLISION"
+    }
+  ],
+  "logical_map_cases": [
+    {
+      "id": "logical-map-integer-order",
+      "entries": [[10, "ten"], [-1, "minus"], [2, "two"], [0, "zero"]],
+      "outcome": "OK",
+      "canonical": "[[-1,\"minus\"],[0,\"zero\"],[10,\"ten\"],[2,\"two\"]]",
+      "sha256": "d6136f57524ea95003ef5dd87c16261bbb7dffa24f6ca5e632c25316c7ed68b9"
+    },
+    {
+      "id": "logical-map-mixed-order",
+      "entries": [[null, "null"], [true, "true"], [false, "false"], [2, "two"], ["a", "string"]],
+      "outcome": "OK",
+      "canonical": "[[\"a\",\"string\"],[2,\"two\"],[false,\"false\"],[null,\"null\"],[true,\"true\"]]",
+      "sha256": "c243073aacc5133874c59e0bcc5909127bf76559ea72b92129294e29f4dee58e"
+    },
+    {
+      "id": "logical-map-nfc-collision",
+      "entries": [[1, "one"], ["é", "composed"], ["é", "decomposed"]],
+      "outcome": "REJECT",
+      "error": "LOGICAL_KEY_COLLISION"
+    }
+  ]
+}

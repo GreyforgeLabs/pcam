@@ -4,7 +4,7 @@ This package is intentionally narrow. It exercises the first conformance-
 preserving slice without claiming full PCAM-RUN-3 or rollback conformance.
 """
 
-from .canonical import canonical_dumps, canonical_hash
+from .canonical import canonical_dumps, canonical_hash, canonical_hash_json, canonicalize_json
 from .documents import action_from_document, interaction_rules_from_document
 from .errors import PCAMError, PCAMFault, ResultCode
 from .extensions import ExtensionRegistration, ExtensionRegistry, ExtensionValidation
@@ -119,7 +119,9 @@ __all__ = [
     "canonical_events",
     "canonical_candidates",
     "canonical_hash",
+    "canonical_hash_json",
     "canonical_intents",
+    "canonicalize_json",
     "compile_pcam24",
     "evaluate",
     "deliver_due",

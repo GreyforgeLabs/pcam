@@ -59,6 +59,7 @@
 - Completed bounded Core fault and limit coverage with 27 seed-pinned integrated progression, interaction, and effect fault cases spanning all three policies, varied bounds and overflow magnitudes, atomic rollback, exact scope, restore, and raw-enumeration invariance in Python and Rust.
 - Added a shared four-tick mixed-stage runtime vector that combines child arbitration and progression, same-tick semantic interaction and effect commit, maintenance events, complete-state restore, corrected-input retained replay, and raw start-order invariance with exact Python/Rust digests.
 - Closed bounded action-definition binding with a schema-valid all-field cross-language hash corpus and recursive immutable capture of nested metadata, declarations, expressions, effect payloads, fact attributes, transition data, and extensions in the Python schema adapter.
+- Closed bounded PCAM-CJ1 hostile coverage with exact Python/Rust bytes and hashes across all 18 rules, raw negative-zero and duplicate-key preservation, explicit set and logical-map encoders, and fail-closed normalized collection collisions.
 - Added independent runtime freeze controls and shared schedules for HOLD/ACCRUE progression, transition domains, input capture, and buffer expiry.
 - Added canonical cross-language action-state projection hashes plus restore-and-continue digest vectors for every shared runtime case.
 - Added a schema-valid conformance claim manifest with exact §37 requirement sets, evidence-path validation, dependency enforcement, and fail-closed premature-claim tests.
