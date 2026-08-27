@@ -24,7 +24,7 @@ This matrix preserves the complete target. A row is complete only when its named
 | §24 tick pipeline | deterministic twelve-stage trace vectors | partial: ordered vertical-slice trace |
 | §25 events | delivery order, modes, and lifetime vectors | partial: canonical next-tick scheduling, snapshot round trip, duplicate rejection, and provisional freeze deferral |
 | §26 RNG | PCG32 vectors, snapshot state, restore vectors | partial: canonical PCG32 vector and snapshot restore |
-| §27 canonicalization and hashes | PCAM-CJ1 corpus and exact digest vectors | partial: canonical serializer and unit vectors |
+| §27 canonicalization and hashes | PCAM-CJ1 corpus and exact digest vectors | partial: Python and independent Rust serializers agree on shared exact-byte and SHA-256 vectors, including a real definition; wider hostile and cross-architecture corpora remain open |
 | §28 save and restore | schema, round-trip, continuation equivalence | partial: slice round-trip and correction equivalence |
 | §29 networking | declared local, lockstep, rollback, and server prediction profile artifacts | missing |
 | §30-31 faults and limits | stable fault codes and every declared bound tested | partial: full core runtime fault enum and several bounds including per-entity actions; exhaustive bound enforcement pending |
@@ -40,7 +40,7 @@ This matrix preserves the complete target. A row is complete only when its named
 | §42 tooling | all eleven commands with stable machine-readable result codes | partial: all eleven command paths execute with JSON envelopes; broader normative vectors and diagnostics remain open |
 | §43 licenses | CC BY 4.0 spec, Apache-2.0 or MIT code, vector permissions, trademark separation | missing |
 | §44 security | bounded untrusted-data validation and adversarial vectors | partial: document/tick/expression/runtime bounds and schema checks; exhaustive hostile corpus pending |
-| §45 release gates | eight evidence reports with no unresolved requirement | missing |
+| §45 release gates | eight evidence reports with no unresolved requirement | partial: independent-language PCAM-CJ1 evidence exists; the independent runtime, cross-architecture manifests, experiments, audits, and remaining gates are open |
 
 ## Completion rule
 

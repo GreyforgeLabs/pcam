@@ -27,9 +27,10 @@ The project targets Python 3.12 for the reference runtime and Rust for the indep
 
 ```bash
 python3 -m pytest reference/python/tests
+cargo test --manifest-path independent/rust/Cargo.toml
 ```
 
-Additional commands will become authoritative only when their implementation and machine-readable result contracts are covered by vectors.
+The Rust lane currently covers only independent PCAM-CJ1 canonicalization and hashing. Additional commands become authoritative only when their implementation and machine-readable result contracts are covered by vectors.
 
 ## Authority
 
