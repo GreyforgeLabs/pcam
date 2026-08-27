@@ -21,3 +21,7 @@ The Python reference currently uses `(target_id, stack_group)` as the group key,
 ## Deferred progression state
 
 Section 10.3 requires generated quanta under `ACCRUE` to remain authoritative state. The §7.3 minimum action-instance field list does not name a deferred-quanta field. The Python reference now serializes `deferred_quanta`; the specification should still name it explicitly before the issue closes.
+
+## Intent atomic groups
+
+Section 15.2 includes `atomic_group_id` in the intent structure, while §15.4 defines atomicity only for all claims within one intent. Cross-intent group acceptance, rejection, ordering, and identifier allocation are not defined. The Python reference currently arbitrates each intent atomically and preserves the group identifier without assigning cross-intent behavior.

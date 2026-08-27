@@ -16,11 +16,11 @@ This matrix preserves the complete target. A row is complete only when its named
 | §11-12 expressions and predicates | pure evaluator, cycle validator, edge serial vectors | partial: bounded core evaluator, cycle validation, slice edge serials |
 | §13 inputs | canonical ordering, buffering, TTL, overflow, and consumption vectors | partial: runtime capture/consume/expiry plus pure capacity and policy vectors |
 | §14 transitions | all evaluation points, priorities, targets, mutation order, seek/skip vectors | missing |
-| §15-16 intents, claims, slots | atomic arbitration and replacement vectors | missing |
+| §15-16 intents, claims, slots | atomic arbitration and replacement vectors | partial: permutation-invariant atomic claim arbitration and ID allocation; replacement integration and group semantics open |
 | §17 parent-child | lifecycle, freeze, result event, nesting, restore vectors | missing |
 | §18 freezes | domains, timing, expiry, stacking, accrual vectors | partial: runtime progression, transition, capture, and expiry domains plus provisional stacking; normative gap open |
 | §19-22 facts, candidates, interactions, ledgers | frozen snapshot, typed stages, redirection, receipt vectors | partial: directed once-per-action slice only |
-| §23 effects | identifiers, canonical order, reducers, exclusive/custom vectors | missing |
+| §23 effects | identifiers, canonical order, reducers, exclusive/custom vectors | partial: all core reducer primitives, canonical order, and exclusive rejection traces |
 | §24 tick pipeline | deterministic twelve-stage trace vectors | partial: ordered vertical-slice trace |
 | §25 events | delivery order, modes, and lifetime vectors | missing |
 | §26 RNG | PCG32 vectors, snapshot state, restore vectors | partial: canonical PCG32 vector and snapshot restore |
