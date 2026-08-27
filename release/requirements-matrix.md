@@ -28,14 +28,14 @@ This matrix preserves the complete target. A row is complete only when its named
 | §28 save and restore | schema, round-trip, continuation equivalence | partial: slice round-trip and correction equivalence |
 | §29 networking | declared local, lockstep, rollback, and server prediction profile artifacts | partial: machine-readable topology declarations, required mechanism/limit fields, canonical profile hashing, and rejection vectors; executable network services remain open |
 | §30-31 faults and limits | stable fault codes and every declared bound tested | partial: full core runtime fault enum, validated fault-policy declaration, canonically hashed required limits, extension-state bound, and several runtime bounds; policy execution and exhaustive bound enforcement remain open |
-| §32 PCAM-24 | schema, compiler, lifecycle, projection, migration warnings | partial: schema and explicit TERMINATE/LOOP/CLAMP compiler |
+| §32 PCAM-24 | schema, compiler, lifecycle, projection, migration warnings | partial: schema, explicit TERMINATE/LOOP/CLAMP compiler, expression-backed projections, and warning-first v1/v2 migration; broader profile lifecycle vectors remain open |
 | §33-34 examples | examples validate and execute with expected trace/digests | complete: schema-valid Heavy Strike, Dodge, and combat interaction documents execute for 60 ticks with pinned document, definition-set, trace, and final-state digests plus parry, armor, duplicate-contact, and trade assertions |
 | §35 tracing | complete deterministic trace contract and canonicalized vectors | partial: canonical 60-tick example trace and vertical-slice trace digests are pinned; complete field coverage and rejection-reason vectors remain open |
 | §36 extensions | namespace, required/optional, authoritative extension validation | partial: namespace and omission rules, declarative authoritative contracts, payload schemas, bounded state, registry identity hashing, and negative vectors; an end-to-end authoritative extension remains open |
 | §37 classes | evidence manifest for each claimed class | missing |
 | §38 mandatory tests | all 20 tests implemented and passing | partial: coverage map committed; 38.19 missing and several rows still composed/partial |
 | §39 generated tests | all listed generators plus determinism and continuation properties | partial: deterministic generated surfaces cover every listed category; breadth and independent execution remain open |
-| §40 migration | v1/v2 importer warnings and version rejection vectors | missing |
+| §40 migration | v1/v2 importer warnings and version rejection vectors | complete: bounded explicit-version importer, all required warning classes, deterministic evidence hashes, valid review-only PCAM-24 output, and fail-closed compatibility vectors |
 | §41 repository | required structure and documentation | partial: required lanes and authority files exist |
 | §42 tooling | all eleven commands with stable machine-readable result codes | partial: all eleven command paths execute with JSON envelopes; broader normative vectors and diagnostics remain open |
 | §43 licenses | CC BY 4.0 spec, Apache-2.0 or MIT code, vector permissions, trademark separation | complete: per-path license map, full CC BY 4.0, MIT, and CC0 1.0 texts, attribution, separate trademark policy, and explicit patent statement |

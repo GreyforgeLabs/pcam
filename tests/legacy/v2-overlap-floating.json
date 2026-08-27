@@ -1,0 +1,15 @@
+{
+  "pcam_version": "2.0",
+  "kind": "action",
+  "id": "greyforge.legacy.v2_overlap",
+  "lifecycle": "WRAP",
+  "rate": {"scale": 2.5, "units_per_tick": 1.0},
+  "phases": {
+    "STARTUP": [[0, 10]],
+    "ARMOR": [[6, 14]],
+    "ACTIVE": [[10, 14]],
+    "RECOVERY": [[14, 24]]
+  },
+  "precedence": ["VOID", "COUNTER", "MITIGATE", "IMPACT"],
+  "networking": {"replication": "ActionID+Phase"}
+}

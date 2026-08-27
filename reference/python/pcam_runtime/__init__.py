@@ -42,6 +42,7 @@ from .interactions import (
     validate_rules,
 )
 from .ledgers import HitPolicy, LedgerContext, Receipt, is_eligible as ledger_is_eligible, ledger_key, receipt_required, write_receipt
+from .migration import MigrationResult, MigrationWarning, migrate_legacy
 from .numeric import OverflowPolicy, apply_i64, apply_u64, euclidean_divmod, scale_ratio
 from .rng import PCG32Stream
 from .schema import Diagnostic, load_document, validate_document
@@ -73,6 +74,8 @@ __all__ = [
     "InteractionDecision",
     "InteractionRule",
     "LedgerContext",
+    "MigrationResult",
+    "MigrationWarning",
     "NodeDefinition",
     "NetworkProfile",
     "OverflowPolicy",
@@ -115,6 +118,7 @@ __all__ = [
     "expire_buffer_entries",
     "expire_freeze_tokens",
     "load_document",
+    "migrate_legacy",
     "is_frozen",
     "interaction_rules_from_document",
     "ledger_is_eligible",

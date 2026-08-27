@@ -1,0 +1,18 @@
+{
+  "pcam_version": "1.0",
+  "kind": "action",
+  "id": "greyforge.legacy.v1_basic",
+  "lifecycle": "LOOP",
+  "rate": {"scale": 5, "units_per_tick": 2},
+  "phases": {
+    "STARTUP": [[0, 10]],
+    "ACTIVE": [[10, 14]],
+    "RECOVERY": [[14, 24]]
+  },
+  "stall_state": {},
+  "hit_policy": "ONCE",
+  "cycle_identity": "wrap_count",
+  "skip_effects": [],
+  "nesting_return": "none",
+  "deterministic_limits": {}
+}

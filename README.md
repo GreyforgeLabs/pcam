@@ -33,6 +33,8 @@ cargo test --manifest-path independent/rust/Cargo.toml
 
 The Rust lane currently covers only independent PCAM-CJ1 canonicalization and hashing. Additional commands become authoritative only when their implementation and machine-readable result contracts are covered by vectors.
 
+`pcam migrate-v2` accepts explicit PCAM v1 and v2 legacy inputs and emits review-only PCAM-24 drafts. It does not provide wire compatibility, and every migrated result requires manual review.
+
 ## Authority
 
 - Specification: `spec/PCAM-v3.md`

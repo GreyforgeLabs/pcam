@@ -10,6 +10,7 @@ from typing import Any, Sequence
 
 from .canonical import canonical_dumps, canonical_hash
 from .errors import PCAMError, ResultCode
+from .migration import migrate_legacy
 from .pcam24 import compile_pcam24
 from .schema import load_document, validate_document
 from .state import SimulationState
@@ -118,36 +119,16 @@ def _state_hash(document: Any) -> int:
 def _migrate_v2(document: Any) -> int:
     if not isinstance(document, dict):
         return _emit({"code": ResultCode.INVALID_INPUT.value, "message": "legacy definition must be an object"}, exit_code=2)
-    phases = document.get("phases", {})
-    tags: dict[str, list[list[int]]] = {}
-    warnings = [
-        "MISSING_STALL_STATE",
-        "MISSING_HIT_POLICY",
-        "MISSING_CYCLE_IDENTITY",
-        "UNDEFINED_SKIP_EFFECTS",
-        "UNDEFINED_NESTING_RETURN",
-        "UNIVERSAL_PRECEDENCE_ASSUMPTION_REVIEW",
-        "PHASE_ONLY_NETWORKING_REVIEW",
-        "FLOATING_TIMING_REVIEW",
-        "MISSING_DETERMINISTIC_LIMITS",
-        "MANUAL_REVIEW_REQUIRED",
-    ]
-    if isinstance(phases, dict):
-        for name, ranges in phases.items():
-            if isinstance(ranges, list):
-                tags[str(name)] = ranges
-    migrated = {
-        "pcam_version": "3.0",
-        "kind": "pcam24",
-        "id": str(document.get("id", "Legacy.imported")),
-        "revision": 1,
-        "lifecycle": str(document.get("lifecycle", "TERMINATE")),
-        "rate": document.get("rate", {"scale": 1, "units_per_tick": 1}),
-        "tags": tags,
-        "metadata": {"migrated_from": str(document.get("pcam_version", "legacy"))},
-        "extensions": {},
-    }
-    return _emit({"code": ResultCode.OK.value, "definition": migrated, "warnings": warnings})
+    result = migrate_legacy(document)
+    return _emit(
+        {
+            "code": ResultCode.OK.value,
+            "definition": result.definition,
+            "source_evidence_hash": result.source_evidence_hash,
+            "source_version": result.source_version,
+            "warnings": [warning.to_dict() for warning in result.warnings],
+        }
+    )
 
 
 def _run(document: Any) -> int:
