@@ -14,7 +14,7 @@ from .migration import migrate_legacy
 from .pcam24 import compile_pcam24
 from .schema import load_document, validate_document
 from .state import SimulationState
-from .vectors import rollback_vector, run_vector
+from .vectors import rollback_vector, run_runtime_document
 
 
 class _ArgumentError(Exception):
@@ -59,6 +59,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             "rollback-test": _rollback_test,
         }.get(args.command)
         assert handler is not None
+        if args.command in {"run", "trace", "snapshot"}:
+            return handler(document, args.file)
         return handler(document)
     except OSError as exc:
         return _emit({"code": ResultCode.IO_ERROR.value, "message": str(exc)}, exit_code=2)
@@ -145,10 +147,10 @@ def _migrate_v2(document: Any) -> int:
     )
 
 
-def _run(document: Any) -> int:
+def _run(document: Any, source_path: Path) -> int:
     if not isinstance(document, dict):
         return _emit({"code": ResultCode.INVALID_INPUT.value, "message": "runtime vector must be an object"}, 2)
-    result = run_vector(document)
+    result = run_runtime_document(document, source_path=source_path)
     mismatch = _expected_digest_mismatch(document, result.final_state.state_hash())
     if mismatch:
         return _emit(mismatch, 2)
@@ -161,10 +163,10 @@ def _run(document: Any) -> int:
     )
 
 
-def _trace(document: Any) -> int:
+def _trace(document: Any, source_path: Path) -> int:
     if not isinstance(document, dict):
         return _emit({"code": ResultCode.INVALID_INPUT.value, "message": "runtime vector must be an object"}, 2)
-    result = run_vector(document)
+    result = run_runtime_document(document, source_path=source_path)
     mismatch = _expected_digest_mismatch(document, result.final_state.state_hash())
     if mismatch:
         return _emit(mismatch, 2)
@@ -177,10 +179,10 @@ def _trace(document: Any) -> int:
     )
 
 
-def _snapshot(document: Any) -> int:
+def _snapshot(document: Any, source_path: Path) -> int:
     if not isinstance(document, dict):
         return _emit({"code": ResultCode.INVALID_INPUT.value, "message": "runtime vector must be an object"}, 2)
-    result = run_vector(document)
+    result = run_runtime_document(document, source_path=source_path)
     return _emit(
         {
             "code": ResultCode.OK.value,

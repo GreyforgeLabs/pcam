@@ -11,6 +11,7 @@ from .freezes import FreezeToken
 from .interactions import EffectTemplate, InteractionRule, RuleOperation, SemanticFact
 from .intents import Claim
 from .ledgers import HitPolicy
+from .documents import action_from_document, interaction_rules_from_document
 from .model import (
     ActionDefinition,
     Assignment,
@@ -28,6 +29,7 @@ from .model import (
 )
 from .rollback import RollbackManager
 from .runtime import TickExecutor
+from .schema import load_document
 from .state import SimulationState
 
 
@@ -91,6 +93,146 @@ def run_vector(document: dict[str, Any], max_ticks: int = 10_000) -> VectorRun:
         state, trace = executor.tick(state, inputs, host)
         traces.append(trace)
     return VectorRun(executor, initial_snapshot, state, tuple(traces), input_history, host_history)
+
+
+def run_runtime_document(
+    document: dict[str, Any],
+    *,
+    source_path: Path | None = None,
+    max_ticks: int = 10_000,
+) -> VectorRun:
+    kind = document.get("kind")
+    if kind == "runtime_vector":
+        return run_vector(document, max_ticks=max_ticks)
+    if kind == "example_scenario":
+        return run_example_scenario(document, source_path=source_path, max_ticks=max_ticks)
+    raise ValueError("runtime command requires kind=runtime_vector or kind=example_scenario")
+
+
+def run_example_scenario(
+    document: dict[str, Any],
+    *,
+    source_path: Path | None = None,
+    max_ticks: int = 10_000,
+) -> VectorRun:
+    if document.get("kind") != "example_scenario" or document.get("pcam_example_version") != "1":
+        raise ValueError("example scenario requires kind=example_scenario and pcam_example_version=1")
+    tick_count = int(document.get("tick_count", -1))
+    if tick_count < 0 or tick_count > max_ticks:
+        raise ValueError("example scenario tick count exceeds limit")
+    root = Path(__file__).resolve().parents[3]
+    action_documents = tuple(load_document(_repo_path(root, item)) for item in document.get("actions", []))
+    if not action_documents:
+        raise ValueError("example scenario requires at least one action")
+    interaction_document = load_document(_repo_path(root, document["interaction_profile"]))
+    definitions = tuple(action_from_document(item) for item in action_documents)
+    rules = interaction_rules_from_document(interaction_document)
+    registry = {
+        str(effect_type): (str(value[0]), int(value[1]))
+        for effect_type, value in document.get("effect_registry", {}).items()
+    }
+    executor = TickExecutor(definitions, interaction_rules=rules, effect_registry=registry)
+    initial = document.get("initial_state", {})
+    state = executor.initial_state(
+        resource_banks={
+            str(key): dict(value)
+            for key, value in initial.get(
+                "resource_banks",
+                {
+                    "1": {"STAMINA": 100, "hp": 100, "stagger": 0},
+                    "2": {"STAMINA": 100, "hp": 100, "stagger": 0},
+                },
+            ).items()
+        },
+        slot_capacities={
+            str(key): dict(value)
+            for key, value in initial.get(
+                "slot_capacities",
+                {"1": {"FULL_BODY": 1}, "2": {"FULL_BODY": 1}},
+            ).items()
+        },
+    )
+    primary_definition_id = str(document.get("primary_action", definitions[0].id))
+    starts = tuple(
+        _input(item)
+        for item in document.get(
+            "starts",
+            [
+                {
+                    "input_id": "start-a",
+                    "source_entity_id": 1,
+                    "sequence": 0,
+                    "command_id": "START",
+                    "assigned_tick": 0,
+                    "action_definition_id": primary_definition_id,
+                },
+                {
+                    "input_id": "start-b",
+                    "source_entity_id": 2,
+                    "sequence": 0,
+                    "command_id": "START",
+                    "assigned_tick": 0,
+                    "action_definition_id": primary_definition_id,
+                },
+            ],
+        )
+    )
+    contacts = tuple(
+        _contact(item)
+        for item in document.get(
+            "contacts",
+            [
+                {
+                    "candidate_id": "a-to-b",
+                    "source_instance_id": 1,
+                    "target_entity_id": 2,
+                    "fact_id": "heavy_strike_hit",
+                    "source_entity_id": 1,
+                    "contact_id": "a",
+                },
+                {
+                    "candidate_id": "a-to-b-dup",
+                    "source_instance_id": 1,
+                    "target_entity_id": 2,
+                    "fact_id": "heavy_strike_hit",
+                    "source_entity_id": 1,
+                    "contact_id": "b",
+                },
+                {
+                    "candidate_id": "b-to-a",
+                    "source_instance_id": 2,
+                    "target_entity_id": 1,
+                    "fact_id": "heavy_strike_hit",
+                    "source_entity_id": 2,
+                    "contact_id": "a",
+                },
+            ],
+        )
+    )
+    contact_tick = int(document.get("contact_tick", -1))
+    initial_snapshot = executor.save(state)
+    traces: list[dict[str, object]] = []
+    input_history: dict[int, tuple[TickInput, ...]] = {}
+    host_history: dict[int, HostSnapshot] = {}
+    for tick in range(tick_count):
+        inputs = starts if tick == 0 else ()
+        host = HostSnapshot(contacts=contacts) if tick == contact_tick else HostSnapshot()
+        input_history[tick] = inputs
+        host_history[tick] = host
+        state, trace = executor.tick(state, inputs, host)
+        traces.append(trace)
+    return VectorRun(executor, initial_snapshot, state, tuple(traces), input_history, host_history)
+
+
+def _repo_path(root: Path, raw_path: object) -> Path:
+    if not isinstance(raw_path, str):
+        raise ValueError("example scenario paths must be strings")
+    relative = Path(raw_path)
+    if relative.is_absolute() or ".." in relative.parts:
+        raise ValueError("example scenario paths must be repository-relative")
+    path = (root / relative).resolve()
+    path.relative_to(root)
+    return path
 
 
 def _custom_effect_registry(values: object) -> CustomEffectRegistry:

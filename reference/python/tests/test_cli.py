@@ -46,6 +46,29 @@ def test_runtime_cli_run_trace_snapshot_and_rollback(capsys):
     assert result["equivalent"] is True
 
 
+def test_runtime_cli_accepts_executable_example_scenario(capsys):
+    scenario = ROOT / "examples" / "heavy-strike.scenario.json"
+
+    code = main(["trace", str(scenario)])
+    trace_result = json.loads(capsys.readouterr().out)
+    assert code == 0
+    assert trace_result["code"] == "OK"
+    assert trace_result["final_state_digest"] == "292abcece1c74f7db576821ac9b985b3c5662b53846a66e0939e64988314ac91"
+    assert trace_result["traces"][24]["candidate_order"] == ["a-to-b", "a-to-b-dup", "b-to-a"]
+
+    code = main(["run", str(scenario)])
+    run_result = json.loads(capsys.readouterr().out)
+    assert code == 0
+    assert run_result["code"] == "OK"
+    assert run_result["final_tick"] == 60
+
+    code = main(["snapshot", str(scenario)])
+    snapshot_result = json.loads(capsys.readouterr().out)
+    assert code == 0
+    assert snapshot_result["code"] == "OK"
+    assert snapshot_result["snapshot"]["tick"] == 60
+
+
 def test_restore_cli_round_trips_snapshot(tmp_path, capsys):
     vector = ROOT / "tests" / "vectors" / "typed-strike.json"
     main(["snapshot", str(vector)])
