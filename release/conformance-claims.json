@@ -49,13 +49,13 @@
       "claimed": false,
       "requirements": {
         "pcam_det_3": {"status": "OPEN", "evidence": ["release/conformance-claims.json"]},
-        "input_history": {"status": "OPEN", "evidence": ["reference/python/pcam_runtime/rollback.py"]},
-        "snapshot_history": {"status": "OPEN", "evidence": ["reference/python/pcam_runtime/rollback.py"]},
-        "restore_and_resimulation": {"status": "OPEN", "evidence": ["reference/python/tests/test_runtime_slice.py"]},
+        "input_history": {"status": "PASS", "evidence": ["reference/python/pcam_runtime/rollback.py", "tests/vectors/network-services.json", "reference/python/tests/test_network_services.py", "independent/rust/tests/network_service_vectors.rs"]},
+        "snapshot_history": {"status": "PASS", "evidence": ["reference/python/pcam_runtime/rollback.py", "reference/python/tests/test_rollback_gate.py", "independent/rust/src/simulation.rs"]},
+        "restore_and_resimulation": {"status": "PASS", "evidence": ["reference/python/tests/test_runtime_slice.py", "tests/vectors/network-services.json", "reference/python/tests/test_network_services.py", "independent/rust/tests/network_service_vectors.rs"]},
         "prediction_declaration": {"status": "PASS", "evidence": ["schemas/network-profile.schema.json", "spec/networking-profiles.md"]},
-        "late_input_correction": {"status": "OPEN", "evidence": ["reference/python/tests/test_runtime_slice.py"]},
-        "presentation_effect_deduplication": {"status": "OPEN", "evidence": ["release/rollback-gate.md"]},
-        "rollback_equivalence_vectors": {"status": "OPEN", "evidence": ["reference/python/tests/test_runtime_slice.py"]}
+        "late_input_correction": {"status": "PASS", "evidence": ["reference/python/tests/test_runtime_slice.py", "reference/python/tests/test_rollback_gate.py", "tests/vectors/network-services.json"]},
+        "presentation_effect_deduplication": {"status": "PASS", "evidence": ["release/rollback-gate.md", "tests/vectors/presentation-rollback.json", "reference/python/tests/test_rollback_gate.py", "independent/rust/tests/simulation_runtime_vectors.rs"]},
+        "rollback_equivalence_vectors": {"status": "PASS", "evidence": ["reference/python/tests/test_runtime_slice.py", "tests/rollback/coverage.json", "tests/vectors/network-services.json", "reference/python/tests/test_network_services.py", "independent/rust/tests/network_service_vectors.rs"]}
       }
     },
     "PCAM-24-3": {

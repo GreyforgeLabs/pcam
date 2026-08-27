@@ -13,11 +13,11 @@ State: OPEN
 - Schema and model tests reject incomplete and duplicate networking declarations.
 - A bounded snapshot-every-tick rollback history retains canonical input and host evidence, replaces late or mispredicted input, resimulates atomically, rejects exhausted history, and reconciles presentation effects by stable identifier.
 - The §45.6 suite covers action starts, hit-stop, children, RNG draws, ledgers, and presentation deduplication during rewind.
+- `tests/vectors/network-services.json` drives Python and independent Rust lockstep coordinators through WAIT and PREDICT readiness, canonical peer-input merge, definition and host mismatch rejection, periodic digest match, declared desynchronization abort, and post-abort fail-closed behavior.
+- The same shared vector drives server-authoritative correction planners through bounded restore-and-resimulate and complete-state replace-and-discard paths. Both reach the exact direct server state, while future, out-of-window, and incomplete replacement corrections are rejected.
 
 ## Remaining before closure
 
-- Implement and test lockstep input readiness, digest exchange, and desynchronization behavior.
-- Implement server-authoritative correction and prediction discard/resimulation behavior.
-- Add profile-specific end-to-end vectors and cross-architecture digest manifests.
+- Add matching Linux ARM64 digest execution to the existing Linux x86-64 manifest.
 
 Phase-only reconciliation remains prohibited for deterministic correction.

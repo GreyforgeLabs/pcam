@@ -53,6 +53,13 @@ from .interactions import (
 )
 from .ledgers import HitPolicy, LedgerContext, Receipt, is_eligible as ledger_is_eligible, ledger_key, receipt_required, write_receipt
 from .migration import MigrationResult, MigrationWarning, migrate_legacy
+from .networking import (
+    DigestResolution,
+    LockstepCoordinator,
+    LockstepTick,
+    ServerAuthoritativeCorrectionPlanner,
+    ServerCorrectionPlan,
+)
 from .numeric import OverflowPolicy, apply_i64, apply_u64, euclidean_divmod, scale_ratio
 from .rng import PCG32Stream
 from .schema import Diagnostic, load_document, validate_document
@@ -70,6 +77,7 @@ __all__ = [
     "CustomEffectRegistration",
     "CustomEffectRegistry",
     "Diagnostic",
+    "DigestResolution",
     "DefinitionEffect",
     "Effect",
     "EffectEnvelope",
@@ -88,6 +96,8 @@ __all__ = [
     "InteractionDecision",
     "InteractionRule",
     "LedgerContext",
+    "LockstepCoordinator",
+    "LockstepTick",
     "MigrationResult",
     "MigrationWarning",
     "NodeDefinition",
@@ -108,6 +118,8 @@ __all__ = [
     "RuntimeProfile",
     "RuleOperation",
     "SemanticFact",
+    "ServerAuthoritativeCorrectionPlanner",
+    "ServerCorrectionPlan",
     "SimulationState",
     "TickExecutor",
     "TickInput",

@@ -16,6 +16,7 @@ pub mod faults;
 pub mod freezes;
 pub mod interactions;
 pub mod ledger;
+pub mod networking;
 pub mod numeric;
 pub mod rng;
 pub mod simulation;

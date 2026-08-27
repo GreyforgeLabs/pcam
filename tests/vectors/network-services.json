@@ -1,0 +1,43 @@
+{
+  "pcam_vector_version": "1",
+  "kind": "network_service_vectors",
+  "id": "bounded-network-services",
+  "runtime_vector": "tests/vectors/typed-strike.json",
+  "lockstep": {
+    "required_peers": ["peer.b", "peer.a"],
+    "wait_profile": {
+      "input_availability_policy": "WAIT",
+      "digest_interval_ticks": 1,
+      "desynchronization_policy": "pcam.desync.abort"
+    },
+    "predict_profile": {
+      "input_availability_policy": "PREDICT",
+      "predictor_id": "pcam.predict.no-input.v1",
+      "digest_interval_ticks": 2,
+      "desynchronization_policy": "pcam.desync.report"
+    },
+    "bad_definition_set_hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "bad_state_digest": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "server_authoritative": {
+    "resimulate": {
+      "correction_policy": "pcam.correction.resimulate.v1",
+      "max_latency_compensation_ticks": 8,
+      "authoritative_tick": 0
+    },
+    "replace_discard": {
+      "correction_policy": "pcam.correction.replace-discard.v1",
+      "max_latency_compensation_ticks": 8,
+      "authoritative_tick": 1
+    }
+  },
+  "expected": {
+    "definition_set_hash": "244d47801abcc3b0fcb16d9e9920855b145fc5976e826621a81b709047d444d9",
+    "tick_state_digests": [
+      "4633b2290ba5b1cd49f86188ef66882ec39b5a95f42d5bd03900002238290864",
+      "d072fec3e06337f3fc0a00768c17148dfbb1948038202424c641de1e44b9d2e7",
+      "6980d6c2a8eb30e169048634fa7fcb037e731a70e49ce4707fb42ecccad0868b"
+    ],
+    "final_state_digest": "6980d6c2a8eb30e169048634fa7fcb037e731a70e49ce4707fb42ecccad0868b"
+  }
+}
