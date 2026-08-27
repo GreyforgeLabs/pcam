@@ -17,6 +17,13 @@ fn parent_child_vector() -> Value {
     serde_json::from_slice(&source).expect("vector JSON")
 }
 
+fn contended_starts_vector() -> Value {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let source = fs::read(root.join("tests/vectors/contended-starts.json"))
+        .expect("shared contended starts vector");
+    serde_json::from_slice(&source).expect("vector JSON")
+}
+
 #[test]
 fn independent_simulation_matches_typed_strike_full_state_digests() {
     let vector = vector();
@@ -174,4 +181,35 @@ fn independent_simulation_matches_parent_child_result_event_lifecycle() {
         SimulationState::restore(&state.snapshot().unwrap()).unwrap(),
         state
     );
+}
+
+#[test]
+fn independent_simulation_matches_contended_start_arbitration_state() {
+    let vector = contended_starts_vector();
+    let runtime = SimulationRuntime::from_vector(&vector).unwrap();
+    let initial = runtime.initial_state(&vector).unwrap();
+    let (state, _) = runtime.tick(&initial, &vector["ticks"][0]).unwrap();
+
+    assert_eq!(
+        state.definition_set_hash,
+        vector["expected"]["definition_set_hash"].as_str().unwrap()
+    );
+    assert_eq!(
+        state.digest().unwrap(),
+        vector["expected"]["final_state_digest"].as_str().unwrap()
+    );
+    assert_eq!(state.action_instances.len(), 1);
+    assert_eq!(
+        state.action_instances[0].definition_hash,
+        vector["expected"]["definition_hashes"]["DODGE_A"]
+            .as_str()
+            .unwrap()
+    );
+    assert_eq!(state.resource_banks["1"]["STAMINA"], 3);
+    assert_eq!(state.action_slots["1"]["FULL_BODY"]["usage"], 1);
+    assert_eq!(
+        state.action_slots["1"]["FULL_BODY"]["instance_ids"],
+        serde_json::json!([1])
+    );
+    assert_eq!(state.next_action_instance_id, 2);
 }

@@ -14,6 +14,10 @@ def _parent_child_document():
     return json.loads((ROOT / "tests/vectors/parent-child.json").read_text(encoding="utf-8"))
 
 
+def _contended_starts_document():
+    return json.loads((ROOT / "tests/vectors/contended-starts.json").read_text(encoding="utf-8"))
+
+
 def test_python_typed_strike_matches_shared_full_state_identity_and_tick_digests():
     document = _document()
     expected = document["expected"]
@@ -58,3 +62,25 @@ def test_python_parent_child_matches_shared_result_event_lifecycle_digests():
     assert child.extension_state["pcam.child_result_emitted"] is True
     assert run.final_state.pending_events == ()
     assert run.final_state.freeze_tokens == ()
+
+
+def test_python_contended_starts_match_shared_arbitration_state_digest():
+    document = _contended_starts_document()
+    expected = document["expected"]
+    run = run_vector(document)
+
+    assert run.executor.definition_set_hash == expected["definition_set_hash"]
+    assert {
+        identifier: definition.definition_hash
+        for identifier, definition in run.executor.definitions_by_id.items()
+    } == expected["definition_hashes"]
+    assert [trace["state_digest"] for trace in run.traces] == expected["tick_state_digests"]
+    assert run.final_state.state_hash() == expected["final_state_digest"]
+    assert len(run.final_state.action_instances) == 1
+    assert run.final_state.action_instances["1"].definition_hash == expected["definition_hashes"]["DODGE_A"]
+    assert run.final_state.resource_banks["1"]["STAMINA"] == 3
+    assert run.final_state.action_slots["1"]["FULL_BODY"] == {
+        "capacity": 1,
+        "instance_ids": [1],
+        "usage": 1,
+    }

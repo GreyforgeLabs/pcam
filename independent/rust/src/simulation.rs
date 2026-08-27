@@ -1,8 +1,12 @@
+use crate::arbitration::{
+    ArbitrationState, Claim as ArbitrationClaim, Intent as ArbitrationIntent,
+    arbitrate as arbitrate_intents,
+};
 use crate::effects::{EffectEnvelope, ReducedEffect, RejectedEffect, reduce_effects};
 use crate::events::{EventEnvelope, deliver_due};
 use crate::{CanonicalError, canonical_hash};
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
+use serde_json::{Map, Value, json};
 use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Debug)]
@@ -58,6 +62,8 @@ struct Definition {
     facts: Vec<FactBinding>,
     transitions: Vec<SimulationTransition>,
     child_slot_capacities: BTreeMap<String, u64>,
+    start_claims: Vec<ArbitrationClaim>,
+    slot_claims: Vec<ArbitrationClaim>,
 }
 
 #[derive(Debug, Clone)]
@@ -165,6 +171,7 @@ pub struct SimulationRuntime {
     definitions: BTreeMap<String, Definition>,
     effect_registry: BTreeMap<String, (String, i64)>,
     definition_set_hash: String,
+    max_actions_per_entity: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -341,6 +348,9 @@ impl SimulationRuntime {
         let registry = object_value(vector, "effect_registry")?;
 
         let profile_hash = canonical_hash(&canonical_profile(profile)?)?;
+        let max_actions_per_entity = profile["limits"]["max_actions_per_entity"]
+            .as_u64()
+            .ok_or(SimulationError::InvalidVector)?;
         let interaction_profile_hash = canonical_hash(&canonical_rules(rules)?)?;
         let effect_registry_hash = canonical_hash(registry)?;
         let extension_registry_hash = canonical_hash(&Value::Array(Vec::new()))?;
@@ -392,6 +402,7 @@ impl SimulationRuntime {
             definitions,
             effect_registry,
             definition_set_hash,
+            max_actions_per_entity,
         })
     }
 
@@ -401,10 +412,37 @@ impl SimulationRuntime {
             .get("resource_banks")
             .cloned()
             .unwrap_or_else(|| json!({}));
+        let action_slots = initial
+            .get("slot_capacities")
+            .and_then(Value::as_object)
+            .map(|entities| {
+                entities
+                    .iter()
+                    .map(|(entity, slots)| {
+                        let slots = slots.as_object().ok_or(SimulationError::InvalidVector)?;
+                        let normalized = slots
+                            .iter()
+                            .map(|(slot, capacity)| {
+                                Ok((
+                                    slot.clone(),
+                                    json!({
+                                        "capacity": capacity.as_u64().ok_or(SimulationError::InvalidVector)?,
+                                        "instance_ids": [],
+                                        "usage": 0,
+                                    }),
+                                ))
+                            })
+                            .collect::<Result<Map<String, Value>, SimulationError>>()?;
+                        Ok((entity.clone(), Value::Object(normalized)))
+                    })
+                    .collect::<Result<BTreeMap<String, Value>, SimulationError>>()
+            })
+            .transpose()?
+            .unwrap_or_default();
         Ok(SimulationState {
             pcam_version: "3.0".to_owned(),
             action_instances: Vec::new(),
-            action_slots: BTreeMap::new(),
+            action_slots,
             definition_set_hash: self.definition_set_hash.clone(),
             entity_records: BTreeMap::new(),
             extension_state: BTreeMap::new(),
@@ -471,54 +509,7 @@ impl SimulationRuntime {
             .iter()
             .map(|input| string_field(input, "input_id").map(str::to_owned))
             .collect::<Result<Vec<_>, _>>()?;
-        for input in &inputs {
-            if string_field(&input, "command_id")? != "START" {
-                continue;
-            }
-            let definition_id = string_field(&input, "action_definition_id")?;
-            let definition = self
-                .definitions
-                .get(definition_id)
-                .ok_or(SimulationError::RuntimeFault)?;
-            let instance_id = work.next_action_instance_id;
-            work.next_action_instance_id = work
-                .next_action_instance_id
-                .checked_add(1)
-                .ok_or(SimulationError::RuntimeFault)?;
-            work.action_instances.push(ActionSnapshot {
-                captured_parameters: BTreeMap::new(),
-                child_instance_ids: Vec::new(),
-                current_node_id: definition.initial_node.clone(),
-                current_rate_units: definition.units_per_tick,
-                cycle: 0,
-                deferred_quanta: 0,
-                definition_hash: definition.hash.clone(),
-                emission_serial: 0,
-                event_inbox: Vec::new(),
-                extension_state: BTreeMap::new(),
-                fault_record: None,
-                freeze_token_references: Vec::new(),
-                input_buffer: Vec::new(),
-                instance_id,
-                interaction_ledger_partition: "default".to_owned(),
-                lifecycle_state: "RUNNING".to_owned(),
-                local_step: 0,
-                node_step: 0,
-                owner_entity_id: u64_field(input, "source_entity_id")?,
-                parent_instance_id: None,
-                parent_slot_id: None,
-                predicate_entry_serials: BTreeMap::new(),
-                predicate_exit_serials: BTreeMap::new(),
-                predicate_truth_state: BTreeMap::new(),
-                quantum_accumulator: 0,
-                registers: BTreeMap::new(),
-                rng_stream_ids: Vec::new(),
-                slot_claims: Vec::new(),
-                transition_serial: 0,
-            });
-        }
-        work.action_instances
-            .sort_by_key(|action| action.instance_id);
+        self.arbitrate_direct_starts(&mut work, &inputs)?;
         self.apply_pre_transitions(&mut work, &inputs)?;
         self.progress_actions(&mut work)?;
 
@@ -770,6 +761,223 @@ impl SimulationRuntime {
                 continue;
             };
             self.apply_simulation_transition(state, action_id, &transition)?;
+        }
+        Ok(())
+    }
+
+    fn arbitrate_direct_starts(
+        &self,
+        state: &mut SimulationState,
+        inputs: &[Value],
+    ) -> Result<(), SimulationError> {
+        let mut arbitration = ArbitrationState::default();
+        for (owner, bank) in &state.resource_banks {
+            let owner = owner
+                .parse::<u64>()
+                .map_err(|_| SimulationError::RuntimeFault)?;
+            arbitration.resource_banks.insert(
+                owner,
+                bank.iter()
+                    .map(|(resource, value)| {
+                        Ok((
+                            resource.clone(),
+                            u64::try_from(*value).map_err(|_| SimulationError::RuntimeFault)?,
+                        ))
+                    })
+                    .collect::<Result<BTreeMap<_, _>, SimulationError>>()?,
+            );
+        }
+        for (owner, slots) in &state.action_slots {
+            let owner = owner
+                .parse::<u64>()
+                .map_err(|_| SimulationError::RuntimeFault)?;
+            for (slot, value) in slots.as_object().ok_or(SimulationError::RuntimeFault)? {
+                let key = ("ACTION_SLOT".to_owned(), owner, slot.clone());
+                arbitration.capacities.insert(
+                    key.clone(),
+                    value["capacity"]
+                        .as_u64()
+                        .ok_or(SimulationError::RuntimeFault)?,
+                );
+                arbitration.usages.insert(
+                    key,
+                    value["usage"]
+                        .as_u64()
+                        .ok_or(SimulationError::RuntimeFault)?,
+                );
+            }
+        }
+        let mut intents = Vec::new();
+        for input in inputs {
+            if string_field(input, "command_id")? != "START" {
+                continue;
+            }
+            let definition_id = string_field(input, "action_definition_id")?;
+            let definition = self
+                .definitions
+                .get(definition_id)
+                .ok_or(SimulationError::RuntimeFault)?;
+            let owner = u64_field(input, "source_entity_id")?;
+            let capacity_key = ("CAPACITY".to_owned(), owner, "ACTIONS".to_owned());
+            arbitration
+                .capacities
+                .insert(capacity_key.clone(), self.max_actions_per_entity);
+            arbitration.usages.insert(
+                capacity_key,
+                state
+                    .action_instances
+                    .iter()
+                    .filter(|action| {
+                        action.owner_entity_id == owner
+                            && !matches!(action.lifecycle_state.as_str(), "TERMINATED" | "FAULTED")
+                    })
+                    .count() as u64,
+            );
+            let mut claims = definition.start_claims.clone();
+            claims.extend(definition.slot_claims.clone());
+            claims.push(ArbitrationClaim {
+                kind: "CAPACITY".to_owned(),
+                key: "ACTIONS".to_owned(),
+                amount: 1,
+                owner_id: None,
+            });
+            intents.push(ArbitrationIntent {
+                intent_kind: "ACTION_START".to_owned(),
+                intent_priority: 0,
+                owner_entity_id: owner,
+                source_action_instance_id: 0,
+                transition_id: definition_id.to_owned(),
+                input_sequence: u64_field(input, "sequence")?,
+                input_id: string_field(input, "input_id")?.to_owned(),
+                claims,
+                releases: Vec::new(),
+                operations: vec![json!({"start_action": definition_id})],
+                atomic_group_id: "default".to_owned(),
+            });
+        }
+        let (reserved, decisions) =
+            arbitrate_intents(&intents, &arbitration).map_err(|_| SimulationError::RuntimeFault)?;
+        state.resource_banks = reserved
+            .resource_banks
+            .into_iter()
+            .map(|(owner, bank)| {
+                Ok((
+                    owner.to_string(),
+                    bank.into_iter()
+                        .map(|(resource, value)| {
+                            Ok((
+                                resource,
+                                i64::try_from(value).map_err(|_| SimulationError::RuntimeFault)?,
+                            ))
+                        })
+                        .collect::<Result<BTreeMap<_, _>, SimulationError>>()?,
+                ))
+            })
+            .collect::<Result<BTreeMap<_, _>, SimulationError>>()?;
+        for decision in decisions {
+            if !decision.accepted {
+                continue;
+            }
+            let definition = self
+                .definitions
+                .get(&decision.intent.transition_id)
+                .ok_or(SimulationError::RuntimeFault)?;
+            let instance_id = state.next_action_instance_id;
+            state.next_action_instance_id = instance_id
+                .checked_add(1)
+                .ok_or(SimulationError::RuntimeFault)?;
+            state.action_instances.push(ActionSnapshot {
+                captured_parameters: BTreeMap::new(),
+                child_instance_ids: Vec::new(),
+                current_node_id: definition.initial_node.clone(),
+                current_rate_units: definition.units_per_tick,
+                cycle: 0,
+                deferred_quanta: 0,
+                definition_hash: definition.hash.clone(),
+                emission_serial: 0,
+                event_inbox: Vec::new(),
+                extension_state: BTreeMap::new(),
+                fault_record: None,
+                freeze_token_references: Vec::new(),
+                input_buffer: Vec::new(),
+                instance_id,
+                interaction_ledger_partition: "default".to_owned(),
+                lifecycle_state: if definition
+                    .nodes
+                    .get(&definition.initial_node)
+                    .is_some_and(|mode| mode == "TERMINAL")
+                {
+                    "TERMINATED".to_owned()
+                } else {
+                    "RUNNING".to_owned()
+                },
+                local_step: 0,
+                node_step: 0,
+                owner_entity_id: decision.intent.owner_entity_id,
+                parent_instance_id: None,
+                parent_slot_id: None,
+                predicate_entry_serials: BTreeMap::new(),
+                predicate_exit_serials: BTreeMap::new(),
+                predicate_truth_state: BTreeMap::new(),
+                quantum_accumulator: 0,
+                registers: BTreeMap::new(),
+                rng_stream_ids: Vec::new(),
+                slot_claims: definition
+                    .slot_claims
+                    .iter()
+                    .map(|claim| {
+                        json!({
+                            "amount": claim.amount,
+                            "key": claim.key,
+                            "kind": claim.kind,
+                        })
+                    })
+                    .collect(),
+                transition_serial: 0,
+            });
+        }
+        state
+            .action_instances
+            .sort_by_key(|action| action.instance_id);
+        self.rebuild_action_slots(state)
+    }
+
+    fn rebuild_action_slots(&self, state: &mut SimulationState) -> Result<(), SimulationError> {
+        for slots in state.action_slots.values_mut() {
+            for value in slots
+                .as_object_mut()
+                .ok_or(SimulationError::RuntimeFault)?
+                .values_mut()
+            {
+                value["instance_ids"] = Value::Array(Vec::new());
+                value["usage"] = json!(0);
+            }
+        }
+        for action in &state.action_instances {
+            if matches!(action.lifecycle_state.as_str(), "TERMINATED" | "FAULTED") {
+                continue;
+            }
+            let entity = action.owner_entity_id.to_string();
+            for claim in &action.slot_claims {
+                if claim["kind"] != "ACTION_SLOT" {
+                    continue;
+                }
+                let slot = claim["key"].as_str().ok_or(SimulationError::RuntimeFault)?;
+                let value = state
+                    .action_slots
+                    .get_mut(&entity)
+                    .and_then(Value::as_object_mut)
+                    .and_then(|slots| slots.get_mut(slot))
+                    .ok_or(SimulationError::RuntimeFault)?;
+                value["instance_ids"]
+                    .as_array_mut()
+                    .ok_or(SimulationError::RuntimeFault)?
+                    .push(json!(action.instance_id));
+                let usage = value["usage"]
+                    .as_u64()
+                    .ok_or(SimulationError::RuntimeFault)?;
+                value["usage"] = json!(usage + claim["amount"].as_u64().unwrap_or(1));
+            }
         }
         Ok(())
     }
@@ -1165,8 +1373,8 @@ fn canonical_definition(raw: &Value) -> Result<Value, SimulationError> {
         "register_declarations": raw.get("register_declarations").cloned().unwrap_or_else(|| json!({})),
         "register_initials": raw.get("register_initials").cloned().unwrap_or_else(|| json!({})),
         "semantic_facts": semantic_facts,
-        "slot_claims": raw.get("slot_claims").cloned().unwrap_or_else(|| json!([])),
-        "start_claims": raw.get("start_claims").cloned().unwrap_or_else(|| json!([])),
+        "slot_claims": canonical_claims(raw.get("slot_claims"))?,
+        "start_claims": canonical_claims(raw.get("start_claims"))?,
         "transitions": transitions,
     }))
 }
@@ -1196,7 +1404,7 @@ fn canonical_transition(raw: &Value) -> Result<Value, SimulationError> {
     Ok(json!({
         "assignments": raw.get("assignments").cloned().unwrap_or_else(|| json!([])),
         "child_slot_id": raw.get("child_slot_id").cloned().unwrap_or(Value::Null),
-        "claims": raw.get("claims").cloned().unwrap_or_else(|| json!([])),
+        "claims": canonical_claims(raw.get("claims"))?,
         "consume_policy": raw.get("consume_policy").cloned().unwrap_or_else(|| json!("ON_ACCEPT")),
         "cycle_delta": raw.get("cycle_delta").cloned().unwrap_or_else(|| json!(0)),
         "definition_effects": raw.get("definition_effects").cloned().unwrap_or_else(|| json!([])),
@@ -1219,6 +1427,24 @@ fn canonical_transition(raw: &Value) -> Result<Value, SimulationError> {
         "target_node": raw.get("target_node").cloned().unwrap_or(Value::Null),
         "target_step": raw.get("target_step").cloned().unwrap_or_else(|| json!(0)),
     }))
+}
+
+fn canonical_claims(raw: Option<&Value>) -> Result<Value, SimulationError> {
+    let claims = raw
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+        .iter()
+        .map(|claim| {
+            Ok(json!({
+                "amount": claim.get("amount").and_then(Value::as_u64).unwrap_or(1),
+                "key": string_field(claim, "key")?,
+                "kind": string_field(claim, "kind")?,
+                "owner_id": claim.get("owner_id").cloned().unwrap_or(Value::Null),
+            }))
+        })
+        .collect::<Result<Vec<_>, SimulationError>>()?;
+    Ok(Value::Array(claims))
 }
 
 fn canonical_fact_binding(raw: &Value) -> Result<Value, SimulationError> {
@@ -1459,6 +1685,11 @@ fn parse_definition(raw: &Value, hash: String) -> Result<Definition, SimulationE
         .get("child_slot_capacities")
         .cloned()
         .unwrap_or_else(|| json!({}));
+    let start_claims = raw
+        .get("start_claims")
+        .cloned()
+        .unwrap_or_else(|| json!([]));
+    let slot_claims = raw.get("slot_claims").cloned().unwrap_or_else(|| json!([]));
     Ok(Definition {
         id: string_field(raw, "id")?.to_owned(),
         hash,
@@ -1474,6 +1705,10 @@ fn parse_definition(raw: &Value, hash: String) -> Result<Definition, SimulationE
         facts,
         transitions,
         child_slot_capacities: serde_json::from_value(child_slot_capacities)
+            .map_err(|_| SimulationError::InvalidVector)?,
+        start_claims: serde_json::from_value(start_claims)
+            .map_err(|_| SimulationError::InvalidVector)?,
+        slot_claims: serde_json::from_value(slot_claims)
             .map_err(|_| SimulationError::InvalidVector)?,
     })
 }

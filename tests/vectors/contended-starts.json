@@ -1,0 +1,73 @@
+{
+  "pcam_vector_version": "1",
+  "kind": "runtime_vector",
+  "runtime_profile": {
+    "pcam_version": "3.0",
+    "kind": "runtime_profile",
+    "id": "pcam.reference.runtime.v1",
+    "revision": 1,
+    "fault_policy": "ABORT_SIMULATION",
+    "limits": {
+      "max_actions_per_entity": 8,
+      "max_action_nesting_depth": 4,
+      "max_children_per_action": 4,
+      "max_quanta_per_action_per_tick": 8,
+      "max_internal_transitions_per_action_per_tick": 8,
+      "max_buffer_entries_per_action": 8,
+      "max_pending_events_per_entity": 8,
+      "max_candidates_per_tick": 32,
+      "max_effects_per_tick": 32,
+      "max_redirects_per_candidate": 4,
+      "max_definition_size_bytes": 65536,
+      "max_snapshot_size_bytes": 262144,
+      "max_extension_state_bytes": 4096,
+      "max_expression_depth": 64,
+      "max_expression_nodes": 4096
+    },
+    "rng_profiles": ["pcam.pcg32.v1"],
+    "network_profiles": [{"id": "pcam.local.v1", "topology": "LOCAL_DETERMINISTIC"}],
+    "extensions": {}
+  },
+  "definitions": [
+    {
+      "id": "DODGE_A",
+      "rate_scale": 1,
+      "units_per_tick": 0,
+      "nodes": [{"id": "RUN", "mode": "EVENT_DRIVEN"}],
+      "start_claims": [{"kind": "RESOURCE", "key": "STAMINA", "amount": 7}],
+      "slot_claims": [{"kind": "ACTION_SLOT", "key": "FULL_BODY", "amount": 1}]
+    },
+    {
+      "id": "DODGE_B",
+      "rate_scale": 1,
+      "units_per_tick": 0,
+      "nodes": [{"id": "RUN", "mode": "EVENT_DRIVEN"}],
+      "start_claims": [{"kind": "RESOURCE", "key": "STAMINA", "amount": 7}],
+      "slot_claims": [{"kind": "ACTION_SLOT", "key": "FULL_BODY", "amount": 1}]
+    }
+  ],
+  "interaction_rules": [],
+  "effect_registry": {"combat.damage": ["hp", -1]},
+  "initial_state": {
+    "resource_banks": {"1": {"STAMINA": 10}},
+    "slot_capacities": {"1": {"FULL_BODY": 1}}
+  },
+  "ticks": [
+    {
+      "inputs": [
+        {"input_id": "b", "source_entity_id": 1, "sequence": 1, "command_id": "START", "assigned_tick": 0, "action_definition_id": "DODGE_B"},
+        {"input_id": "a", "source_entity_id": 1, "sequence": 2, "command_id": "START", "assigned_tick": 0, "action_definition_id": "DODGE_A"}
+      ],
+      "contacts": []
+    }
+  ],
+  "expected": {
+    "definition_hashes": {
+      "DODGE_A": "dfa4b0ac3d485ad261b166faca8aaa54e60066ecb3cb2092a133044a22a3a0b4",
+      "DODGE_B": "4712de2ae759845421601df5fbc7de3116f7766573d066ad1195a040567fb0a5"
+    },
+    "definition_set_hash": "6913d708d79fffaa314bf18123d7f6bb58b0e3877d40c944b52096a6c6a5bf63",
+    "tick_state_digests": ["460f4155ddb51716baac78d3e754265c9ea7ca1a2be6eb6252c516ad84c875a4"],
+    "final_state_digest": "460f4155ddb51716baac78d3e754265c9ea7ca1a2be6eb6252c516ad84c875a4"
+  }
+}
