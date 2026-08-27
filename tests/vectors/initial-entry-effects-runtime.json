@@ -45,6 +45,12 @@
           "id": "WAIT",
           "mode": "EVENT_DRIVEN",
           "entry_assignments": [{"target": "action.register.marker", "value": {"literal": 1}}],
+          "exit_assignments": [
+            {
+              "target": "action.register.marker",
+              "value": {"op": "add", "args": [{"ref": "action.register.marker"}, {"literal": 1}]}
+            }
+          ],
           "entry_effects": [
             {
               "effect_type": "trace.initial-entry",
@@ -63,6 +69,14 @@
               "reducer": "SUM",
               "payload": {"literal": 1}
             }
+          ],
+          "exit_effects": [
+            {
+              "effect_type": "trace.source-before-spawn",
+              "effect_class": "TRACE",
+              "authoritative": false,
+              "payload": {"marker": {"ref": "action.register.marker"}}
+            }
           ]
         }
       ],
@@ -77,7 +91,33 @@
           "child_slot_id": "SUB",
           "parent_policy": "CONTINUE",
           "input_command": "CHILD",
-          "consume_policy": "ON_ACCEPT"
+          "consume_policy": "ON_ACCEPT",
+          "exit_assignments": [
+            {
+              "target": "action.register.marker",
+              "value": {"op": "add", "args": [{"ref": "action.register.marker"}, {"literal": 1}]}
+            }
+          ],
+          "assignments": [
+            {
+              "target": "action.register.marker",
+              "value": {"op": "add", "args": [{"ref": "action.register.marker"}, {"literal": 1}]}
+            }
+          ],
+          "definition_effects": [
+            {
+              "effect_type": "trace.transition-before-spawn",
+              "effect_class": "TRACE",
+              "authoritative": false,
+              "payload": {"target_kind": "CHILD_ACTION", "marker": {"ref": "action.register.marker"}}
+            }
+          ],
+          "entry_assignments": [
+            {
+              "target": "action.register.marker",
+              "value": {"op": "add", "args": [{"ref": "action.register.marker"}, {"literal": 1}]}
+            }
+          ]
         },
         {
           "id": "launch-action",
@@ -88,7 +128,33 @@
           "target_action": "REPLACEMENT",
           "source_disposition": "KEEP_SOURCE",
           "input_command": "REPLACE",
-          "consume_policy": "ON_ACCEPT"
+          "consume_policy": "ON_ACCEPT",
+          "exit_assignments": [
+            {
+              "target": "action.register.marker",
+              "value": {"op": "add", "args": [{"ref": "action.register.marker"}, {"literal": 1}]}
+            }
+          ],
+          "assignments": [
+            {
+              "target": "action.register.marker",
+              "value": {"op": "add", "args": [{"ref": "action.register.marker"}, {"literal": 1}]}
+            }
+          ],
+          "definition_effects": [
+            {
+              "effect_type": "trace.transition-before-spawn",
+              "effect_class": "TRACE",
+              "authoritative": false,
+              "payload": {"target_kind": "ACTION", "marker": {"ref": "action.register.marker"}}
+            }
+          ],
+          "entry_assignments": [
+            {
+              "target": "action.register.marker",
+              "value": {"op": "add", "args": [{"ref": "action.register.marker"}, {"literal": 1}]}
+            }
+          ]
         }
       ]
     },
@@ -255,18 +321,18 @@
   ],
   "expected": {
     "definition_hashes": {
-      "ROOT": "f1b9dfea4cdae206fed43976db9cf981a49aca34b5e1fdb32fbd5683333aa4c4",
+      "ROOT": "f5022bef3bacbdc0a4698ceb800a8dbadfec66bd59295d2857c14a34ccdb2b5f",
       "DIRECT": "d1b1ec95e44a5833cbe93f858d49c3c3913b486cda6b11da4492a61995f0e5ab",
       "CHILD": "9e4bc5d1dd7630770d86ebc06178296dc646be5bf8e9831ee2b5e77ce18288a5",
       "REPLACEMENT": "9ac294030e02b8d912cd15c6b678b2a80d20aac8b846ce8a7c1338770cf96685"
     },
-    "definition_set_hash": "8e56150cb54ef080e50d147c3aa9c49ef35af2fca4b1b6daad6d3f42fbc048a2",
+    "definition_set_hash": "8d52a0b5320dd3d46a2be0472e03b53727da41e6898419dc85be9eb905c3f103",
     "tick_state_digests": [
-      "085348dd6a45d8113c315b3e9846be137da0e76ce8d4fe660a9e9887f14373b9",
-      "f9af7083f97df1182adac367ff932e5a8a1b59a49eeffa46ac969fb80b39433b",
-      "8539c383a7aa2d8afd5e109b954448267d5d9d313f0c52f20be965b7139bf3c3"
+      "92d09cfc383b57545d883b05beb6377b0a64136e7996cc4875ebb5b127be02ef",
+      "9583a6b1da8b602d1a6920f8f72bddd83d4fc49c26bfd11df7547f711838ab4c",
+      "8854dee1bceb4108ee99850e0a9b72ed3177b52f4bc79e88b05643f3df38b6a4"
     ],
-    "final_state_digest": "8539c383a7aa2d8afd5e109b954448267d5d9d313f0c52f20be965b7139bf3c3",
+    "final_state_digest": "8854dee1bceb4108ee99850e0a9b72ed3177b52f4bc79e88b05643f3df38b6a4",
     "summary": {
       "tick": 3,
       "stamina": 20,
@@ -283,10 +349,10 @@
           "child_instance_ids": []
         },
         "2": {
-          "definition_hash": "f1b9dfea4cdae206fed43976db9cf981a49aca34b5e1fdb32fbd5683333aa4c4",
+          "definition_hash": "f5022bef3bacbdc0a4698ceb800a8dbadfec66bd59295d2857c14a34ccdb2b5f",
           "lifecycle": "RUNNING",
-          "marker": 1,
-          "emission_serial": 2,
+          "marker": 9,
+          "emission_serial": 6,
           "transition_serial": 2,
           "parent_instance_id": null,
           "parent_slot_id": null,
@@ -383,6 +449,32 @@
       {
         "emitted": [
           {
+            "effect_id": "1:2:2",
+            "effect_type": "trace.source-before-spawn",
+            "effect_class": "TRACE",
+            "source_entity_id": 1,
+            "target_entity_id": 1,
+            "source_action_instance_id": 2,
+            "origin_tick": 1,
+            "priority": 0,
+            "payload": {"marker": 3},
+            "reducer": "ORDERED",
+            "authoritative": false
+          },
+          {
+            "effect_id": "1:2:3",
+            "effect_type": "trace.transition-before-spawn",
+            "effect_class": "TRACE",
+            "source_entity_id": 1,
+            "target_entity_id": 1,
+            "source_action_instance_id": 2,
+            "origin_tick": 1,
+            "priority": 0,
+            "payload": {"target_kind": "CHILD_ACTION", "marker": 4},
+            "reducer": "ORDERED",
+            "authoritative": false
+          },
+          {
             "effect_id": "1:3:0",
             "effect_type": "trace.initial-entry",
             "effect_class": "TRACE",
@@ -421,6 +513,32 @@
       },
       {
         "emitted": [
+          {
+            "effect_id": "2:2:4",
+            "effect_type": "trace.source-before-spawn",
+            "effect_class": "TRACE",
+            "source_entity_id": 1,
+            "target_entity_id": 1,
+            "source_action_instance_id": 2,
+            "origin_tick": 2,
+            "priority": 0,
+            "payload": {"marker": 7},
+            "reducer": "ORDERED",
+            "authoritative": false
+          },
+          {
+            "effect_id": "2:2:5",
+            "effect_type": "trace.transition-before-spawn",
+            "effect_class": "TRACE",
+            "source_entity_id": 1,
+            "target_entity_id": 1,
+            "source_action_instance_id": 2,
+            "origin_tick": 2,
+            "priority": 0,
+            "payload": {"target_kind": "ACTION", "marker": 8},
+            "reducer": "ORDERED",
+            "authoritative": false
+          },
           {
             "effect_id": "2:4:0",
             "effect_type": "trace.initial-entry",
