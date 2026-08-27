@@ -6,8 +6,8 @@ use crate::effects::{EffectEnvelope, ReducedEffect, RejectedEffect, reduce_effec
 use crate::events::{EventEnvelope, deliver_due};
 use crate::faults::{FaultContext, contain_fault};
 use crate::interactions::{
-    EffectTemplate as InteractionEffectTemplate, InteractionCandidate, InteractionRule,
-    SemanticFact, resolve_candidate,
+    EffectTemplate as InteractionEffectTemplate, InteractionCandidate, InteractionError,
+    InteractionRule, SemanticFact, resolve_candidate,
 };
 use crate::ledger::{
     HitPolicy as LedgerHitPolicy, LedgerContext, is_eligible as ledger_is_eligible,
@@ -717,7 +717,16 @@ impl SimulationRuntime {
                 .get("defense_fact_id")
                 .and_then(Value::as_str)
                 .map(str::to_owned);
-            let defenses = self.defense_map(&work, defense_fact_id.as_deref())?;
+            let defenses = self
+                .defense_map(&work, defense_fact_id.as_deref())
+                .map_err(|_| {
+                    contextual_runtime_fault(
+                        "INVALID_CONTACT",
+                        candidate_id,
+                        instance_id,
+                        action.owner_entity_id,
+                    )
+                })?;
             let candidate = InteractionCandidate {
                 tick: state.tick,
                 candidate_id: candidate_id.to_owned(),
@@ -741,7 +750,9 @@ impl SimulationRuntime {
                 self.max_expression_depth,
                 self.max_expression_nodes,
             )
-            .map_err(|_| SimulationError::RuntimeFault)?;
+            .map_err(|error| {
+                interaction_runtime_fault(error, candidate_id, instance_id, action.owner_entity_id)
+            })?;
             let accepted = decision.status == "ACCEPTED";
             let impact = decision
                 .generated_effects
@@ -1916,6 +1927,38 @@ impl SimulationRuntime {
             .retain(|token| token.get("target_id").and_then(Value::as_u64) != Some(action_id));
         Ok(())
     }
+}
+
+fn contextual_runtime_fault(
+    fault: &str,
+    message: &str,
+    action_instance_id: u64,
+    owner_entity_id: u64,
+) -> SimulationError {
+    SimulationError::Fault(FaultContext {
+        code: "RUNTIME_FAULT".to_owned(),
+        fault: fault.to_owned(),
+        message: message.to_owned(),
+        action_instance_id: Some(action_instance_id),
+        owner_entity_id: Some(owner_entity_id),
+    })
+}
+
+fn interaction_runtime_fault(
+    error: InteractionError,
+    candidate_id: &str,
+    action_instance_id: u64,
+    owner_entity_id: u64,
+) -> SimulationError {
+    let fault = match error {
+        InteractionError::DivisionByZero => "DIVISION_BY_ZERO",
+        InteractionError::IntegerOverflow => "INTEGER_OVERFLOW",
+        InteractionError::RedirectLimitExceeded => "REDIRECT_LIMIT_EXCEEDED",
+        InteractionError::DefinitionRejected | InteractionError::StateInvariant => {
+            "STATE_INVARIANT_FAILURE"
+        }
+    };
+    contextual_runtime_fault(fault, candidate_id, action_instance_id, owner_entity_id)
 }
 
 fn canonical_definition(raw: &Value) -> Result<Value, SimulationError> {

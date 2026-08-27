@@ -1,0 +1,124 @@
+{
+  "pcam_vector_version": "1",
+  "kind": "runtime_vector",
+  "id": "interaction-fault-runtime",
+  "runtime_profile": {
+    "pcam_version": "3.0",
+    "kind": "runtime_profile",
+    "id": "pcam.reference.interaction-fault.v1",
+    "revision": 1,
+    "fault_policy": "FAULT_ACTION",
+    "limits": {
+      "max_actions_per_entity": 8,
+      "max_action_nesting_depth": 4,
+      "max_children_per_action": 4,
+      "max_quanta_per_action_per_tick": 8,
+      "max_internal_transitions_per_action_per_tick": 8,
+      "max_buffer_entries_per_action": 8,
+      "max_pending_events_per_entity": 8,
+      "max_candidates_per_tick": 32,
+      "max_effects_per_tick": 32,
+      "max_redirects_per_candidate": 4,
+      "max_definition_size_bytes": 65536,
+      "max_snapshot_size_bytes": 262144,
+      "max_extension_state_bytes": 4096,
+      "max_expression_depth": 64,
+      "max_expression_nodes": 4096
+    },
+    "rng_profiles": ["pcam.pcg32.v1"],
+    "network_profiles": [
+      {"id": "pcam.local.v1", "topology": "LOCAL_DETERMINISTIC"}
+    ],
+    "extensions": {}
+  },
+  "definitions": [
+    {
+      "id": "A_STRIKER",
+      "rate_scale": 1,
+      "units_per_tick": 0,
+      "nodes": [{"id": "ACTIVE", "mode": "EVENT_DRIVEN"}],
+      "predicates": [{"id": "ACTIVE", "node_ids": ["ACTIVE"]}],
+      "semantic_facts": [
+        {
+          "fact": {"fact_id": "strike", "direction": "OFFENSE"},
+          "when_predicate": "ACTIVE",
+          "hit_policy": {"kind": "UNBOUNDED", "receipt_on": "ON_CONTACT"}
+        }
+      ]
+    },
+    {
+      "id": "B_SIBLING",
+      "rate_scale": 1,
+      "units_per_tick": 0,
+      "nodes": [{"id": "RUN", "mode": "EVENT_DRIVEN"}]
+    }
+  ],
+  "interaction_rules": [
+    {
+      "rule_id": "redirect-cycle",
+      "stage": "ROUTING",
+      "order": 10,
+      "condition": {"literal": true},
+      "operations": [{"op": "REDIRECT", "data": {"target_entity_id": 2}}]
+    }
+  ],
+  "effect_registry": {"combat.damage": ["hp", -1]},
+  "initial_state": {"resource_banks": {}, "slot_capacities": {}},
+  "ticks": [
+    {
+      "inputs": [
+        {"input_id": "start-striker", "source_entity_id": 1, "sequence": 0, "command_id": "START", "assigned_tick": 0, "action_definition_id": "A_STRIKER"},
+        {"input_id": "start-sibling", "source_entity_id": 1, "sequence": 1, "command_id": "START", "assigned_tick": 0, "action_definition_id": "B_SIBLING"}
+      ],
+      "contacts": []
+    }
+  ],
+  "fault_tick": {
+    "inputs": [],
+    "contacts": [
+      {"candidate_id": "redirect-cycle", "source_instance_id": 1, "source_entity_id": 1, "target_entity_id": 2, "fact_id": "strike", "contact_id": "contact"}
+    ]
+  },
+  "cases": [
+    {
+      "policy": "FAULT_ACTION",
+      "pre_fault_digest": "5c740c29dd34410c816b3f386ec65b5b1f0f0bf9246ec7e7fa09ff42b6e36d4a",
+      "final_state_digest": "076aa8136d58fdd4bc7748e477dfc5b868ea3292c39b983d08afad9f98fc1ac7",
+      "expected": {
+        "tick": 2,
+        "lifecycle": {"1": "FAULTED", "2": "RUNNING"},
+        "fault_records": {"1": "REDIRECT_LIMIT_EXCEEDED", "2": null},
+        "entity_fault_owners": [],
+        "trace_faults": [
+          {"action_instance_id": 1, "code": "RUNTIME_FAULT", "contained": true, "fault": "REDIRECT_LIMIT_EXCEEDED", "message": "redirect-cycle", "owner_entity_id": 1, "policy": "FAULT_ACTION", "tick": 1}
+        ],
+        "trace_effects": [],
+        "ledger_count": 0
+      }
+    },
+    {
+      "policy": "FAULT_ENTITY",
+      "pre_fault_digest": "c790dbe77e5e070b90e817bb976b366e36c1e4ff7407dd3f1789b3636a9d2b12",
+      "final_state_digest": "454eaf477bd395b46d881937e2e4d6e8d919b835ca99c7b095fc65c0f7ef6654",
+      "expected": {
+        "tick": 2,
+        "lifecycle": {"1": "FAULTED", "2": "FAULTED"},
+        "fault_records": {"1": "REDIRECT_LIMIT_EXCEEDED", "2": "REDIRECT_LIMIT_EXCEEDED"},
+        "entity_fault_owners": [1],
+        "trace_faults": [
+          {"action_instance_id": 1, "code": "RUNTIME_FAULT", "contained": true, "fault": "REDIRECT_LIMIT_EXCEEDED", "message": "redirect-cycle", "owner_entity_id": 1, "policy": "FAULT_ENTITY", "tick": 1}
+        ],
+        "trace_effects": [],
+        "ledger_count": 0
+      }
+    },
+    {
+      "policy": "ABORT_SIMULATION",
+      "pre_fault_digest": "8826520bc69fc0c6abb7d1308d929ff43b5e768e205c2f378f25ee7169f6c0d1",
+      "fault": "REDIRECT_LIMIT_EXCEEDED",
+      "message": "redirect-cycle",
+      "action_instance_id": 1,
+      "owner_entity_id": 1
+    }
+  ]
+}
