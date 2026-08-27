@@ -4,6 +4,7 @@ use std::collections::BTreeMap;
 use unicode_normalization::UnicodeNormalization;
 
 pub mod action;
+pub mod effects;
 pub mod expression;
 pub mod extension;
 pub mod numeric;

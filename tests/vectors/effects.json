@@ -1,0 +1,64 @@
+{
+  "profile": "pcam.effects.v1",
+  "cases": [
+    {
+      "id": "all-core-reducers-and-canonical-order",
+      "effects": [
+        {"effect_id": "sum-low", "effect_type": "a.sum", "effect_class": "TEST", "source_entity_id": 2, "target_entity_id": 1, "source_action_instance_id": 2, "origin_tick": 4, "priority": 0, "payload": 3, "reducer": "SUM"},
+        {"effect_id": "sum-high", "effect_type": "a.sum", "effect_class": "TEST", "source_entity_id": 1, "target_entity_id": 1, "source_action_instance_id": 1, "origin_tick": 4, "priority": 5, "payload": -1, "reducer": "SUM"},
+        {"effect_id": "min-a", "effect_type": "b.min", "effect_class": "TEST", "source_entity_id": 1, "target_entity_id": 1, "source_action_instance_id": 1, "origin_tick": 4, "priority": 0, "payload": 8, "reducer": "MIN"},
+        {"effect_id": "min-b", "effect_type": "b.min", "effect_class": "TEST", "source_entity_id": 2, "target_entity_id": 1, "source_action_instance_id": 2, "origin_tick": 4, "priority": 0, "payload": 2, "reducer": "MIN"},
+        {"effect_id": "max-a", "effect_type": "c.max", "effect_class": "TEST", "source_entity_id": 1, "target_entity_id": 1, "source_action_instance_id": 1, "origin_tick": 4, "priority": 0, "payload": 8, "reducer": "MAX"},
+        {"effect_id": "max-b", "effect_type": "c.max", "effect_class": "TEST", "source_entity_id": 2, "target_entity_id": 1, "source_action_instance_id": 2, "origin_tick": 4, "priority": 0, "payload": 12, "reducer": "MAX"},
+        {"effect_id": "tags-b", "effect_type": "d.tags", "effect_class": "TEST", "source_entity_id": 2, "target_entity_id": 1, "source_action_instance_id": 2, "origin_tick": 4, "priority": 0, "payload": ["B", "A"], "reducer": "SET_UNION"},
+        {"effect_id": "tags-a", "effect_type": "d.tags", "effect_class": "TEST", "source_entity_id": 1, "target_entity_id": 1, "source_action_instance_id": 1, "origin_tick": 4, "priority": 0, "payload": ["C", "A"], "reducer": "SET_UNION"},
+        {"effect_id": "ordered-low", "effect_type": "e.ordered", "effect_class": "TEST", "source_entity_id": 2, "target_entity_id": 1, "source_action_instance_id": 2, "origin_tick": 4, "priority": 0, "payload": "LOW", "reducer": "ORDERED"},
+        {"effect_id": "ordered-high", "effect_type": "e.ordered", "effect_class": "TEST", "source_entity_id": 1, "target_entity_id": 1, "source_action_instance_id": 1, "origin_tick": 4, "priority": 5, "payload": "HIGH", "reducer": "ORDERED"},
+        {"effect_id": "first-low", "effect_type": "f.first", "effect_class": "TEST", "source_entity_id": 2, "target_entity_id": 1, "source_action_instance_id": 2, "origin_tick": 4, "priority": 0, "payload": "LOW", "reducer": "FIRST"},
+        {"effect_id": "first-high", "effect_type": "f.first", "effect_class": "TEST", "source_entity_id": 1, "target_entity_id": 1, "source_action_instance_id": 1, "origin_tick": 4, "priority": 5, "payload": "HIGH", "reducer": "FIRST"},
+        {"effect_id": "last-low", "effect_type": "g.last", "effect_class": "TEST", "source_entity_id": 2, "target_entity_id": 1, "source_action_instance_id": 2, "origin_tick": 4, "priority": 0, "payload": "LOW", "reducer": "LAST"},
+        {"effect_id": "last-high", "effect_type": "g.last", "effect_class": "TEST", "source_entity_id": 1, "target_entity_id": 1, "source_action_instance_id": 1, "origin_tick": 4, "priority": 5, "payload": "HIGH", "reducer": "LAST"},
+        {"effect_id": "exclusive-low", "effect_type": "h.exclusive", "effect_class": "TEST", "source_entity_id": 2, "target_entity_id": 1, "source_action_instance_id": 2, "origin_tick": 4, "priority": 0, "payload": "LOW", "reducer": "EXCLUSIVE"},
+        {"effect_id": "exclusive-high", "effect_type": "h.exclusive", "effect_class": "TEST", "source_entity_id": 1, "target_entity_id": 1, "source_action_instance_id": 1, "origin_tick": 4, "priority": 5, "payload": "HIGH", "reducer": "EXCLUSIVE"}
+      ],
+      "reduced": [
+        {"target_entity_id": 1, "effect_type": "a.sum", "reducer": "SUM", "value": 2, "source_effect_ids": ["sum-high", "sum-low"]},
+        {"target_entity_id": 1, "effect_type": "b.min", "reducer": "MIN", "value": 2, "source_effect_ids": ["min-a", "min-b"]},
+        {"target_entity_id": 1, "effect_type": "c.max", "reducer": "MAX", "value": 12, "source_effect_ids": ["max-a", "max-b"]},
+        {"target_entity_id": 1, "effect_type": "d.tags", "reducer": "SET_UNION", "value": ["A", "B", "C"], "source_effect_ids": ["tags-a", "tags-b"]},
+        {"target_entity_id": 1, "effect_type": "e.ordered", "reducer": "ORDERED", "value": ["HIGH", "LOW"], "source_effect_ids": ["ordered-high", "ordered-low"]},
+        {"target_entity_id": 1, "effect_type": "f.first", "reducer": "FIRST", "value": "HIGH", "source_effect_ids": ["first-high", "first-low"]},
+        {"target_entity_id": 1, "effect_type": "g.last", "reducer": "LAST", "value": "LOW", "source_effect_ids": ["last-high", "last-low"]},
+        {"target_entity_id": 1, "effect_type": "h.exclusive", "reducer": "EXCLUSIVE", "value": "HIGH", "source_effect_ids": ["exclusive-high", "exclusive-low"]}
+      ],
+      "rejected": [
+        {"effect_id": "exclusive-low", "reason": "EXCLUSIVE_EFFECT_LOST"}
+      ]
+    }
+  ],
+  "fault_cases": [
+    {
+      "id": "mixed-reducers",
+      "effects": [
+        {"effect_id": "a", "effect_type": "mixed", "effect_class": "TEST", "source_entity_id": 1, "target_entity_id": 1, "source_action_instance_id": 1, "origin_tick": 0, "priority": 0, "payload": 1, "reducer": "SUM"},
+        {"effect_id": "b", "effect_type": "mixed", "effect_class": "TEST", "source_entity_id": 1, "target_entity_id": 1, "source_action_instance_id": 1, "origin_tick": 0, "priority": 0, "payload": 2, "reducer": "MAX"}
+      ],
+      "fault": "UNKNOWN_EFFECT"
+    },
+    {
+      "id": "unregistered-custom",
+      "effects": [
+        {"effect_id": "custom", "effect_type": "custom", "effect_class": "TEST", "source_entity_id": 1, "target_entity_id": 1, "source_action_instance_id": 1, "origin_tick": 0, "priority": 0, "payload": 1, "reducer": "CUSTOM_DETERMINISTIC"}
+      ],
+      "fault": "UNKNOWN_EFFECT"
+    },
+    {
+      "id": "sum-overflow",
+      "effects": [
+        {"effect_id": "max", "effect_type": "overflow", "effect_class": "TEST", "source_entity_id": 1, "target_entity_id": 1, "source_action_instance_id": 1, "origin_tick": 0, "priority": 1, "payload": 9223372036854775807, "reducer": "SUM"},
+        {"effect_id": "one", "effect_type": "overflow", "effect_class": "TEST", "source_entity_id": 1, "target_entity_id": 1, "source_action_instance_id": 1, "origin_tick": 0, "priority": 0, "payload": 1, "reducer": "SUM"}
+      ],
+      "fault": "INTEGER_OVERFLOW"
+    }
+  ]
+}
