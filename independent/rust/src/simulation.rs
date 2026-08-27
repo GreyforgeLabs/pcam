@@ -4359,12 +4359,90 @@ fn normalize_register_assignment(
                     .map_err(|_| assignment_fault("INTEGER_OVERFLOW", action_id, state))
             })
         }
-        _ => Err(assignment_fault(
-            "STATE_INVARIANT_FAILURE",
+        "SET_SYMBOL" | "FIXED_ARRAY" | "BOUNDED_LIST" => {
+            let mut items = value.as_array().cloned().ok_or_else(|| {
+                invalid_register_assignment_fault(register_id, kind, action_id, state)
+            })?;
+            let capacity = declaration
+                .get("capacity")
+                .and_then(Value::as_u64)
+                .and_then(|capacity| usize::try_from(capacity).ok())
+                .ok_or_else(|| {
+                    invalid_register_assignment_fault(register_id, kind, action_id, state)
+                })?;
+            if kind == "SET_SYMBOL" {
+                let symbols = items
+                    .iter()
+                    .map(Value::as_str)
+                    .collect::<Option<Vec<_>>>()
+                    .ok_or_else(|| {
+                        invalid_register_assignment_fault(register_id, kind, action_id, state)
+                    })?;
+                if symbols.iter().copied().collect::<BTreeSet<_>>().len() != symbols.len() {
+                    return Err(invalid_register_assignment_fault(
+                        register_id,
+                        kind,
+                        action_id,
+                        state,
+                    ));
+                }
+            }
+            if kind == "FIXED_ARRAY" && items.len() != capacity {
+                return Err(invalid_register_assignment_fault(
+                    register_id,
+                    kind,
+                    action_id,
+                    state,
+                ));
+            }
+            if items.len() > capacity {
+                if declaration.get("overflow").and_then(Value::as_str) == Some("SATURATE") {
+                    items.truncate(capacity);
+                } else {
+                    return Err(invalid_register_assignment_fault(
+                        register_id,
+                        kind,
+                        action_id,
+                        state,
+                    ));
+                }
+            }
+            if kind == "SET_SYMBOL" {
+                items.sort_by(|left, right| {
+                    left.as_str()
+                        .expect("SET_SYMBOL values were validated")
+                        .as_bytes()
+                        .cmp(
+                            right
+                                .as_str()
+                                .expect("SET_SYMBOL values were validated")
+                                .as_bytes(),
+                        )
+                });
+            }
+            Ok(Value::Array(items))
+        }
+        _ => Err(invalid_register_assignment_fault(
+            register_id,
+            kind,
             action_id,
             state,
         )),
     }
+}
+
+fn invalid_register_assignment_fault(
+    register_id: &str,
+    kind: &str,
+    action_id: u64,
+    state: &SimulationState,
+) -> SimulationError {
+    assignment_fault_message(
+        "STATE_INVARIANT_FAILURE",
+        &format!("invalid {kind} assignment for register {register_id}"),
+        action_id,
+        state,
+    )
 }
 
 fn normalize_bounded_integer(

@@ -1,0 +1,242 @@
+{
+  "pcam_vector_version": "1",
+  "kind": "runtime_vector",
+  "id": "collection-register-runtime",
+  "runtime_profile": {
+    "pcam_version": "3.0",
+    "kind": "runtime_profile",
+    "id": "pcam.reference.collection-register.v1",
+    "revision": 1,
+    "fault_policy": "ABORT_SIMULATION",
+    "limits": {
+      "max_actions_per_entity": 8,
+      "max_action_nesting_depth": 4,
+      "max_children_per_action": 4,
+      "max_quanta_per_action_per_tick": 8,
+      "max_internal_transitions_per_action_per_tick": 8,
+      "max_buffer_entries_per_action": 8,
+      "max_pending_events_per_entity": 8,
+      "max_candidates_per_tick": 32,
+      "max_effects_per_tick": 32,
+      "max_redirects_per_candidate": 4,
+      "max_definition_size_bytes": 65536,
+      "max_snapshot_size_bytes": 262144,
+      "max_extension_state_bytes": 4096,
+      "max_expression_depth": 64,
+      "max_expression_nodes": 4096
+    },
+    "rng_profiles": ["pcam.pcg32.v1"],
+    "network_profiles": [{"id": "pcam.local.v1", "topology": "LOCAL_DETERMINISTIC"}],
+    "extensions": {}
+  },
+  "definitions": [
+    {
+      "id": "COLLECTIONS",
+      "rate_scale": 1,
+      "units_per_tick": 0,
+      "register_declarations": {
+        "symbols": {"type": "SET_SYMBOL", "capacity": 2, "overflow": "SATURATE"},
+        "fixed": {"type": "FIXED_ARRAY", "capacity": 2, "overflow": "FAULT"},
+        "copied": {"type": "BOUNDED_LIST", "capacity": 2, "overflow": "FAULT"},
+        "trimmed": {"type": "BOUNDED_LIST", "capacity": 2, "overflow": "SATURATE"}
+      },
+      "register_initials": {
+        "symbols": [],
+        "fixed": [0, 0],
+        "copied": [],
+        "trimmed": []
+      },
+      "nodes": [
+        {"id": "WAIT", "mode": "EVENT_DRIVEN"},
+        {"id": "DONE", "mode": "EVENT_DRIVEN"}
+      ],
+      "transitions": [
+        {
+          "id": "replace-collections",
+          "source_node": "WAIT",
+          "evaluation_point": "PRE_ADVANCE",
+          "priority": 10,
+          "target_kind": "NODE",
+          "target_node": "DONE",
+          "input_command": "GO",
+          "consume_policy": "ON_ACCEPT",
+          "assignments": [
+            {
+              "target": "action.register.symbols",
+              "value": {"literal": ["z", "a", "m"]}
+            },
+            {
+              "target": "action.register.fixed",
+              "value": {"literal": [1, 2]}
+            },
+            {
+              "target": "action.register.copied",
+              "value": {"ref": "action.register.symbols"}
+            },
+            {
+              "target": "action.register.trimmed",
+              "value": {"literal": [1, 2, 3]}
+            }
+          ],
+          "definition_effects": [
+            {
+              "effect_type": "trace.collections",
+              "effect_class": "TRACE",
+              "authoritative": false,
+              "payload": {
+                "symbols": {"ref": "action.register.symbols"},
+                "fixed": {"ref": "action.register.fixed"},
+                "copied": {"ref": "action.register.copied"},
+                "trimmed": {"ref": "action.register.trimmed"}
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "interaction_rules": [],
+  "effect_registry": {},
+  "initial_state": {},
+  "ticks": [
+    {
+      "inputs": [
+        {
+          "input_id": "start",
+          "source_entity_id": 1,
+          "sequence": 0,
+          "command_id": "START",
+          "assigned_tick": 0,
+          "action_definition_id": "COLLECTIONS"
+        }
+      ],
+      "contacts": []
+    },
+    {
+      "inputs": [
+        {
+          "input_id": "go",
+          "source_entity_id": 1,
+          "sequence": 1,
+          "command_id": "GO",
+          "assigned_tick": 1
+        }
+      ],
+      "contacts": []
+    }
+  ],
+  "fault_cases": [
+    {
+      "id": "duplicate-set-member",
+      "target": "action.register.symbols",
+      "value": {"literal": ["a", "a"]},
+      "fault": "STATE_INVARIANT_FAILURE",
+      "tick_state_digests": [
+        "a48704ee272390b8e1341b3002c9380413c13acc901e7e0c3fbc1fbc5d27741f",
+        "464d0ef87326d3b85ca2d5ef4f6b9cc07ef18318ea7f2ab9f2151e86fd2434f2"
+      ],
+      "final_state_digest": "464d0ef87326d3b85ca2d5ef4f6b9cc07ef18318ea7f2ab9f2151e86fd2434f2"
+    },
+    {
+      "id": "non-symbol-set-member",
+      "target": "action.register.symbols",
+      "value": {"literal": ["a", 1]},
+      "fault": "STATE_INVARIANT_FAILURE",
+      "tick_state_digests": [
+        "4b4bc710a03fec44dddaa0f7528e209bb90ff176934763daa42a2942be5030d5",
+        "8ed7b7721dc74ffdfbf49580289adc086d905d5c5122e40e4dc8f844614711a8"
+      ],
+      "final_state_digest": "8ed7b7721dc74ffdfbf49580289adc086d905d5c5122e40e4dc8f844614711a8"
+    },
+    {
+      "id": "fixed-array-wrong-length",
+      "target": "action.register.fixed",
+      "value": {"literal": [1]},
+      "fault": "STATE_INVARIANT_FAILURE",
+      "tick_state_digests": [
+        "15c273e07b0c761b6fe30e54dad3ac9c6efb362613419ea0f236586384863ffe",
+        "4033251a437117e0a86631a5131542b9f47f01dab918dcad0c963de32cd8f965"
+      ],
+      "final_state_digest": "4033251a437117e0a86631a5131542b9f47f01dab918dcad0c963de32cd8f965"
+    },
+    {
+      "id": "bounded-list-fault-overflow",
+      "target": "action.register.copied",
+      "value": {"literal": [1, 2, 3]},
+      "fault": "STATE_INVARIANT_FAILURE",
+      "tick_state_digests": [
+        "a0896a8a638d2a12d6c15ab0d8b85f3b5d5172826509bfe77f7c8207a2faba9d",
+        "711f6693371ea72e40f7dda81518e17c9eba670d739d4e1989cfc44d973c3203"
+      ],
+      "final_state_digest": "711f6693371ea72e40f7dda81518e17c9eba670d739d4e1989cfc44d973c3203"
+    },
+    {
+      "id": "collection-requires-array",
+      "target": "action.register.trimmed",
+      "value": {"literal": "not-an-array"},
+      "fault": "STATE_INVARIANT_FAILURE",
+      "tick_state_digests": [
+        "ede0db7064ed0c6545d31207ce92e3a50205de957d76f04506949eee670fa807",
+        "9d4fd84ccecfb010fa87aeba8a8a163789deff911336a9e85323fa0515ab1932"
+      ],
+      "final_state_digest": "9d4fd84ccecfb010fa87aeba8a8a163789deff911336a9e85323fa0515ab1932"
+    }
+  ],
+  "expected": {
+    "definition_hash": "6af0d5bc01c8d9663f8bb8d04ae4cc4dc30140d0872cef6140d4a885a375686f",
+    "definition_set_hash": "a75077fa4dde77a1931dcd547098abc23880c7ce6db32c3f85197401354051e6",
+    "tick_state_digests": [
+      "5dac542d06cff0f135e6f5e0e63577736f0c34a7ccee7d94aed6e072f803dfae",
+      "e3284351ffb34736fdccde9a9f8b3cb20a083f9932c211d8a2e32154c41d55ac"
+    ],
+    "final_state_digest": "e3284351ffb34736fdccde9a9f8b3cb20a083f9932c211d8a2e32154c41d55ac",
+    "summary": {
+      "tick": 2,
+      "node": "DONE",
+      "registers": {
+        "symbols": ["a", "z"],
+        "fixed": [1, 2],
+        "copied": ["a", "z"],
+        "trimmed": [1, 2]
+      },
+      "transition_serial": 1,
+      "emission_serial": 1,
+      "input_buffer": []
+    },
+    "emitted": [
+      {
+        "effect_id": "1:1:0",
+        "effect_type": "trace.collections",
+        "effect_class": "TRACE",
+        "source_entity_id": 1,
+        "target_entity_id": 1,
+        "source_action_instance_id": 1,
+        "origin_tick": 1,
+        "priority": 0,
+        "payload": {
+          "symbols": ["a", "z"],
+          "fixed": [1, 2],
+          "copied": ["a", "z"],
+          "trimmed": [1, 2]
+        },
+        "reducer": "ORDERED",
+        "authoritative": false
+      }
+    ],
+    "fault_summary": {
+      "tick": 2,
+      "node": "WAIT",
+      "lifecycle": "FAULTED",
+      "fault_record": "STATE_INVARIANT_FAILURE",
+      "registers": {
+        "symbols": [],
+        "fixed": [0, 0],
+        "copied": [],
+        "trimmed": []
+      },
+      "transition_serial": 0,
+      "emission_serial": 0,
+      "input_buffer": []
+    }
+  }
+}
