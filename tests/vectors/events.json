@@ -1,0 +1,53 @@
+{
+  "profile": "pcam.events.v1",
+  "cases": [
+    {
+      "id": "canonical-due-and-future-order",
+      "tick": 5,
+      "frozen_target_action_ids": [],
+      "events": [
+        {"event_id": "z", "event_type": "READY", "source_id": 2, "target_id": 3, "origin_tick": 4, "delivery_tick": 5, "payload": {"value": 2}, "delivery_mode": "TARGET_ACTION"},
+        {"event_id": "future", "event_type": "READY", "source_id": 1, "target_id": 1, "origin_tick": 4, "delivery_tick": 6, "payload": {}, "delivery_mode": "TARGET_ACTION"},
+        {"event_id": "a", "event_type": "READY", "source_id": 1, "target_id": 3, "origin_tick": 4, "delivery_tick": 5, "payload": {"value": 1}, "delivery_mode": "TARGET_ACTION"}
+      ],
+      "delivered_ids": ["a", "z"],
+      "pending": [
+        {"event_id": "future", "event_type": "READY", "source_id": 1, "target_id": 1, "origin_tick": 4, "delivery_tick": 6, "payload": {}, "delivery_mode": "TARGET_ACTION"}
+      ]
+    },
+    {
+      "id": "action-freeze-defers-only-action-scoped-events",
+      "tick": 5,
+      "frozen_target_action_ids": [2],
+      "events": [
+        {"event_id": "action", "event_type": "CHILD_RESULT", "source_id": 1, "target_id": 2, "origin_tick": 4, "delivery_tick": 5, "payload": {}, "delivery_mode": "PARENT"},
+        {"event_id": "entity", "event_type": "NOTICE", "source_id": 1, "target_id": 2, "origin_tick": 4, "delivery_tick": 5, "payload": {}, "delivery_mode": "TARGET_ENTITY"}
+      ],
+      "delivered_ids": ["entity"],
+      "pending": [
+        {"event_id": "action", "event_type": "CHILD_RESULT", "source_id": 1, "target_id": 2, "origin_tick": 4, "delivery_tick": 6, "payload": {}, "delivery_mode": "PARENT"}
+      ],
+      "continuation_tick": 6,
+      "continuation_delivered_ids": ["action"]
+    }
+  ],
+  "fault_cases": [
+    {
+      "id": "duplicate-event-id",
+      "tick": 5,
+      "events": [
+        {"event_id": "same", "event_type": "A", "source_id": 1, "target_id": 2, "origin_tick": 4, "delivery_tick": 5, "payload": {}, "delivery_mode": "TARGET_ACTION"},
+        {"event_id": "same", "event_type": "B", "source_id": 2, "target_id": 3, "origin_tick": 4, "delivery_tick": 5, "payload": {}, "delivery_mode": "TARGET_ACTION"}
+      ],
+      "fault": "STATE_INVARIANT_FAILURE"
+    },
+    {
+      "id": "late-event",
+      "tick": 6,
+      "events": [
+        {"event_id": "late", "event_type": "A", "source_id": 1, "target_id": 2, "origin_tick": 4, "delivery_tick": 5, "payload": {}, "delivery_mode": "TARGET_ACTION"}
+      ],
+      "fault": "STATE_INVARIANT_FAILURE"
+    }
+  ]
+}
