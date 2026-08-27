@@ -582,8 +582,8 @@ impl SimulationRuntime {
             .iter()
             .map(|input| string_field(input, "input_id").map(str::to_owned))
             .collect::<Result<Vec<_>, _>>()?;
-        self.arbitrate_direct_starts(&mut work, &inputs)?;
         self.apply_pre_transitions(&mut work, &inputs)?;
+        self.arbitrate_direct_starts(&mut work, &inputs)?;
         self.progress_actions(&mut work)?;
 
         for action in &mut work.action_instances {
@@ -782,6 +782,22 @@ impl SimulationRuntime {
         for action in &mut work.action_instances {
             action.event_inbox.clear();
         }
+        for token in &mut work.freeze_tokens {
+            let active = token["activation_tick"]
+                .as_u64()
+                .is_some_and(|activation| activation <= work.tick);
+            if active {
+                let remaining = token["remaining_ticks"]
+                    .as_u64()
+                    .ok_or(SimulationError::RuntimeFault)?;
+                token["remaining_ticks"] = json!(remaining.saturating_sub(1));
+            }
+        }
+        work.freeze_tokens.retain(|token| {
+            token["remaining_ticks"]
+                .as_u64()
+                .is_some_and(|remaining| remaining > 0)
+        });
         work.tick = work
             .tick
             .checked_add(1)
@@ -821,6 +837,9 @@ impl SimulationRuntime {
                 .cloned()
                 .ok_or(SimulationError::RuntimeFault)?;
             if action.lifecycle_state != "RUNNING" {
+                continue;
+            }
+            if domain_frozen(state, action.instance_id, "PRE_ADVANCE_TRANSITIONS") {
                 continue;
             }
             let definition = self
@@ -1389,6 +1408,9 @@ impl SimulationRuntime {
             if state.action_instances[index].lifecycle_state != "RUNNING" {
                 continue;
             }
+            if domain_frozen(state, action_id, "PROGRESSION") {
+                continue;
+            }
             let definition = self
                 .definitions
                 .values()
@@ -1632,7 +1654,29 @@ impl SimulationRuntime {
                 state.action_instances[index]
                     .child_instance_ids
                     .push(child_id);
-                if transition.parent_policy.as_deref() == Some("FREEZE_PROGRESSION") {
+                let parent_policy = transition
+                    .parent_policy
+                    .as_deref()
+                    .ok_or(SimulationError::RuntimeFault)?;
+                let domains: &[&str] = match parent_policy {
+                    "CONTINUE" | "TERMINATE_PARENT" => &[],
+                    "FREEZE_PROGRESSION" => &["PROGRESSION"],
+                    "FREEZE_TRANSITIONS" => {
+                        &["PRE_ADVANCE_TRANSITIONS", "POST_ADVANCE_TRANSITIONS"]
+                    }
+                    "FREEZE_ALL_ACTION_LOGIC" => &[
+                        "PROGRESSION",
+                        "PRE_ADVANCE_TRANSITIONS",
+                        "POST_ADVANCE_TRANSITIONS",
+                        "INPUT_CAPTURE",
+                        "INTERACTION_EMISSION",
+                        "INTERACTION_RECEPTION",
+                    ],
+                    _ => return Err(SimulationError::RuntimeFault),
+                };
+                if !domains.is_empty() {
+                    let mut domains = domains.to_vec();
+                    domains.sort_unstable();
                     let token_id = state.next_freeze_token_id;
                     state.next_freeze_token_id = token_id
                         .checked_add(1)
@@ -1643,7 +1687,7 @@ impl SimulationRuntime {
                     state.freeze_tokens.push(json!({
                         "accrual_policy": "HOLD",
                         "activation_tick": state.tick + 1,
-                        "domains": ["PROGRESSION"],
+                        "domains": domains,
                         "metadata": {"child_slot_id": child_slot, "relationship": "PARENT_CHILD"},
                         "remaining_ticks": u64::MAX,
                         "source_id": child_id,
@@ -1684,6 +1728,9 @@ impl SimulationRuntime {
                     slot_claims: Vec::new(),
                     transition_serial: 0,
                 });
+                if parent_policy == "TERMINATE_PARENT" {
+                    state.action_instances[index].lifecycle_state = "TERMINATED".to_owned();
+                }
                 state
                     .action_instances
                     .sort_by_key(|action| action.instance_id);
@@ -2387,6 +2434,21 @@ fn presentation_ids(effects: &[EffectEnvelope]) -> Vec<String> {
         .collect::<BTreeSet<_>>()
         .into_iter()
         .collect()
+}
+
+fn domain_frozen(state: &SimulationState, target_id: u64, domain: &str) -> bool {
+    state.freeze_tokens.iter().any(|token| {
+        token["target_id"].as_u64() == Some(target_id)
+            && token["activation_tick"]
+                .as_u64()
+                .is_some_and(|activation| activation <= state.tick)
+            && token["remaining_ticks"]
+                .as_u64()
+                .is_some_and(|remaining| remaining > 0)
+            && token["domains"]
+                .as_array()
+                .is_some_and(|domains| domains.iter().any(|value| value.as_str() == Some(domain)))
+    })
 }
 
 fn canonical_set<'a>(values: impl Iterator<Item = &'a String>) -> Vec<String> {

@@ -1,0 +1,35 @@
+{
+  "pcam_vector_version": "1", "kind": "runtime_vector", "id": "parent-policies",
+  "runtime_profile": {
+    "pcam_version": "3.0", "kind": "runtime_profile", "id": "pcam.reference.parent-policies.v1", "revision": 1, "fault_policy": "ABORT_SIMULATION",
+    "limits": {"max_actions_per_entity": 8, "max_action_nesting_depth": 4, "max_children_per_action": 4, "max_quanta_per_action_per_tick": 8, "max_internal_transitions_per_action_per_tick": 8, "max_buffer_entries_per_action": 8, "max_pending_events_per_entity": 8, "max_candidates_per_tick": 32, "max_effects_per_tick": 32, "max_redirects_per_candidate": 4, "max_definition_size_bytes": 65536, "max_snapshot_size_bytes": 262144, "max_extension_state_bytes": 4096, "max_expression_depth": 64, "max_expression_nodes": 4096},
+    "rng_profiles": ["pcam.pcg32.v1"], "network_profiles": [{"id": "pcam.local.v1", "topology": "LOCAL_DETERMINISTIC"}], "extensions": {}
+  },
+  "definitions": [
+    {
+      "id": "PARENT", "rate_scale": 1, "units_per_tick": 1, "initial_node_id": "WAIT",
+      "nodes": [{"id": "WAIT", "mode": "EVENT_DRIVEN"}, {"id": "DONE", "mode": "EVENT_DRIVEN"}],
+      "child_slot_capacities": {"SUB": 1}, "child_termination_policies": {"SUB": "TERMINATE_CHILD"},
+      "transitions": [
+        {"id": "launch", "source_node": "WAIT", "evaluation_point": "PRE_ADVANCE", "priority": 10, "target_kind": "CHILD_ACTION", "target_action": "CHILD", "child_slot_id": "SUB", "parent_policy": "CONTINUE", "input_command": "LAUNCH"},
+        {"id": "finish", "source_node": "WAIT", "evaluation_point": "PRE_ADVANCE", "priority": 1, "target_kind": "NODE", "target_node": "DONE"}
+      ]
+    },
+    {"id": "CHILD", "rate_scale": 1, "units_per_tick": 0, "nodes": [{"id": "RUN", "mode": "EVENT_DRIVEN"}]}
+  ],
+  "interaction_rules": [],
+  "effect_registry": {"combat.damage": ["hp", -1], "combat.stagger": ["stagger", 1]},
+  "initial_state": {"resource_banks": {}, "slot_capacities": {}},
+  "ticks": [
+    {"inputs": [{"input_id": "start", "source_entity_id": 1, "sequence": 0, "command_id": "START", "assigned_tick": 0, "action_definition_id": "PARENT"}], "contacts": []},
+    {"inputs": [{"input_id": "launch", "source_entity_id": 1, "sequence": 1, "command_id": "LAUNCH", "assigned_tick": 1}], "contacts": []},
+    {"inputs": [], "contacts": []}
+  ],
+  "cases": [
+    {"policy": "CONTINUE", "tick_state_digests": ["493c52e5069217dd8fde93a24549a34c21ca273a143d86215577d079b7eaffb1", "7a2c0ede5d55fd82e103dfd2a9a4bff8a19e82e13dda1893544ffd5f726d606f", "065a79389479fd2755c865dc3c34e948b945d2bebdf68306ae2092b8d241ceec"], "expected": {"parent_lifecycle": "RUNNING", "parent_node": "DONE", "parent_local_step": 3, "parent_transition_serial": 2, "parent_children": [2], "child_lifecycle": "RUNNING", "child_parent": 1, "freeze_domains": [], "freeze_remaining": [], "next_freeze_token_id": 1}},
+    {"policy": "FREEZE_PROGRESSION", "tick_state_digests": ["bce3cc7327b59fcc0d4b502bfa494aebc472ed032397bf1e19b873a10ad600ae", "0693cd598ab6cfc5fb39c9bb36f6d8366593b263e0e687ccfb459675d8c599ae", "8024afef22eaa99ac9d476461e1d970235a6f65ce1cfcb5002a339738d1e33d1"], "expected": {"parent_lifecycle": "RUNNING", "parent_node": "DONE", "parent_local_step": 2, "parent_transition_serial": 2, "parent_children": [2], "child_lifecycle": "RUNNING", "child_parent": 1, "freeze_domains": [["PROGRESSION"]], "freeze_remaining": [18446744073709551614], "next_freeze_token_id": 2}},
+    {"policy": "FREEZE_TRANSITIONS", "tick_state_digests": ["f342db022e0b3ee038e3c6b86a1a4cc7ed23c064ac50b11a9ab10176d7fd6f09", "de0a28f898d94608d9ce92ba25cc82b850a8e9b93d34f28aa012925d0e6af391", "475eeb74f4d252852519d62515230c67a9bfe945e09c6a51968d886ce1a1ec7c"], "expected": {"parent_lifecycle": "RUNNING", "parent_node": "WAIT", "parent_local_step": 3, "parent_transition_serial": 1, "parent_children": [2], "child_lifecycle": "RUNNING", "child_parent": 1, "freeze_domains": [["POST_ADVANCE_TRANSITIONS", "PRE_ADVANCE_TRANSITIONS"]], "freeze_remaining": [18446744073709551614], "next_freeze_token_id": 2}},
+    {"policy": "FREEZE_ALL_ACTION_LOGIC", "tick_state_digests": ["d90026e16cc7e67fc0992b029a841f03590d3d6992a67ef10760b5d169e76f68", "f7fc641f1a7fa47e48455898ba28e40c4bd16bbdd33c09a1b2f6bf27c6e3e974", "e70c1957defba03cbf3a11bf9e245a9c554ea709a612ae6f99344ba2c8e25dfc"], "expected": {"parent_lifecycle": "RUNNING", "parent_node": "WAIT", "parent_local_step": 2, "parent_transition_serial": 1, "parent_children": [2], "child_lifecycle": "RUNNING", "child_parent": 1, "freeze_domains": [["INPUT_CAPTURE", "INTERACTION_EMISSION", "INTERACTION_RECEPTION", "POST_ADVANCE_TRANSITIONS", "PRE_ADVANCE_TRANSITIONS", "PROGRESSION"]], "freeze_remaining": [18446744073709551614], "next_freeze_token_id": 2}},
+    {"policy": "TERMINATE_PARENT", "tick_state_digests": ["a21817f91144e2d755a8d0eb2526d7bdfba31c9b58e8a277b602c7fe890cd557", "45e5373e33051cca1fe42d6e75b54dddff683cb5636a7f597d9737ec978a50b2", "c88c4d1d81644588d2ce16840df5f6231c7db78494d6a8f43384f6cf0e88b0a8"], "expected": {"parent_lifecycle": "TERMINATED", "parent_node": "WAIT", "parent_local_step": 1, "parent_transition_serial": 1, "parent_children": [2], "child_lifecycle": "RUNNING", "child_parent": 1, "freeze_domains": [], "freeze_remaining": [], "next_freeze_token_id": 1}}
+  ]
+}
