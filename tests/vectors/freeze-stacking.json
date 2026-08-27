@@ -1,0 +1,95 @@
+{
+  "pcam_vector_version": "1",
+  "kind": "freeze_stacking_vectors",
+  "cases": [
+    {
+      "id": "independent-canonical-order",
+      "tokens": [
+        {"token_id": 2, "source_id": 10, "target_id": 20, "activation_tick": 5, "remaining_ticks": 2, "domains": ["PROGRESSION"], "accrual_policy": "HOLD", "stack_group": "g", "stack_policy": "INDEPENDENT", "metadata": null}
+      ],
+      "incoming": {"token_id": 1, "source_id": 11, "target_id": 20, "activation_tick": 5, "remaining_ticks": 3, "domains": ["PROGRESSION"], "accrual_policy": "HOLD", "stack_group": "g", "stack_policy": "INDEPENDENT", "metadata": null},
+      "expected": [
+        {"token_id": 1, "source_id": 11, "target_id": 20, "activation_tick": 5, "remaining_ticks": 3, "domains": ["PROGRESSION"], "accrual_policy": "HOLD", "stack_group": "g", "stack_policy": "INDEPENDENT", "metadata": null},
+        {"token_id": 2, "source_id": 10, "target_id": 20, "activation_tick": 5, "remaining_ticks": 2, "domains": ["PROGRESSION"], "accrual_policy": "HOLD", "stack_group": "g", "stack_policy": "INDEPENDENT", "metadata": null}
+      ]
+    },
+    {
+      "id": "replace-matching-group-only",
+      "tokens": [
+        {"token_id": 1, "source_id": 10, "target_id": 20, "activation_tick": 5, "remaining_ticks": 2, "domains": ["PROGRESSION"], "accrual_policy": "HOLD", "stack_group": "g", "stack_policy": "INDEPENDENT", "metadata": null},
+        {"token_id": 2, "source_id": 10, "target_id": 21, "activation_tick": 5, "remaining_ticks": 2, "domains": ["PROGRESSION"], "accrual_policy": "HOLD", "stack_group": "g", "stack_policy": "INDEPENDENT", "metadata": null},
+        {"token_id": 3, "source_id": 10, "target_id": 20, "activation_tick": 5, "remaining_ticks": 2, "domains": ["INPUT_CAPTURE"], "accrual_policy": "HOLD", "stack_group": "other", "stack_policy": "INDEPENDENT", "metadata": null}
+      ],
+      "incoming": {"token_id": 4, "source_id": 12, "target_id": 20, "activation_tick": 6, "remaining_ticks": 4, "domains": ["BUFFER_EXPIRY"], "accrual_policy": "ACCRUE", "stack_group": "g", "stack_policy": "REPLACE", "metadata": {"kind": "replacement"}},
+      "expected": [
+        {"token_id": 2, "source_id": 10, "target_id": 21, "activation_tick": 5, "remaining_ticks": 2, "domains": ["PROGRESSION"], "accrual_policy": "HOLD", "stack_group": "g", "stack_policy": "INDEPENDENT", "metadata": null},
+        {"token_id": 3, "source_id": 10, "target_id": 20, "activation_tick": 5, "remaining_ticks": 2, "domains": ["INPUT_CAPTURE"], "accrual_policy": "HOLD", "stack_group": "other", "stack_policy": "INDEPENDENT", "metadata": null},
+        {"token_id": 4, "source_id": 12, "target_id": 20, "activation_tick": 6, "remaining_ticks": 4, "domains": ["BUFFER_EXPIRY"], "accrual_policy": "ACCRUE", "stack_group": "g", "stack_policy": "REPLACE", "metadata": {"kind": "replacement"}}
+      ]
+    },
+    {
+      "id": "reject-new-matching-group",
+      "tokens": [
+        {"token_id": 1, "source_id": 10, "target_id": 20, "activation_tick": 5, "remaining_ticks": 2, "domains": ["PROGRESSION"], "accrual_policy": "HOLD", "stack_group": "g", "stack_policy": "INDEPENDENT", "metadata": null}
+      ],
+      "incoming": {"token_id": 2, "source_id": 11, "target_id": 20, "activation_tick": 5, "remaining_ticks": 3, "domains": ["PROGRESSION"], "accrual_policy": "HOLD", "stack_group": "g", "stack_policy": "REJECT_NEW", "metadata": null},
+      "expected": [
+        {"token_id": 1, "source_id": 10, "target_id": 20, "activation_tick": 5, "remaining_ticks": 2, "domains": ["PROGRESSION"], "accrual_policy": "HOLD", "stack_group": "g", "stack_policy": "INDEPENDENT", "metadata": null}
+      ]
+    },
+    {
+      "id": "reject-new-other-target",
+      "tokens": [
+        {"token_id": 1, "source_id": 10, "target_id": 20, "activation_tick": 5, "remaining_ticks": 2, "domains": ["PROGRESSION"], "accrual_policy": "HOLD", "stack_group": "g", "stack_policy": "INDEPENDENT", "metadata": null}
+      ],
+      "incoming": {"token_id": 2, "source_id": 11, "target_id": 21, "activation_tick": 5, "remaining_ticks": 3, "domains": ["PROGRESSION"], "accrual_policy": "HOLD", "stack_group": "g", "stack_policy": "REJECT_NEW", "metadata": null},
+      "expected": [
+        {"token_id": 1, "source_id": 10, "target_id": 20, "activation_tick": 5, "remaining_ticks": 2, "domains": ["PROGRESSION"], "accrual_policy": "HOLD", "stack_group": "g", "stack_policy": "INDEPENDENT", "metadata": null},
+        {"token_id": 2, "source_id": 11, "target_id": 21, "activation_tick": 5, "remaining_ticks": 3, "domains": ["PROGRESSION"], "accrual_policy": "HOLD", "stack_group": "g", "stack_policy": "REJECT_NEW", "metadata": null}
+      ]
+    },
+    {
+      "id": "max-duration-retains-members",
+      "tokens": [
+        {"token_id": 2, "source_id": 10, "target_id": 20, "activation_tick": 5, "remaining_ticks": 2, "domains": ["PROGRESSION"], "accrual_policy": "HOLD", "stack_group": "g", "stack_policy": "MAX_DURATION", "metadata": null}
+      ],
+      "incoming": {"token_id": 1, "source_id": 11, "target_id": 20, "activation_tick": 5, "remaining_ticks": 5, "domains": ["PROGRESSION"], "accrual_policy": "HOLD", "stack_group": "g", "stack_policy": "MAX_DURATION", "metadata": null},
+      "expected": [
+        {"token_id": 1, "source_id": 11, "target_id": 20, "activation_tick": 5, "remaining_ticks": 5, "domains": ["PROGRESSION"], "accrual_policy": "HOLD", "stack_group": "g", "stack_policy": "MAX_DURATION", "metadata": null},
+        {"token_id": 2, "source_id": 10, "target_id": 20, "activation_tick": 5, "remaining_ticks": 2, "domains": ["PROGRESSION"], "accrual_policy": "HOLD", "stack_group": "g", "stack_policy": "MAX_DURATION", "metadata": null}
+      ]
+    },
+    {
+      "id": "sum-duration-queues-after-existing",
+      "tokens": [
+        {"token_id": 1, "source_id": 10, "target_id": 20, "activation_tick": 5, "remaining_ticks": 2, "domains": ["PROGRESSION"], "accrual_policy": "HOLD", "stack_group": "g", "stack_policy": "SUM_DURATION", "metadata": null}
+      ],
+      "incoming": {"token_id": 2, "source_id": 11, "target_id": 20, "activation_tick": 5, "remaining_ticks": 3, "domains": ["PROGRESSION"], "accrual_policy": "HOLD", "stack_group": "g", "stack_policy": "SUM_DURATION", "metadata": null},
+      "expected": [
+        {"token_id": 1, "source_id": 10, "target_id": 20, "activation_tick": 5, "remaining_ticks": 2, "domains": ["PROGRESSION"], "accrual_policy": "HOLD", "stack_group": "g", "stack_policy": "SUM_DURATION", "metadata": null},
+        {"token_id": 2, "source_id": 11, "target_id": 20, "activation_tick": 7, "remaining_ticks": 3, "domains": ["PROGRESSION"], "accrual_policy": "HOLD", "stack_group": "g", "stack_policy": "SUM_DURATION", "metadata": null}
+      ]
+    },
+    {
+      "id": "sum-duration-queues-after-latest-member",
+      "tokens": [
+        {"token_id": 1, "source_id": 10, "target_id": 20, "activation_tick": 5, "remaining_ticks": 2, "domains": ["PROGRESSION"], "accrual_policy": "HOLD", "stack_group": "g", "stack_policy": "SUM_DURATION", "metadata": null},
+        {"token_id": 2, "source_id": 10, "target_id": 20, "activation_tick": 7, "remaining_ticks": 3, "domains": ["PROGRESSION"], "accrual_policy": "HOLD", "stack_group": "g", "stack_policy": "SUM_DURATION", "metadata": null}
+      ],
+      "incoming": {"token_id": 3, "source_id": 11, "target_id": 20, "activation_tick": 5, "remaining_ticks": 4, "domains": ["PROGRESSION"], "accrual_policy": "HOLD", "stack_group": "g", "stack_policy": "SUM_DURATION", "metadata": null},
+      "expected": [
+        {"token_id": 1, "source_id": 10, "target_id": 20, "activation_tick": 5, "remaining_ticks": 2, "domains": ["PROGRESSION"], "accrual_policy": "HOLD", "stack_group": "g", "stack_policy": "SUM_DURATION", "metadata": null},
+        {"token_id": 2, "source_id": 10, "target_id": 20, "activation_tick": 7, "remaining_ticks": 3, "domains": ["PROGRESSION"], "accrual_policy": "HOLD", "stack_group": "g", "stack_policy": "SUM_DURATION", "metadata": null},
+        {"token_id": 3, "source_id": 11, "target_id": 20, "activation_tick": 10, "remaining_ticks": 4, "domains": ["PROGRESSION"], "accrual_policy": "HOLD", "stack_group": "g", "stack_policy": "SUM_DURATION", "metadata": null}
+      ]
+    },
+    {
+      "id": "sum-duration-incompatible-domain",
+      "tokens": [
+        {"token_id": 1, "source_id": 10, "target_id": 20, "activation_tick": 5, "remaining_ticks": 2, "domains": ["BUFFER_EXPIRY"], "accrual_policy": "HOLD", "stack_group": "g", "stack_policy": "SUM_DURATION", "metadata": null}
+      ],
+      "incoming": {"token_id": 2, "source_id": 11, "target_id": 20, "activation_tick": 5, "remaining_ticks": 3, "domains": ["PROGRESSION"], "accrual_policy": "HOLD", "stack_group": "g", "stack_policy": "SUM_DURATION", "metadata": null},
+      "fault": "STATE_INVARIANT_FAILURE"
+    }
+  ]
+}

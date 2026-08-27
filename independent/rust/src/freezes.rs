@@ -30,6 +30,10 @@ pub fn canonical_tokens(mut tokens: Vec<FreezeToken>) -> Result<Vec<FreezeToken>
             || token.domains.is_empty()
             || token.domains.iter().collect::<BTreeSet<_>>().len() != token.domains.len()
             || !matches!(token.accrual_policy.as_str(), "HOLD" | "ACCRUE")
+            || !matches!(
+                token.stack_policy.as_str(),
+                "INDEPENDENT" | "MAX_DURATION" | "SUM_DURATION" | "REPLACE" | "REJECT_NEW"
+            )
         {
             return Err(FreezeError::InvalidToken);
         }
@@ -39,6 +43,55 @@ pub fn canonical_tokens(mut tokens: Vec<FreezeToken>) -> Result<Vec<FreezeToken>
     }
     tokens.sort_by_key(|token| token.token_id);
     Ok(tokens)
+}
+
+pub fn add_token(
+    tokens: &[FreezeToken],
+    mut token: FreezeToken,
+) -> Result<Vec<FreezeToken>, FreezeError> {
+    let tokens = canonical_tokens(tokens.to_vec())?;
+    let group = tokens
+        .iter()
+        .filter(|existing| {
+            existing.target_id == token.target_id && existing.stack_group == token.stack_group
+        })
+        .collect::<Vec<_>>();
+    if token.stack_policy == "REJECT_NEW" && !group.is_empty() {
+        return Ok(tokens);
+    }
+    if token.stack_policy == "REPLACE" {
+        let target_id = token.target_id;
+        let stack_group = token.stack_group.clone();
+        let retained = tokens
+            .into_iter()
+            .filter(|existing| {
+                existing.target_id != target_id || existing.stack_group != stack_group
+            })
+            .chain(std::iter::once(token))
+            .collect();
+        return canonical_tokens(retained);
+    }
+    if matches!(token.stack_policy.as_str(), "MAX_DURATION" | "SUM_DURATION") && !group.is_empty() {
+        if group.iter().any(|existing| {
+            existing.domains != token.domains
+                || existing.accrual_policy != token.accrual_policy
+                || existing.stack_policy != token.stack_policy
+        }) {
+            return Err(FreezeError::InvalidToken);
+        }
+        if token.stack_policy == "SUM_DURATION" {
+            let current_tick = token.activation_tick.saturating_sub(1);
+            let latest_expiration = group
+                .iter()
+                .map(|existing| expiration_exclusive(existing, current_tick))
+                .collect::<Result<Vec<_>, _>>()?
+                .into_iter()
+                .max()
+                .ok_or(FreezeError::InvalidToken)?;
+            token.activation_tick = token.activation_tick.max(latest_expiration);
+        }
+    }
+    canonical_tokens(tokens.into_iter().chain(std::iter::once(token)).collect())
 }
 
 pub fn is_frozen(tokens: &[FreezeToken], tick: u64, target_id: u64, domain: &str) -> bool {
@@ -84,4 +137,14 @@ pub fn end_tick(tokens: &[FreezeToken], tick: u64) -> Result<Vec<FreezeToken>, F
         }
     }
     Ok(updated)
+}
+
+fn expiration_exclusive(token: &FreezeToken, current_tick: u64) -> Result<u64, FreezeError> {
+    let base = if token.activation_tick > current_tick {
+        token.activation_tick
+    } else {
+        current_tick
+    };
+    base.checked_add(token.remaining_ticks)
+        .ok_or(FreezeError::InvalidToken)
 }
