@@ -1,0 +1,77 @@
+{
+  "pcam_vector_version": "1",
+  "kind": "runtime_vector",
+  "runtime_profile": {
+    "pcam_version": "3.0",
+    "kind": "runtime_profile",
+    "id": "pcam.reference.runtime.v1",
+    "revision": 1,
+    "fault_policy": "ABORT_SIMULATION",
+    "limits": {
+      "max_actions_per_entity": 8,
+      "max_action_nesting_depth": 4,
+      "max_children_per_action": 4,
+      "max_quanta_per_action_per_tick": 8,
+      "max_internal_transitions_per_action_per_tick": 8,
+      "max_buffer_entries_per_action": 8,
+      "max_pending_events_per_entity": 8,
+      "max_candidates_per_tick": 32,
+      "max_effects_per_tick": 32,
+      "max_redirects_per_candidate": 4,
+      "max_definition_size_bytes": 65536,
+      "max_snapshot_size_bytes": 262144,
+      "max_extension_state_bytes": 4096,
+      "max_expression_depth": 64,
+      "max_expression_nodes": 4096
+    },
+    "rng_profiles": ["pcam.pcg32.v1"],
+    "network_profiles": [{"id": "pcam.local.v1", "topology": "LOCAL_DETERMINISTIC"}],
+    "extensions": {}
+  },
+  "definitions": [
+    {
+      "id": "PRESENT_STRIKE",
+      "rate_scale": 1,
+      "units_per_tick": 0,
+      "nodes": [{"id": "ACTIVE", "mode": "EVENT_DRIVEN"}],
+      "predicates": [{"id": "ACTIVE_WINDOW", "node_ids": ["ACTIVE"]}],
+      "semantic_facts": [
+        {
+          "fact": {
+            "fact_id": "strike",
+            "direction": "OFFENSE",
+            "channels": ["STRIKE"],
+            "effect_templates": [
+              {"effect_type": "combat.damage", "effect_class": "DAMAGE", "payload": 30, "reducer": "SUM"},
+              {"effect_type": "presentation.spark", "effect_class": "PRESENTATION", "payload": {"spark": true}, "reducer": "ORDERED", "authoritative": false}
+            ]
+          },
+          "when_predicate": "ACTIVE_WINDOW",
+          "hit_policy": {"kind": "ONCE_PER_ACTION_INSTANCE", "receipt_on": "ON_IMPACT"}
+        }
+      ]
+    }
+  ],
+  "interaction_rules": [
+    {"rule_id": "materialize", "stage": "MATERIALIZATION", "order": 100, "condition": {"literal": true}, "operations": [{"op": "MATERIALIZE"}]}
+  ],
+  "effect_registry": {"combat.damage": ["hp", -1]},
+  "initial_state": {"resource_banks": {"2": {"hp": 100}}},
+  "ticks": [
+    {
+      "inputs": [{"input_id": "start", "source_entity_id": 1, "sequence": 0, "command_id": "START", "assigned_tick": 0, "action_definition_id": "PRESENT_STRIKE"}],
+      "contacts": [{"candidate_id": "c1", "source_instance_id": 1, "source_entity_id": 1, "target_entity_id": 2, "fact_id": "strike", "contact_id": "a"}]
+    },
+    {"inputs": [], "contacts": []}
+  ],
+  "expected": {
+    "definition_hash": "3c8518952ac8df7a4a9a018d72ae24470c185043999d5f946a2bf9663f4165df",
+    "definition_set_hash": "83e757eebade44a526420930d10aac71bc4a21dcfa3c65e354e7c75240682544",
+    "tick_state_digests": [
+      "3b7ad4b34c2c88ccbcfa19b7d8500e14e27fc2aadb271c9bd059be18981eef7f",
+      "bc848f553aeb59b2bdcac8445c28e5123c4305dd5ad6df7ca754b9be2e21efc9"
+    ],
+    "presentation_effect_id": "0:1:c1:materialize:0:1",
+    "final_state_digest": "bc848f553aeb59b2bdcac8445c28e5123c4305dd5ad6df7ca754b9be2e21efc9"
+  }
+}

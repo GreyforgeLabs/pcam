@@ -24,6 +24,13 @@ fn contended_starts_vector() -> Value {
     serde_json::from_slice(&source).expect("vector JSON")
 }
 
+fn presentation_vector() -> Value {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let source = fs::read(root.join("tests/vectors/presentation-rollback.json"))
+        .expect("shared presentation rollback vector");
+    serde_json::from_slice(&source).expect("vector JSON")
+}
+
 #[test]
 fn independent_simulation_matches_typed_strike_full_state_digests() {
     let vector = vector();
@@ -212,4 +219,51 @@ fn independent_simulation_matches_contended_start_arbitration_state() {
         serde_json::json!([1])
     );
     assert_eq!(state.next_action_instance_id, 2);
+}
+
+#[test]
+fn independent_presentation_reconciliation_matches_emit_suppress_and_invalidate() {
+    let vector = presentation_vector();
+    let runtime = SimulationRuntime::from_vector(&vector).unwrap();
+    let initial = runtime.initial_state(&vector).unwrap();
+    let expected_id = vector["expected"]["presentation_effect_id"]
+        .as_str()
+        .unwrap();
+
+    let mut actual = RetainedRollbackHistory::new(runtime.clone(), 4).unwrap();
+    let (state, first_trace, presented) = actual.advance(&initial, &vector["ticks"][0]).unwrap();
+    assert_eq!(presented, [expected_id]);
+    assert_eq!(first_trace.effects.len(), 2);
+    assert_eq!(first_trace.reduced.len(), 1);
+    let (state, _, _) = actual.advance(&state, &vector["ticks"][1]).unwrap();
+    assert_eq!(
+        state.digest().unwrap(),
+        vector["expected"]["final_state_digest"].as_str().unwrap()
+    );
+    let replayed = actual
+        .correct_and_resimulate(0, &vector["ticks"][0])
+        .unwrap();
+    assert_eq!(replayed.presentation_suppressed, [expected_id]);
+    assert!(replayed.presentation_emit.is_empty());
+    assert!(replayed.presentation_invalidated.is_empty());
+
+    let mut removed = RetainedRollbackHistory::new(runtime.clone(), 4).unwrap();
+    let (state, _, _) = removed.advance(&initial, &vector["ticks"][0]).unwrap();
+    let (_state, _, _) = removed.advance(&state, &vector["ticks"][1]).unwrap();
+    let mut no_start = vector["ticks"][0].clone();
+    no_start["inputs"] = Value::Array(Vec::new());
+    let correction = removed.correct_and_resimulate(0, &no_start).unwrap();
+    assert_eq!(correction.presentation_invalidated, [expected_id]);
+    assert!(correction.presentation_emit.is_empty());
+    assert!(correction.presentation_suppressed.is_empty());
+
+    let mut predicted = RetainedRollbackHistory::new(runtime, 4).unwrap();
+    let (state, _, _) = predicted.advance(&initial, &no_start).unwrap();
+    let (_state, _, _) = predicted.advance(&state, &vector["ticks"][1]).unwrap();
+    let correction = predicted
+        .correct_and_resimulate(0, &vector["ticks"][0])
+        .unwrap();
+    assert_eq!(correction.presentation_emit, [expected_id]);
+    assert!(correction.presentation_invalidated.is_empty());
+    assert!(correction.presentation_suppressed.is_empty());
 }

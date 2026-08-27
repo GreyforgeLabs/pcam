@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+from pcam_runtime import RetainedRollbackHistory
 from pcam_runtime.vectors import rollback_vector, run_vector
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -16,6 +17,10 @@ def _parent_child_document():
 
 def _contended_starts_document():
     return json.loads((ROOT / "tests/vectors/contended-starts.json").read_text(encoding="utf-8"))
+
+
+def _presentation_document():
+    return json.loads((ROOT / "tests/vectors/presentation-rollback.json").read_text(encoding="utf-8"))
 
 
 def test_python_typed_strike_matches_shared_full_state_identity_and_tick_digests():
@@ -84,3 +89,42 @@ def test_python_contended_starts_match_shared_arbitration_state_digest():
         "instance_ids": [1],
         "usage": 1,
     }
+
+
+def _advance_document(manager, state, run, document, tick_zero_inputs=None):
+    for tick_index in range(len(document["ticks"])):
+        inputs = run.input_history[tick_index]
+        if tick_index == 0 and tick_zero_inputs is not None:
+            inputs = tick_zero_inputs
+        state, _, _ = manager.advance(state, inputs, run.host_history[tick_index])
+    return state
+
+
+def test_python_presentation_reconciliation_matches_shared_emit_suppress_and_invalidate():
+    document = _presentation_document()
+    run = run_vector(document)
+    expected = document["expected"]
+    expected_id = expected["presentation_effect_id"]
+    initial = run.executor.restore(run.initial_snapshot)
+
+    actual = RetainedRollbackHistory(run.executor, 4)
+    state = _advance_document(actual, initial, run, document)
+    assert state.state_hash() == expected["final_state_digest"]
+    replayed = actual.correct_and_resimulate(0, run.input_history[0])
+    assert replayed.presentation_suppressed == (expected_id,)
+    assert replayed.presentation_emit == ()
+    assert replayed.presentation_invalidated == ()
+
+    removed = RetainedRollbackHistory(run.executor, 4)
+    _advance_document(removed, initial, run, document)
+    correction = removed.correct_and_resimulate(0, ())
+    assert correction.presentation_invalidated == (expected_id,)
+    assert correction.presentation_emit == ()
+    assert correction.presentation_suppressed == ()
+
+    predicted = RetainedRollbackHistory(run.executor, 4)
+    _advance_document(predicted, initial, run, document, tick_zero_inputs=())
+    correction = predicted.correct_and_resimulate(0, run.input_history[0])
+    assert correction.presentation_emit == (expected_id,)
+    assert correction.presentation_invalidated == ()
+    assert correction.presentation_suppressed == ()

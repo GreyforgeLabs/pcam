@@ -642,8 +642,13 @@ impl SimulationRuntime {
             }));
         }
 
+        let authoritative_effects = effects
+            .iter()
+            .filter(|effect| effect.authoritative)
+            .cloned()
+            .collect::<Vec<_>>();
         let (reduced, rejected) =
-            reduce_effects(&effects).map_err(|_| SimulationError::RuntimeFault)?;
+            reduce_effects(&authoritative_effects).map_err(|_| SimulationError::RuntimeFault)?;
         for effect in &reduced {
             let (resource, multiplier) = self
                 .effect_registry
