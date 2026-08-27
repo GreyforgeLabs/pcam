@@ -1,0 +1,91 @@
+{
+  "profile": "pcam.arbitration.v1",
+  "cases": [
+    {
+      "id": "canonical-contention-and-id-allocation",
+      "state": {
+        "resource_banks": {"1": {"STAMINA": 10}},
+        "capacities": [{"kind": "ACTION_SLOT", "owner_id": 1, "key": "FULL_BODY", "value": 1}],
+        "usages": [],
+        "exclusive_keys": []
+      },
+      "intents": [
+        {"intent_kind": "ACTION_START", "intent_priority": 5, "owner_entity_id": 1, "source_action_instance_id": 0, "transition_id": "DODGE", "input_sequence": 2, "input_id": "b", "claims": [{"kind": "RESOURCE", "key": "STAMINA", "amount": 7}, {"kind": "ACTION_SLOT", "key": "FULL_BODY"}], "operations": [{"start_action": "DODGE"}]},
+        {"intent_kind": "ACTION_START", "intent_priority": 10, "owner_entity_id": 1, "source_action_instance_id": 0, "transition_id": "DODGE", "input_sequence": 1, "input_id": "a", "claims": [{"kind": "RESOURCE", "key": "STAMINA", "amount": 7}, {"kind": "ACTION_SLOT", "key": "FULL_BODY"}], "operations": [{"start_action": "DODGE"}]}
+      ],
+      "next_action_instance_id": 40,
+      "decisions": [
+        {"input_id": "a", "accepted": true, "reason": "ACCEPTED"},
+        {"input_id": "b", "accepted": false, "reason": "CAPACITY_UNAVAILABLE:ACTION_SLOT:1:FULL_BODY"}
+      ],
+      "expected_state": {
+        "resource_banks": {"1": {"STAMINA": 3}},
+        "usages": [{"kind": "ACTION_SLOT", "owner_id": 1, "key": "FULL_BODY", "value": 1}],
+        "exclusive_keys": []
+      },
+      "allocated": {"1:0:DODGE:1:a": 40},
+      "next_id": 41
+    },
+    {
+      "id": "atomic-capacity-rejection",
+      "state": {
+        "resource_banks": {"1": {"STAMINA": 10}},
+        "capacities": [{"kind": "ACTION_SLOT", "owner_id": 1, "key": "FULL_BODY", "value": 0}],
+        "usages": [],
+        "exclusive_keys": []
+      },
+      "intents": [
+        {"intent_kind": "ACTION_START", "intent_priority": 10, "owner_entity_id": 1, "source_action_instance_id": 0, "transition_id": "DODGE", "input_sequence": 1, "input_id": "a", "claims": [{"kind": "RESOURCE", "key": "STAMINA", "amount": 7}, {"kind": "ACTION_SLOT", "key": "FULL_BODY"}], "operations": [{"start_action": "DODGE"}]}
+      ],
+      "next_action_instance_id": 10,
+      "decisions": [{"input_id": "a", "accepted": false, "reason": "CAPACITY_UNAVAILABLE:ACTION_SLOT:1:FULL_BODY"}],
+      "expected_state": {"resource_banks": {"1": {"STAMINA": 10}}, "usages": [], "exclusive_keys": []},
+      "allocated": {},
+      "next_id": 10
+    },
+    {
+      "id": "atomic-replacement-release",
+      "state": {
+        "resource_banks": {"1": {"STAMINA": 5}},
+        "capacities": [{"kind": "ACTION_SLOT", "owner_id": 1, "key": "FULL_BODY", "value": 1}],
+        "usages": [{"kind": "ACTION_SLOT", "owner_id": 1, "key": "FULL_BODY", "value": 1}],
+        "exclusive_keys": []
+      },
+      "intents": [
+        {"intent_kind": "ACTION_REPLACE", "intent_priority": 10, "owner_entity_id": 1, "source_action_instance_id": 8, "transition_id": "replace", "input_sequence": 1, "input_id": "replace", "claims": [{"kind": "ACTION_SLOT", "key": "FULL_BODY"}, {"kind": "RESOURCE", "key": "STAMINA", "amount": 5}], "releases": [{"kind": "ACTION_SLOT", "key": "FULL_BODY"}], "operations": [{"start_action": "DODGE"}]}
+      ],
+      "next_action_instance_id": 20,
+      "decisions": [{"input_id": "replace", "accepted": true, "reason": "ACCEPTED"}],
+      "expected_state": {"resource_banks": {"1": {"STAMINA": 0}}, "usages": [{"kind": "ACTION_SLOT", "owner_id": 1, "key": "FULL_BODY", "value": 1}], "exclusive_keys": []},
+      "allocated": {"1:8:replace:1:replace": 20},
+      "next_id": 21
+    },
+    {
+      "id": "child-capacity-and-exclusive-owners",
+      "state": {
+        "resource_banks": {"2": {"MANA": 4}},
+        "capacities": [
+          {"kind": "CHILD_SLOT", "owner_id": 9, "key": "SUB", "value": 1},
+          {"kind": "CAPACITY", "owner_id": 2, "key": "ACTIONS", "value": 2}
+        ],
+        "usages": [],
+        "exclusive_keys": []
+      },
+      "intents": [
+        {"intent_kind": "CHILD_START", "intent_priority": 3, "owner_entity_id": 2, "source_action_instance_id": 9, "transition_id": "launch", "input_sequence": 4, "input_id": "launch", "claims": [{"kind": "RESOURCE", "key": "MANA", "amount": 2}, {"kind": "CHILD_SLOT", "key": "SUB"}, {"kind": "CAPACITY", "key": "ACTIONS"}, {"kind": "EXCLUSIVE_KEY", "key": "cinematic"}], "operations": [{"start_action": "CHILD"}]}
+      ],
+      "next_action_instance_id": 30,
+      "decisions": [{"input_id": "launch", "accepted": true, "reason": "ACCEPTED"}],
+      "expected_state": {
+        "resource_banks": {"2": {"MANA": 2}},
+        "usages": [
+          {"kind": "CAPACITY", "owner_id": 2, "key": "ACTIONS", "value": 1},
+          {"kind": "CHILD_SLOT", "owner_id": 9, "key": "SUB", "value": 1}
+        ],
+        "exclusive_keys": ["cinematic"]
+      },
+      "allocated": {"2:9:launch:4:launch": 30},
+      "next_id": 31
+    }
+  ]
+}
