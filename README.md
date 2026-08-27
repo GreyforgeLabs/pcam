@@ -35,6 +35,8 @@ The Rust lane currently covers independent PCAM-CJ1 canonicalization and hashing
 
 `pcam migrate-v2` accepts explicit PCAM v1 and v2 legacy inputs and emits review-only PCAM-24 drafts. It does not provide wire compatibility, and every migrated result requires manual review.
 
+`release/conformance-claims.json` is the machine-readable source for conformance-class claims. It currently claims no §37 class. `pcam validate release/conformance-claims.json` rejects incomplete requirement sets, missing or unsafe evidence paths, OPEN requirements in a claimed class, and unmet class dependencies.
+
 ## Authority
 
 - Specification: `spec/PCAM-v3.md`

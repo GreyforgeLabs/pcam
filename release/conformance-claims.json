@@ -1,0 +1,75 @@
+{
+  "pcam_version": "3.0",
+  "kind": "conformance_manifest",
+  "implementation": {"id": "pcam.reference", "version": "3.0.0.dev1"},
+  "claims": {
+    "PCAM-DEF-3": {
+      "claimed": false,
+      "requirements": {
+        "schema_validation": {"status": "PASS", "evidence": ["schemas/action.schema.json", "reference/python/tests/test_schema.py"]},
+        "reference_resolution": {"status": "OPEN", "evidence": ["reference/python/pcam_runtime/schema.py"]},
+        "graph_validation": {"status": "OPEN", "evidence": ["reference/python/pcam_runtime/schema.py"]},
+        "predicate_cycle_detection": {"status": "PASS", "evidence": ["reference/python/tests/test_schema.py", "independent/rust/src/action.rs"]},
+        "priority_validation": {"status": "PASS", "evidence": ["tests/vectors/action-runtime.json"]},
+        "limit_validation": {"status": "OPEN", "evidence": ["schemas/runtime-profile.schema.json"]},
+        "canonical_hashing": {"status": "PASS", "evidence": ["tests/vectors/pcam-cj1.json", "independent/rust/tests/shared_vectors.rs"]},
+        "meaningful_diagnostics": {"status": "OPEN", "evidence": ["reference/python/pcam_runtime/schema.py"]}
+      }
+    },
+    "PCAM-RUN-3": {
+      "claimed": false,
+      "requirements": {
+        "normative_tick_pipeline": {"status": "OPEN", "evidence": ["reference/python/tests/test_runtime_slice.py"]},
+        "action_progression": {"status": "OPEN", "evidence": ["tests/vectors/action-runtime.json"]},
+        "transitions": {"status": "OPEN", "evidence": ["tests/vectors/action-runtime.json"]},
+        "predicates": {"status": "OPEN", "evidence": ["tests/vectors/action-runtime.json"]},
+        "buffers": {"status": "OPEN", "evidence": ["tests/vectors/action-runtime.json"]},
+        "intents_and_claims": {"status": "OPEN", "evidence": ["reference/python/tests/test_intents.py"]},
+        "parent_child_actions": {"status": "OPEN", "evidence": ["reference/python/tests/test_runtime_slice.py"]},
+        "freeze_tokens": {"status": "OPEN", "evidence": ["tests/vectors/action-runtime.json"]},
+        "interaction_resolution": {"status": "OPEN", "evidence": ["reference/python/tests/test_interactions.py"]},
+        "ledgers": {"status": "OPEN", "evidence": ["reference/python/tests/test_ledgers.py"]},
+        "effect_reduction": {"status": "OPEN", "evidence": ["reference/python/tests/test_effects.py"]},
+        "snapshot_and_restore": {"status": "OPEN", "evidence": ["reference/python/tests/test_runtime_slice.py", "tests/vectors/action-runtime.json"]},
+        "canonical_state_digest": {"status": "OPEN", "evidence": ["tests/vectors/action-runtime.json"]}
+      }
+    },
+    "PCAM-DET-3": {
+      "claimed": false,
+      "requirements": {
+        "pcam_run_3": {"status": "OPEN", "evidence": ["release/conformance-claims.json"]},
+        "deterministic_host_imports": {"status": "OPEN", "evidence": ["reference/python/pcam_runtime/model.py"]},
+        "deterministic_contact_generation": {"status": "OPEN", "evidence": ["reference/python/tests/test_runtime_slice.py"]},
+        "deterministic_host_effects": {"status": "OPEN", "evidence": ["reference/python/tests/test_effects.py"]},
+        "deterministic_numeric_behavior": {"status": "PASS", "evidence": ["tests/vectors/numeric-rng.json"]},
+        "cross_run_state_digest_identity": {"status": "OPEN", "evidence": ["reference/python/tests/test_generated_properties.py"]}
+      }
+    },
+    "PCAM-RB-3": {
+      "claimed": false,
+      "requirements": {
+        "pcam_det_3": {"status": "OPEN", "evidence": ["release/conformance-claims.json"]},
+        "input_history": {"status": "OPEN", "evidence": ["reference/python/pcam_runtime/rollback.py"]},
+        "snapshot_history": {"status": "OPEN", "evidence": ["reference/python/pcam_runtime/rollback.py"]},
+        "restore_and_resimulation": {"status": "OPEN", "evidence": ["reference/python/tests/test_runtime_slice.py"]},
+        "prediction_declaration": {"status": "PASS", "evidence": ["schemas/network-profile.schema.json", "spec/networking-profiles.md"]},
+        "late_input_correction": {"status": "OPEN", "evidence": ["reference/python/tests/test_runtime_slice.py"]},
+        "presentation_effect_deduplication": {"status": "OPEN", "evidence": ["release/rollback-gate.md"]},
+        "rollback_equivalence_vectors": {"status": "OPEN", "evidence": ["reference/python/tests/test_runtime_slice.py"]}
+      }
+    },
+    "PCAM-24-3": {
+      "claimed": false,
+      "requirements": {
+        "valid_24_cell_schema": {"status": "PASS", "evidence": ["schemas/pcam24.schema.json", "reference/python/tests/test_pcam24.py"]},
+        "half_open_range_semantics": {"status": "PASS", "evidence": ["reference/python/tests/test_pcam24.py"]},
+        "overlapping_tags": {"status": "PASS", "evidence": ["reference/python/tests/test_pcam24.py"]},
+        "lifecycle_compilation": {"status": "PASS", "evidence": ["reference/python/pcam_runtime/pcam24.py"]},
+        "rational_rate_advancement": {"status": "PASS", "evidence": ["tests/vectors/action-runtime.json"]},
+        "phase_projection": {"status": "OPEN", "evidence": ["reference/python/pcam_runtime/pcam24.py"]},
+        "explicit_migration_warnings": {"status": "PASS", "evidence": ["reference/python/tests/test_migration.py"]},
+        "no_phase_only_state_claims": {"status": "OPEN", "evidence": ["release/claims-gate.md"]}
+      }
+    }
+  }
+}

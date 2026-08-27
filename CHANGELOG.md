@@ -33,3 +33,4 @@
 - Added independent canonical input capture, buffering, TTL, overflow policy, PRE/POST consumption, and fault-atomic runtime vectors.
 - Added independent runtime freeze controls and shared schedules for HOLD/ACCRUE progression, transition domains, input capture, and buffer expiry.
 - Added canonical cross-language action-state projection hashes plus restore-and-continue digest vectors for every shared runtime case.
+- Added a schema-valid conformance claim manifest with exact §37 requirement sets, evidence-path validation, dependency enforcement, and fail-closed premature-claim tests.

@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.greyforge.tech/pcam/v3/conformance-manifest.schema.json",
+  "title": "PCAM v3 conformance claim manifest",
+  "type": "object",
+  "required": ["pcam_version", "kind", "implementation", "claims"],
+  "properties": {
+    "pcam_version": {"const": "3.0"},
+    "kind": {"const": "conformance_manifest"},
+    "implementation": {
+      "type": "object",
+      "required": ["id", "version"],
+      "properties": {
+        "id": {"$ref": "https://schemas.greyforge.tech/pcam/v3/common.schema.json#/$defs/identifier"},
+        "version": {"type": "string", "minLength": 1, "maxLength": 128}
+      },
+      "additionalProperties": false
+    },
+    "claims": {
+      "type": "object",
+      "required": ["PCAM-DEF-3", "PCAM-RUN-3", "PCAM-DET-3", "PCAM-RB-3", "PCAM-24-3"],
+      "properties": {
+        "PCAM-DEF-3": {"$ref": "#/$defs/classClaim"},
+        "PCAM-RUN-3": {"$ref": "#/$defs/classClaim"},
+        "PCAM-DET-3": {"$ref": "#/$defs/classClaim"},
+        "PCAM-RB-3": {"$ref": "#/$defs/classClaim"},
+        "PCAM-24-3": {"$ref": "#/$defs/classClaim"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "classClaim": {
+      "type": "object",
+      "required": ["claimed", "requirements"],
+      "properties": {
+        "claimed": {"type": "boolean"},
+        "requirements": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {"pattern": "^[a-z][a-z0-9_]{1,63}$"},
+          "additionalProperties": {
+            "type": "object",
+            "required": ["status", "evidence"],
+            "properties": {
+              "status": {"enum": ["PASS", "OPEN"]},
+              "evidence": {
+                "type": "array",
+                "items": {"type": "string", "minLength": 1, "maxLength": 512},
+                "maxItems": 64,
+                "uniqueItems": true
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

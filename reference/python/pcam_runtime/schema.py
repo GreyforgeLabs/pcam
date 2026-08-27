@@ -20,6 +20,63 @@ KIND_TO_SCHEMA = {
     "runtime_profile": "runtime-profile.schema.json",
     "pcam24": "pcam24.schema.json",
     "snapshot": "snapshot.schema.json",
+    "conformance_manifest": "conformance-manifest.schema.json",
+}
+
+CONFORMANCE_REQUIREMENTS = {
+    "PCAM-DEF-3": {
+        "schema_validation",
+        "reference_resolution",
+        "graph_validation",
+        "predicate_cycle_detection",
+        "priority_validation",
+        "limit_validation",
+        "canonical_hashing",
+        "meaningful_diagnostics",
+    },
+    "PCAM-RUN-3": {
+        "normative_tick_pipeline",
+        "action_progression",
+        "transitions",
+        "predicates",
+        "buffers",
+        "intents_and_claims",
+        "parent_child_actions",
+        "freeze_tokens",
+        "interaction_resolution",
+        "ledgers",
+        "effect_reduction",
+        "snapshot_and_restore",
+        "canonical_state_digest",
+    },
+    "PCAM-DET-3": {
+        "pcam_run_3",
+        "deterministic_host_imports",
+        "deterministic_contact_generation",
+        "deterministic_host_effects",
+        "deterministic_numeric_behavior",
+        "cross_run_state_digest_identity",
+    },
+    "PCAM-RB-3": {
+        "pcam_det_3",
+        "input_history",
+        "snapshot_history",
+        "restore_and_resimulation",
+        "prediction_declaration",
+        "late_input_correction",
+        "presentation_effect_deduplication",
+        "rollback_equivalence_vectors",
+    },
+    "PCAM-24-3": {
+        "valid_24_cell_schema",
+        "half_open_range_semantics",
+        "overlapping_tags",
+        "lifecycle_compilation",
+        "rational_rate_advancement",
+        "phase_projection",
+        "explicit_migration_warnings",
+        "no_phase_only_state_claims",
+    },
 }
 
 
@@ -101,7 +158,74 @@ def _semantic_diagnostics(kind: str, document: dict[str, Any]) -> list[Diagnosti
         return _runtime_profile_diagnostics(document)
     if kind == "pcam24":
         return _pcam24_diagnostics(document)
+    if kind == "conformance_manifest":
+        return _conformance_diagnostics(document)
     return []
+
+
+def _conformance_diagnostics(document: dict[str, Any]) -> list[Diagnostic]:
+    diagnostics: list[Diagnostic] = []
+    claims = document["claims"]
+    for class_id, expected in CONFORMANCE_REQUIREMENTS.items():
+        claim = claims[class_id]
+        requirements = claim["requirements"]
+        actual = set(requirements)
+        if actual != expected:
+            missing = sorted(expected - actual)
+            extra = sorted(actual - expected)
+            diagnostics.append(
+                Diagnostic(
+                    ResultCode.DEFINITION_REJECTED.value,
+                    f"$.claims.{class_id}.requirements",
+                    f"requirement set mismatch; missing={missing}, extra={extra}",
+                    PCAMFault.STATE_INVARIANT_FAILURE.value,
+                )
+            )
+        for requirement_id, requirement in requirements.items():
+            evidence = requirement["evidence"]
+            if requirement["status"] == "PASS" and not evidence:
+                diagnostics.append(
+                    Diagnostic(
+                        ResultCode.DEFINITION_REJECTED.value,
+                        f"$.claims.{class_id}.requirements.{requirement_id}.evidence",
+                        "PASS requires at least one evidence path",
+                        PCAMFault.STATE_INVARIANT_FAILURE.value,
+                    )
+                )
+            for index, raw_path in enumerate(evidence):
+                path = Path(raw_path)
+                safe = not path.is_absolute() and ".." not in path.parts
+                exists = safe and (repository_root() / path).is_file()
+                if not exists:
+                    diagnostics.append(
+                        Diagnostic(
+                            ResultCode.DEFINITION_REJECTED.value,
+                            f"$.claims.{class_id}.requirements.{requirement_id}.evidence[{index}]",
+                            "evidence must be an existing repository-relative file",
+                            PCAMFault.STATE_INVARIANT_FAILURE.value,
+                        )
+                    )
+        if claim["claimed"] and any(item["status"] != "PASS" for item in requirements.values()):
+            diagnostics.append(
+                Diagnostic(
+                    ResultCode.DEFINITION_REJECTED.value,
+                    f"$.claims.{class_id}.claimed",
+                    "a claimed conformance class cannot contain OPEN requirements",
+                    PCAMFault.STATE_INVARIANT_FAILURE.value,
+                )
+            )
+    dependencies = {"PCAM-DET-3": "PCAM-RUN-3", "PCAM-RB-3": "PCAM-DET-3"}
+    for class_id, dependency in dependencies.items():
+        if claims[class_id]["claimed"] and not claims[dependency]["claimed"]:
+            diagnostics.append(
+                Diagnostic(
+                    ResultCode.DEFINITION_REJECTED.value,
+                    f"$.claims.{class_id}.claimed",
+                    f"{class_id} requires claimed {dependency}",
+                    PCAMFault.STATE_INVARIANT_FAILURE.value,
+                )
+            )
+    return diagnostics
 
 
 def _action_diagnostics(document: dict[str, Any]) -> list[Diagnostic]:
