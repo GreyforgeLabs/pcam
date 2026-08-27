@@ -11,6 +11,7 @@ pub mod expression;
 pub mod extension;
 pub mod faults;
 pub mod interactions;
+pub mod ledger;
 pub mod numeric;
 pub mod rng;
 pub mod simulation;

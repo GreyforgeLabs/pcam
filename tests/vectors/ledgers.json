@@ -1,0 +1,192 @@
+{
+  "pcam_vector_version": "1",
+  "kind": "ledger_vectors",
+  "base_context": {
+    "tick": 10,
+    "source_action_instance_id": 4,
+    "offense_fact_id": "strike",
+    "target_entity_id": 9,
+    "cycle": 0,
+    "predicate_entry_serials": {"ACTIVE": 1},
+    "contact_partition": "body"
+  },
+  "cases": [
+    {
+      "id": "unbounded",
+      "policy": {"kind": "UNBOUNDED", "receipt_on": "ON_CONTACT"},
+      "steps": [
+        {
+          "context": {},
+          "write": true,
+          "key": null,
+          "eligible": true,
+          "receipt_written": false,
+          "ledger_count": 0
+        }
+      ]
+    },
+    {
+      "id": "once-per-action",
+      "policy": {"kind": "ONCE_PER_ACTION_INSTANCE", "receipt_on": "ON_IMPACT"},
+      "steps": [
+        {
+          "context": {},
+          "write": true,
+          "key": "824b010550d35d6cd24f643b7ad7048c49e693ccd419882e7ed31a7a0ea6bfb4",
+          "eligible": true,
+          "receipt_written": true,
+          "ledger_count": 1
+        },
+        {
+          "context": {"tick": 11},
+          "write": false,
+          "key": "824b010550d35d6cd24f643b7ad7048c49e693ccd419882e7ed31a7a0ea6bfb4",
+          "eligible": false,
+          "receipt_written": false,
+          "ledger_count": 1
+        }
+      ]
+    },
+    {
+      "id": "once-per-cycle",
+      "policy": {"kind": "ONCE_PER_CYCLE", "receipt_on": "ON_ACCEPT"},
+      "steps": [
+        {
+          "context": {},
+          "write": true,
+          "key": "be1c8f1806a2b70045bba6d9ec305a4044856c4b8023470c6c80db9e9d6e41fc",
+          "eligible": true,
+          "receipt_written": true,
+          "ledger_count": 1
+        },
+        {
+          "context": {"tick": 11},
+          "write": false,
+          "key": "be1c8f1806a2b70045bba6d9ec305a4044856c4b8023470c6c80db9e9d6e41fc",
+          "eligible": false,
+          "receipt_written": false,
+          "ledger_count": 1
+        },
+        {
+          "context": {"tick": 11, "cycle": 1},
+          "write": true,
+          "key": "73b8498b409003de33ec5c5e70c1271f95d9f30c22b7b41b8241176231f9807f",
+          "eligible": true,
+          "receipt_written": true,
+          "ledger_count": 2
+        }
+      ]
+    },
+    {
+      "id": "once-per-predicate-activation",
+      "policy": {
+        "kind": "ONCE_PER_PREDICATE_ACTIVATION",
+        "receipt_on": "ON_ACCEPT",
+        "predicate_id": "ACTIVE"
+      },
+      "steps": [
+        {
+          "context": {},
+          "write": true,
+          "key": "4f83dd816614ffd00ea8d7b7161c672c3162b6ac96b2f81218c5fbaa137b8bf2",
+          "eligible": true,
+          "receipt_written": true,
+          "ledger_count": 1
+        },
+        {
+          "context": {"tick": 11},
+          "write": false,
+          "key": "4f83dd816614ffd00ea8d7b7161c672c3162b6ac96b2f81218c5fbaa137b8bf2",
+          "eligible": false,
+          "receipt_written": false,
+          "ledger_count": 1
+        },
+        {
+          "context": {"tick": 11, "predicate_entry_serials": {"ACTIVE": 2}},
+          "write": true,
+          "key": "727f16b15ad970685ae18df6f694ee1c81e0b413c342d610c6a17172d6344f10",
+          "eligible": true,
+          "receipt_written": true,
+          "ledger_count": 2
+        }
+      ]
+    },
+    {
+      "id": "cooldown",
+      "policy": {
+        "kind": "COOLDOWN_TICKS",
+        "receipt_on": "ON_IMPACT",
+        "cooldown_ticks": 3
+      },
+      "steps": [
+        {
+          "context": {},
+          "write": true,
+          "key": "4d076ba3e7e2fb146e9df2f30c2be971f8cd3a046ae08c661aafbcda0d910a45",
+          "eligible": true,
+          "receipt_written": true,
+          "ledger_count": 1
+        },
+        {
+          "context": {"tick": 12},
+          "write": false,
+          "key": "4d076ba3e7e2fb146e9df2f30c2be971f8cd3a046ae08c661aafbcda0d910a45",
+          "eligible": false,
+          "receipt_written": false,
+          "ledger_count": 1
+        },
+        {
+          "context": {"tick": 13},
+          "write": true,
+          "key": "4d076ba3e7e2fb146e9df2f30c2be971f8cd3a046ae08c661aafbcda0d910a45",
+          "eligible": true,
+          "receipt_written": true,
+          "ledger_count": 1
+        }
+      ]
+    },
+    {
+      "id": "once-per-contact-partition",
+      "policy": {"kind": "ONCE_PER_CONTACT_PARTITION", "receipt_on": "ON_CONTACT"},
+      "steps": [
+        {
+          "context": {},
+          "write": true,
+          "key": "2d1ef2b06fe2a371750e2bd361d68a4dcc67f13b1900cf4b9b1bd65da79d44dc",
+          "eligible": true,
+          "receipt_written": true,
+          "ledger_count": 1
+        },
+        {
+          "context": {"tick": 11},
+          "write": false,
+          "key": "2d1ef2b06fe2a371750e2bd361d68a4dcc67f13b1900cf4b9b1bd65da79d44dc",
+          "eligible": false,
+          "receipt_written": false,
+          "ledger_count": 1
+        },
+        {
+          "context": {"tick": 11, "contact_partition": "weapon"},
+          "write": true,
+          "key": "3162c8451a2ccfb038d73be5a2f6269c0d064cfe733368f4275ad0f42f0c00a1",
+          "eligible": true,
+          "receipt_written": true,
+          "ledger_count": 2
+        }
+      ]
+    }
+  ],
+  "receipt_conditions": [
+    {"condition": "ON_CONTACT", "accepted": false, "impact": false, "required": true},
+    {"condition": "ON_ACCEPT", "accepted": false, "impact": true, "required": false},
+    {"condition": "ON_ACCEPT", "accepted": true, "impact": false, "required": true},
+    {"condition": "ON_IMPACT", "accepted": true, "impact": false, "required": false},
+    {"condition": "ON_IMPACT", "accepted": false, "impact": true, "required": true}
+  ],
+  "invalid_policies": [
+    {"kind": "COOLDOWN_TICKS", "receipt_on": "ON_IMPACT", "cooldown_ticks": 0},
+    {"kind": "ONCE_PER_PREDICATE_ACTIVATION", "receipt_on": "ON_ACCEPT"},
+    {"kind": "UNKNOWN", "receipt_on": "ON_CONTACT"},
+    {"kind": "UNBOUNDED", "receipt_on": "UNKNOWN"}
+  ]
+}

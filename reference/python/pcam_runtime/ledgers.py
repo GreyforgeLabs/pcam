@@ -27,6 +27,17 @@ class HitPolicy:
     predicate_id: str | None = None
 
     def __post_init__(self) -> None:
+        if self.kind not in {
+            "UNBOUNDED",
+            "ONCE_PER_ACTION_INSTANCE",
+            "ONCE_PER_CYCLE",
+            "ONCE_PER_PREDICATE_ACTIVATION",
+            "COOLDOWN_TICKS",
+            "ONCE_PER_CONTACT_PARTITION",
+        }:
+            raise _fault(f"unknown hit policy: {self.kind}")
+        if self.receipt_on not in {"ON_CONTACT", "ON_ACCEPT", "ON_IMPACT"}:
+            raise _fault(f"unknown receipt condition: {self.receipt_on}")
         if self.kind == "COOLDOWN_TICKS" and (self.cooldown_ticks is None or self.cooldown_ticks <= 0):
             raise _fault("COOLDOWN_TICKS requires a positive cooldown")
         if self.kind == "ONCE_PER_PREDICATE_ACTIVATION" and not self.predicate_id:
