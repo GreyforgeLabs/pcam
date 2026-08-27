@@ -344,6 +344,9 @@ class Effect:
     resource: str = "hp"
     amount: int = 0
     priority: int = 0
+    event_type: str | None = None
+    delivery_mode: str | None = None
+    payload: dict[str, object] | None = None
 
 
 @dataclass(frozen=True)
@@ -413,7 +416,15 @@ class ActionDefinition:
                         for key, value in transition.__dict__.items()
                         if key != "fault_code" or value is not None
                     },
-                    "effects": [effect.__dict__ for effect in transition.effects],
+                    "effects": [
+                        {
+                            key: value
+                            for key, value in effect.__dict__.items()
+                            if key not in {"event_type", "delivery_mode", "payload"}
+                            or value is not None
+                        }
+                        for effect in transition.effects
+                    ],
                     "definition_effects": [effect.__dict__ for effect in transition.definition_effects],
                 }
                 for transition in self.transitions
@@ -583,6 +594,35 @@ def validate_definition(definition: ActionDefinition) -> None:
         validate_assignments(transition.exit_assignments)
         validate_assignments(transition.assignments)
         validate_assignments(transition.entry_assignments)
+        for effect in transition.effects:
+            if effect.kind == "EVENT":
+                if effect.event_type is None or not CANONICAL_ID.match(effect.event_type):
+                    raise PCAMError(
+                        ResultCode.DEFINITION_REJECTED,
+                        PCAMFault.INVALID_CANONICAL_IDENTIFIER,
+                        str(effect.event_type),
+                    )
+                if effect.delivery_mode not in {
+                    "TARGET_ACTION",
+                    "TARGET_ENTITY",
+                    "BROADCAST",
+                    "PARENT",
+                    "CHILD",
+                } or not isinstance(effect.payload, dict):
+                    raise PCAMError(
+                        ResultCode.DEFINITION_REJECTED,
+                        PCAMFault.STATE_INVARIANT_FAILURE,
+                        effect.id,
+                    )
+            elif any(
+                value is not None
+                for value in (effect.event_type, effect.delivery_mode, effect.payload)
+            ):
+                raise PCAMError(
+                    ResultCode.DEFINITION_REJECTED,
+                    PCAMFault.STATE_INVARIANT_FAILURE,
+                    effect.id,
+                )
         if transition.evaluation_point == "AFTER_QUANTUM" and transition.claims:
             raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.STATE_INVARIANT_FAILURE, transition.id)
         if transition.source_node not in node_ids:

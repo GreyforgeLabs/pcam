@@ -316,6 +316,9 @@ def _effect(value: dict[str, Any]) -> Effect:
         resource=str(value.get("resource", "hp")),
         amount=int(value.get("amount", 0)),
         priority=int(value.get("priority", 0)),
+        event_type=value.get("event_type"),
+        delivery_mode=value.get("delivery_mode"),
+        payload=dict(value["payload"]) if isinstance(value.get("payload"), dict) else None,
     )
 
 

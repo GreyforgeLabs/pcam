@@ -1,0 +1,198 @@
+{
+  "pcam_vector_version": "1",
+  "kind": "runtime_vector",
+  "id": "event-effect-runtime",
+  "runtime_profile": {
+    "pcam_version": "3.0",
+    "kind": "runtime_profile",
+    "id": "pcam.reference.event-effect.v1",
+    "revision": 1,
+    "fault_policy": "ABORT_SIMULATION",
+    "limits": {
+      "max_actions_per_entity": 8,
+      "max_action_nesting_depth": 4,
+      "max_children_per_action": 4,
+      "max_quanta_per_action_per_tick": 8,
+      "max_internal_transitions_per_action_per_tick": 8,
+      "max_buffer_entries_per_action": 8,
+      "max_pending_events_per_entity": 8,
+      "max_candidates_per_tick": 32,
+      "max_effects_per_tick": 32,
+      "max_redirects_per_candidate": 4,
+      "max_definition_size_bytes": 65536,
+      "max_snapshot_size_bytes": 262144,
+      "max_extension_state_bytes": 4096,
+      "max_expression_depth": 64,
+      "max_expression_nodes": 4096
+    },
+    "rng_profiles": ["pcam.pcg32.v1"],
+    "network_profiles": [{"id": "pcam.local.v1", "topology": "LOCAL_DETERMINISTIC"}],
+    "extensions": {}
+  },
+  "definitions": [
+    {
+      "id": "EVENTER",
+      "rate_scale": 1,
+      "units_per_tick": 0,
+      "nodes": [
+        {"id": "WAIT", "mode": "EVENT_DRIVEN"},
+        {"id": "DONE", "mode": "EVENT_DRIVEN"}
+      ],
+      "transitions": [
+        {
+          "id": "receive",
+          "source_node": "WAIT",
+          "evaluation_point": "PRE_ADVANCE",
+          "priority": 20,
+          "target_kind": "NODE",
+          "target_node": "DONE",
+          "event_type": "WAKE",
+          "guard_expression": {
+            "op": "eq",
+            "args": [{"ref": "event.payload.mode"}, {"literal": "queued"}]
+          }
+        },
+        {
+          "id": "emit",
+          "source_node": "WAIT",
+          "evaluation_point": "PRE_ADVANCE",
+          "priority": 10,
+          "target_kind": "NODE",
+          "target_node": "WAIT",
+          "input_command": "EMIT",
+          "consume_policy": "ON_ACCEPT",
+          "effects": [
+            {
+              "id": "wake",
+              "kind": "EVENT",
+              "effect_class": "EVENT",
+              "source_entity_id": 1,
+              "target_entity_id": 1,
+              "source_action_instance_id": 1,
+              "origin_tick": 0,
+              "resource": "hp",
+              "amount": 0,
+              "priority": 0,
+              "event_type": "WAKE",
+              "delivery_mode": "TARGET_ACTION",
+              "payload": {"mode": "queued", "value": 7}
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "interaction_rules": [],
+  "effect_registry": {},
+  "initial_state": {},
+  "ticks": [
+    {
+      "inputs": [
+        {
+          "input_id": "start",
+          "source_entity_id": 1,
+          "sequence": 0,
+          "command_id": "START",
+          "assigned_tick": 0,
+          "action_definition_id": "EVENTER"
+        }
+      ],
+      "contacts": []
+    },
+    {
+      "inputs": [
+        {
+          "input_id": "emit",
+          "source_entity_id": 1,
+          "sequence": 1,
+          "command_id": "EMIT",
+          "assigned_tick": 1
+        }
+      ],
+      "contacts": []
+    },
+    {"inputs": [], "contacts": []}
+  ],
+  "definition_fault_cases": [
+    {"id": "missing-event-type", "remove": "event_type", "fault": "INVALID_CANONICAL_IDENTIFIER"},
+    {"id": "invalid-event-type", "field": "event_type", "value": "bad type", "fault": "INVALID_CANONICAL_IDENTIFIER"},
+    {"id": "invalid-delivery-mode", "field": "delivery_mode", "value": "SAME_TICK", "fault": "STATE_INVARIANT_FAILURE"},
+    {"id": "non-object-payload", "field": "payload", "value": [1, 2], "fault": "STATE_INVARIANT_FAILURE"},
+    {"id": "event-fields-on-resource", "field": "kind", "value": "RESOURCE_DELTA", "fault": "STATE_INVARIANT_FAILURE"}
+  ],
+  "runtime_fault_case": {
+    "id": "duplicate-created-event-id",
+    "fault": "STATE_INVARIANT_FAILURE",
+    "tick_state_digests": [
+      "916da2b0e8349e759d196959ab4e875de7730e3225e12a7c923612fde35326b8",
+      "29fd875c4723b7946ebd28d3b32221f34f3ab7041e23aa7e4c4b7909c2e9fe24",
+      "58fb8247f10ad164c4eb0628e22f1f12d5c8f336a1a7267f83ce7ba3fef8fd23"
+    ],
+    "final_state_digest": "58fb8247f10ad164c4eb0628e22f1f12d5c8f336a1a7267f83ce7ba3fef8fd23",
+    "summary": {
+      "tick": 3,
+      "node": "WAIT",
+      "lifecycle": "FAULTED",
+      "fault_record": "STATE_INVARIANT_FAILURE",
+      "transition_serial": 0,
+      "pending_events": [],
+      "input_buffer": []
+    }
+  },
+  "expected": {
+    "definition_hash": "5ebaad85064cf1a0df686342f86fd424139f3c55efe4dbac4a185ca7bcb5c833",
+    "definition_set_hash": "486229a4913b3442138dca56af1339a6b3c122d35b7d9d9a5e928e8cb4c8f71b",
+    "tick_state_digests": [
+      "361a15157b9cbccf2a12da525313e5503c96595f10bf77895fb76c50169098b1",
+      "f6bf945f9e3ad82d8c91079b3931471cafef82c1359040ef9b5ffd5ad672ec1f",
+      "bab56f31ba6f38acfe8e74c854657998e36d9677e5bbc2a43790f580f54315c5"
+    ],
+    "final_state_digest": "bab56f31ba6f38acfe8e74c854657998e36d9677e5bbc2a43790f580f54315c5",
+    "pending_after_emission": [
+      {
+        "event_id": "1:1:wake",
+        "event_type": "WAKE",
+        "source_id": 1,
+        "target_id": 1,
+        "origin_tick": 1,
+        "delivery_tick": 2,
+        "payload": {"mode": "queued", "value": 7},
+        "delivery_mode": "TARGET_ACTION"
+      }
+    ],
+    "events_delivered": [[], [], ["1:1:wake"]],
+    "summary": {
+      "tick": 3,
+      "node": "DONE",
+      "transition_serial": 2,
+      "pending_events": [],
+      "event_inbox": [],
+      "input_buffer": []
+    },
+    "queue_trace": [
+      {
+        "delivery_tick": 2,
+        "effect_id": "wake",
+        "effect_type": "pcam.event.create",
+        "event_id": "1:1:wake"
+      }
+    ],
+    "emitted": [
+      {
+        "id": "wake",
+        "kind": "EVENT",
+        "effect_class": "EVENT",
+        "source_entity_id": 1,
+        "target_entity_id": 1,
+        "source_action_instance_id": 1,
+        "origin_tick": 0,
+        "resource": "hp",
+        "amount": 0,
+        "priority": 0,
+        "event_type": "WAKE",
+        "delivery_mode": "TARGET_ACTION",
+        "payload": {"mode": "queued", "value": 7}
+      }
+    ]
+  }
+}

@@ -9,7 +9,7 @@ from .buffers import BufferEntry, apply_consumption, capture_entry, end_tick as 
 from .canonical import canonical_dumps, canonical_hash
 from .effects import EffectEnvelope, reduce_effects
 from .errors import PCAMError, PCAMFault, ResultCode
-from .events import EventEnvelope, deliver_due, event_from_snapshot, event_snapshot
+from .events import EventEnvelope, canonical_events, deliver_due, event_from_snapshot, event_snapshot
 from .expressions import evaluate
 from .extensions import ExtensionRegistry
 from .freezes import FreezeToken, add_token, end_tick as expire_freezes, is_frozen, progression_accrual
@@ -1938,6 +1938,7 @@ class TickExecutor:
     ) -> tuple[SimulationState, list[dict[str, object]]]:
         banks = {entity: dict(values) for entity, values in state.resource_banks.items()}
         rng_streams = dict(state.rng_streams)
+        pending_events = [event_from_snapshot(dict(item)) for item in state.pending_events]
         reduction_trace: list[dict[str, object]] = []
         for effect in sorted(
             effects,
@@ -1950,6 +1951,39 @@ class TickExecutor:
                 item.id.encode("utf-8"),
             ),
         ):
+            if effect.kind == "EVENT":
+                assert effect.event_type is not None
+                assert effect.delivery_mode is not None
+                assert effect.payload is not None
+                event = EventEnvelope.next_tick(
+                    event_id=f"{state.tick}:{effect.source_action_instance_id}:{effect.id}",
+                    event_type=effect.event_type,
+                    source_id=effect.source_action_instance_id or effect.source_entity_id,
+                    target_id=effect.target_entity_id,
+                    origin_tick=state.tick,
+                    payload=deepcopy(effect.payload),
+                    delivery_mode=effect.delivery_mode,  # type: ignore[arg-type]
+                )
+                pending_events.append(event)
+                try:
+                    pending_events = list(canonical_events(tuple(pending_events)))
+                except PCAMError as error:
+                    raise PCAMError(
+                        error.code,
+                        error.fault,
+                        error.message,
+                        effect.source_action_instance_id,
+                        effect.source_entity_id,
+                    ) from error
+                reduction_trace.append(
+                    {
+                        "delivery_tick": event.delivery_tick,
+                        "effect_id": effect.id,
+                        "effect_type": "pcam.event.create",
+                        "event_id": event.event_id,
+                    }
+                )
+                continue
             if effect.kind == "RNG_DRAW":
                 snapshot = rng_streams.get(effect.resource)
                 if not isinstance(snapshot, dict):
@@ -2036,7 +2070,12 @@ class TickExecutor:
                 }
             )
         reduction_trace.extend({"effect_id": item.effect_id, "reason": item.reason} for item in rejected)
-        return replace(state, resource_banks=banks, rng_streams=rng_streams), reduction_trace
+        return replace(
+            state,
+            resource_banks=banks,
+            rng_streams=rng_streams,
+            pending_events=tuple(event_snapshot(item) for item in pending_events),
+        ), reduction_trace
 
     @staticmethod
     def _effect_fault_with_context(

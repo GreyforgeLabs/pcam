@@ -3,7 +3,7 @@ use crate::arbitration::{
     arbitrate as arbitrate_intents,
 };
 use crate::effects::{EffectEnvelope, EffectError, ReducedEffect, RejectedEffect, reduce_effects};
-use crate::events::{EventEnvelope, deliver_due};
+use crate::events::{EventEnvelope, canonical_events, deliver_due};
 use crate::expression::{EvalError, evaluate as evaluate_expression};
 use crate::faults::{FaultContext, contain_fault};
 use crate::interactions::{
@@ -140,6 +140,9 @@ struct RuntimeEffect {
     resource: String,
     amount: i64,
     priority: i64,
+    event_type: Option<String>,
+    delivery_mode: Option<String>,
+    payload: Option<Value>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -1054,9 +1057,64 @@ impl SimulationRuntime {
                 })
                 .then_with(|| left.id.as_bytes().cmp(right.id.as_bytes()))
         });
+        let mut pending_events = state
+            .pending_events
+            .iter()
+            .cloned()
+            .map(|event| {
+                serde_json::from_value::<EventEnvelope>(event)
+                    .map_err(|_| SimulationError::RuntimeFault)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
         let mut rng_draws = Vec::new();
         for effect in ordered {
             match effect.kind.as_str() {
+                "EVENT" => {
+                    let event_type = effect.event_type.clone().ok_or_else(|| {
+                        runtime_effect_fault("STATE_INVARIANT_FAILURE", &effect.id, &effect)
+                    })?;
+                    let delivery_mode = effect.delivery_mode.clone().ok_or_else(|| {
+                        runtime_effect_fault("STATE_INVARIANT_FAILURE", &effect.id, &effect)
+                    })?;
+                    let payload =
+                        effect
+                            .payload
+                            .clone()
+                            .filter(Value::is_object)
+                            .ok_or_else(|| {
+                                runtime_effect_fault("STATE_INVARIANT_FAILURE", &effect.id, &effect)
+                            })?;
+                    let event_id = format!(
+                        "{}:{}:{}",
+                        state.tick, effect.source_action_instance_id, effect.id
+                    );
+                    if pending_events
+                        .iter()
+                        .any(|event| event.event_id == event_id)
+                    {
+                        return Err(runtime_effect_fault(
+                            "STATE_INVARIANT_FAILURE",
+                            &event_id,
+                            &effect,
+                        ));
+                    }
+                    pending_events.push(EventEnvelope {
+                        event_id,
+                        event_type,
+                        source_id: if effect.source_action_instance_id == 0 {
+                            effect.source_entity_id
+                        } else {
+                            effect.source_action_instance_id
+                        },
+                        target_id: effect.target_entity_id,
+                        origin_tick: state.tick,
+                        delivery_tick: state.tick.checked_add(1).ok_or_else(|| {
+                            runtime_effect_fault("INTEGER_OVERFLOW", &effect.id, &effect)
+                        })?,
+                        payload,
+                        delivery_mode,
+                    });
+                }
                 "RNG_DRAW" => {
                     let raw = state
                         .rng_streams
@@ -1120,6 +1178,11 @@ impl SimulationRuntime {
                 }
             }
         }
+        state.pending_events = canonical_events(&pending_events)
+            .map_err(|_| SimulationError::RuntimeFault)?
+            .iter()
+            .map(|event| serde_json::to_value(event).map_err(|_| SimulationError::RuntimeFault))
+            .collect::<Result<Vec<_>, _>>()?;
         Ok(rng_draws)
     }
 
@@ -2915,6 +2978,15 @@ fn parse_runtime_effect(raw: &Value) -> Result<RuntimeEffect, SimulationError> {
             .to_owned(),
         amount: raw.get("amount").and_then(Value::as_i64).unwrap_or(0),
         priority: raw.get("priority").and_then(Value::as_i64).unwrap_or(0),
+        event_type: raw
+            .get("event_type")
+            .and_then(Value::as_str)
+            .map(str::to_owned),
+        delivery_mode: raw
+            .get("delivery_mode")
+            .and_then(Value::as_str)
+            .map(str::to_owned),
+        payload: raw.get("payload").cloned(),
     })
 }
 
@@ -3036,7 +3108,7 @@ fn canonical_transition(raw: &Value) -> Result<Value, SimulationError> {
         .unwrap_or_default()
         .iter()
         .map(|effect| {
-            json!({
+            let mut canonical = json!({
                 "amount": effect.get("amount").cloned().unwrap_or_else(|| json!(0)),
                 "effect_class": effect.get("effect_class").cloned().unwrap_or_else(|| json!("RESOURCE")),
                 "id": effect["id"].clone(),
@@ -3047,7 +3119,16 @@ fn canonical_transition(raw: &Value) -> Result<Value, SimulationError> {
                 "source_action_instance_id": effect.get("source_action_instance_id").cloned().unwrap_or_else(|| json!(0)),
                 "source_entity_id": effect.get("source_entity_id").cloned().unwrap_or_else(|| json!(0)),
                 "target_entity_id": effect.get("target_entity_id").cloned().unwrap_or_else(|| json!(0)),
-            })
+            });
+            for field in ["event_type", "delivery_mode", "payload"] {
+                if let Some(value) = effect.get(field) {
+                    canonical
+                        .as_object_mut()
+                        .expect("canonical effect is an object")
+                        .insert(field.to_owned(), value.clone());
+                }
+            }
+            canonical
         })
         .collect::<Vec<_>>();
     let definition_effects = canonical_definition_effects(raw.get("definition_effects"))?;
@@ -3979,6 +4060,41 @@ fn validate_simulation_definition(definition: &Definition) -> Result<(), Simulat
                 "STATE_INVARIANT_FAILURE",
                 "non-FAULT target declares a fault code",
             ));
+        }
+        for effect in &transition.effects {
+            if effect.kind == "EVENT" {
+                if effect
+                    .event_type
+                    .as_deref()
+                    .is_none_or(|event_type| !valid_canonical_identifier(event_type))
+                {
+                    return Err(definition_fault(
+                        "INVALID_CANONICAL_IDENTIFIER",
+                        "EVENT effect type is not a canonical identifier",
+                    ));
+                }
+                if !matches!(
+                    effect.delivery_mode.as_deref(),
+                    Some("TARGET_ACTION" | "TARGET_ENTITY" | "BROADCAST" | "PARENT" | "CHILD")
+                ) || effect
+                    .payload
+                    .as_ref()
+                    .is_none_or(|payload| !payload.is_object())
+                {
+                    return Err(definition_fault(
+                        "STATE_INVARIANT_FAILURE",
+                        "EVENT effect requires a delivery mode and object payload",
+                    ));
+                }
+            } else if effect.event_type.is_some()
+                || effect.delivery_mode.is_some()
+                || effect.payload.is_some()
+            {
+                return Err(definition_fault(
+                    "STATE_INVARIANT_FAILURE",
+                    "non-EVENT effect declares event fields",
+                ));
+            }
         }
         if !matches!(
             transition.evaluation_point.as_str(),

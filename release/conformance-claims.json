@@ -19,7 +19,7 @@
     "PCAM-RUN-3": {
       "claimed": false,
       "requirements": {
-        "normative_tick_pipeline": {"status": "OPEN", "evidence": ["reference/python/tests/test_runtime_slice.py"]},
+        "normative_tick_pipeline": {"status": "OPEN", "evidence": ["reference/python/tests/test_runtime_slice.py", "tests/vectors/event-effect-runtime.json"]},
         "action_progression": {"status": "OPEN", "evidence": ["tests/vectors/action-runtime.json"]},
         "transitions": {"status": "OPEN", "evidence": ["tests/vectors/action-runtime.json", "tests/vectors/transition-context-runtime.json", "tests/vectors/initial-entry-effects-runtime.json", "tests/vectors/fault-target-runtime.json", "tests/vectors/collection-register-runtime.json"]},
         "predicates": {"status": "OPEN", "evidence": ["tests/vectors/action-runtime.json"]},
@@ -29,7 +29,7 @@
         "freeze_tokens": {"status": "OPEN", "evidence": ["tests/vectors/action-runtime.json"]},
         "interaction_resolution": {"status": "OPEN", "evidence": ["reference/python/tests/test_interactions.py"]},
         "ledgers": {"status": "OPEN", "evidence": ["reference/python/tests/test_ledgers.py"]},
-        "effect_reduction": {"status": "OPEN", "evidence": ["reference/python/tests/test_effects.py"]},
+        "effect_reduction": {"status": "OPEN", "evidence": ["reference/python/tests/test_effects.py", "tests/vectors/event-effect-runtime.json"]},
         "snapshot_and_restore": {"status": "OPEN", "evidence": ["reference/python/tests/test_runtime_slice.py", "tests/vectors/action-runtime.json"]},
         "canonical_state_digest": {"status": "OPEN", "evidence": ["tests/vectors/action-runtime.json"]}
       }
