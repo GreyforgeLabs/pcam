@@ -588,8 +588,9 @@ impl SimulationRuntime {
             .iter()
             .map(|input| string_field(input, "input_id").map(str::to_owned))
             .collect::<Result<Vec<_>, _>>()?;
-        self.arbitrate_pre_stage(&mut work, &inputs)?;
+        self.arbitrate_transition_stage(&mut work, &inputs, "PRE_ADVANCE", true)?;
         self.progress_actions(&mut work)?;
+        self.arbitrate_transition_stage(&mut work, &inputs, "POST_ADVANCE", false)?;
 
         for action in &mut work.action_instances {
             let definition = self
@@ -823,10 +824,12 @@ impl SimulationRuntime {
         ))
     }
 
-    fn arbitrate_pre_stage(
+    fn arbitrate_transition_stage(
         &self,
         state: &mut SimulationState,
         inputs: &[Value],
+        evaluation_point: &str,
+        include_direct_starts: bool,
     ) -> Result<(), SimulationError> {
         let action_ids = state
             .action_instances
@@ -844,7 +847,12 @@ impl SimulationRuntime {
             if action.lifecycle_state != "RUNNING" {
                 continue;
             }
-            if domain_frozen(state, action.instance_id, "PRE_ADVANCE_TRANSITIONS") {
+            let freeze_domain = match evaluation_point {
+                "PRE_ADVANCE" => "PRE_ADVANCE_TRANSITIONS",
+                "POST_ADVANCE" => "POST_ADVANCE_TRANSITIONS",
+                _ => return Err(SimulationError::RuntimeFault),
+            };
+            if domain_frozen(state, action.instance_id, freeze_domain) {
                 continue;
             }
             let definition = self
@@ -857,7 +865,7 @@ impl SimulationRuntime {
                 .iter()
                 .filter(|transition| {
                     transition.source_node == action.current_node_id
-                        && transition.evaluation_point == "PRE_ADVANCE"
+                        && transition.evaluation_point == evaluation_point
                 })
                 .filter(|transition| {
                     transition.input_command.as_ref().is_none_or(|command| {
@@ -1032,52 +1040,57 @@ impl SimulationRuntime {
                 atomic_group_id: "default".to_owned(),
             });
         }
-        for input in inputs {
-            if string_field(input, "command_id")? != "START" {
-                continue;
+        if include_direct_starts {
+            for input in inputs {
+                if string_field(input, "command_id")? != "START" {
+                    continue;
+                }
+                let definition_id = string_field(input, "action_definition_id")?;
+                let definition = self
+                    .definitions
+                    .get(definition_id)
+                    .ok_or(SimulationError::RuntimeFault)?;
+                let owner = u64_field(input, "source_entity_id")?;
+                let capacity_key = ("CAPACITY".to_owned(), owner, "ACTIONS".to_owned());
+                arbitration
+                    .capacities
+                    .insert(capacity_key.clone(), self.max_actions_per_entity);
+                arbitration.usages.insert(
+                    capacity_key,
+                    state
+                        .action_instances
+                        .iter()
+                        .filter(|action| {
+                            action.owner_entity_id == owner
+                                && !matches!(
+                                    action.lifecycle_state.as_str(),
+                                    "TERMINATED" | "FAULTED"
+                                )
+                        })
+                        .count() as u64,
+                );
+                let mut claims = definition.start_claims.clone();
+                claims.extend(definition.slot_claims.clone());
+                claims.push(ArbitrationClaim {
+                    kind: "CAPACITY".to_owned(),
+                    key: "ACTIONS".to_owned(),
+                    amount: 1,
+                    owner_id: None,
+                });
+                intents.push(ArbitrationIntent {
+                    intent_kind: "ACTION_START".to_owned(),
+                    intent_priority: 0,
+                    owner_entity_id: owner,
+                    source_action_instance_id: 0,
+                    transition_id: definition_id.to_owned(),
+                    input_sequence: u64_field(input, "sequence")?,
+                    input_id: string_field(input, "input_id")?.to_owned(),
+                    claims,
+                    releases: Vec::new(),
+                    operations: vec![json!({"start_action": definition_id})],
+                    atomic_group_id: "default".to_owned(),
+                });
             }
-            let definition_id = string_field(input, "action_definition_id")?;
-            let definition = self
-                .definitions
-                .get(definition_id)
-                .ok_or(SimulationError::RuntimeFault)?;
-            let owner = u64_field(input, "source_entity_id")?;
-            let capacity_key = ("CAPACITY".to_owned(), owner, "ACTIONS".to_owned());
-            arbitration
-                .capacities
-                .insert(capacity_key.clone(), self.max_actions_per_entity);
-            arbitration.usages.insert(
-                capacity_key,
-                state
-                    .action_instances
-                    .iter()
-                    .filter(|action| {
-                        action.owner_entity_id == owner
-                            && !matches!(action.lifecycle_state.as_str(), "TERMINATED" | "FAULTED")
-                    })
-                    .count() as u64,
-            );
-            let mut claims = definition.start_claims.clone();
-            claims.extend(definition.slot_claims.clone());
-            claims.push(ArbitrationClaim {
-                kind: "CAPACITY".to_owned(),
-                key: "ACTIONS".to_owned(),
-                amount: 1,
-                owner_id: None,
-            });
-            intents.push(ArbitrationIntent {
-                intent_kind: "ACTION_START".to_owned(),
-                intent_priority: 0,
-                owner_entity_id: owner,
-                source_action_instance_id: 0,
-                transition_id: definition_id.to_owned(),
-                input_sequence: u64_field(input, "sequence")?,
-                input_id: string_field(input, "input_id")?.to_owned(),
-                claims,
-                releases: Vec::new(),
-                operations: vec![json!({"start_action": definition_id})],
-                atomic_group_id: "default".to_owned(),
-            });
         }
         if intents.is_empty() {
             return Ok(());

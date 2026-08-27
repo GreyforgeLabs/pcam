@@ -1,0 +1,160 @@
+{
+  "pcam_vector_version": "1",
+  "kind": "runtime_vector",
+  "id": "post-stage-arbitration",
+  "runtime_profile": {
+    "pcam_version": "3.0",
+    "kind": "runtime_profile",
+    "id": "pcam.reference.post-stage-arbitration.v1",
+    "revision": 1,
+    "fault_policy": "ABORT_SIMULATION",
+    "limits": {
+      "max_actions_per_entity": 8,
+      "max_action_nesting_depth": 4,
+      "max_children_per_action": 4,
+      "max_quanta_per_action_per_tick": 8,
+      "max_internal_transitions_per_action_per_tick": 8,
+      "max_buffer_entries_per_action": 8,
+      "max_pending_events_per_entity": 8,
+      "max_candidates_per_tick": 32,
+      "max_effects_per_tick": 32,
+      "max_redirects_per_candidate": 4,
+      "max_definition_size_bytes": 65536,
+      "max_snapshot_size_bytes": 262144,
+      "max_extension_state_bytes": 4096,
+      "max_expression_depth": 64,
+      "max_expression_nodes": 4096
+    },
+    "rng_profiles": ["pcam.pcg32.v1"],
+    "network_profiles": [
+      {"id": "pcam.local.v1", "topology": "LOCAL_DETERMINISTIC"}
+    ],
+    "extensions": {}
+  },
+  "definitions": [
+    {
+      "id": "SOURCE_A",
+      "rate_scale": 1,
+      "units_per_tick": 0,
+      "nodes": [{"id": "WAIT", "mode": "EVENT_DRIVEN"}],
+      "transitions": [
+        {
+          "id": "a-post-contender",
+          "source_node": "WAIT",
+          "evaluation_point": "POST_ADVANCE",
+          "priority": 5,
+          "target_kind": "ACTION",
+          "target_action": "TARGET_A",
+          "source_disposition": "KEEP_SOURCE",
+          "input_command": "GO",
+          "consume_policy": "ON_ACCEPT"
+        }
+      ]
+    },
+    {
+      "id": "SOURCE_B",
+      "rate_scale": 1,
+      "units_per_tick": 0,
+      "nodes": [{"id": "WAIT", "mode": "EVENT_DRIVEN"}],
+      "transitions": [
+        {
+          "id": "b-post-contender",
+          "source_node": "WAIT",
+          "evaluation_point": "POST_ADVANCE",
+          "priority": 4,
+          "target_kind": "ACTION",
+          "target_action": "TARGET_B",
+          "source_disposition": "KEEP_SOURCE",
+          "input_command": "GO",
+          "consume_policy": "ON_ACCEPT"
+        }
+      ]
+    },
+    {
+      "id": "TARGET_A",
+      "rate_scale": 1,
+      "units_per_tick": 1,
+      "nodes": [{"id": "RUN", "mode": "EVENT_DRIVEN"}],
+      "start_claims": [{"kind": "RESOURCE", "key": "STAMINA", "amount": 5}],
+      "slot_claims": [{"kind": "ACTION_SLOT", "key": "FULL_BODY", "amount": 1}]
+    },
+    {
+      "id": "TARGET_B",
+      "rate_scale": 1,
+      "units_per_tick": 1,
+      "nodes": [{"id": "RUN", "mode": "EVENT_DRIVEN"}],
+      "start_claims": [{"kind": "RESOURCE", "key": "STAMINA", "amount": 5}],
+      "slot_claims": [{"kind": "ACTION_SLOT", "key": "FULL_BODY", "amount": 1}]
+    }
+  ],
+  "interaction_rules": [],
+  "effect_registry": {"combat.damage": ["hp", -1]},
+  "initial_state": {
+    "resource_banks": {"1": {"STAMINA": 5}},
+    "slot_capacities": {"1": {"FULL_BODY": 1}}
+  },
+  "ticks": [
+    {
+      "inputs": [
+        {
+          "input_id": "source-b",
+          "source_entity_id": 1,
+          "sequence": 1,
+          "command_id": "START",
+          "assigned_tick": 0,
+          "action_definition_id": "SOURCE_B"
+        },
+        {
+          "input_id": "source-a",
+          "source_entity_id": 1,
+          "sequence": 2,
+          "command_id": "START",
+          "assigned_tick": 0,
+          "action_definition_id": "SOURCE_A"
+        }
+      ],
+      "contacts": []
+    },
+    {
+      "inputs": [
+        {
+          "input_id": "go",
+          "source_entity_id": 1,
+          "sequence": 3,
+          "command_id": "GO",
+          "assigned_tick": 1
+        }
+      ],
+      "contacts": []
+    },
+    {"inputs": [], "contacts": []}
+  ],
+  "definition_hashes": {
+    "SOURCE_A": "83c25459caaef5393a36560552c99dab63a4b2afdc850e8b3a4967784c59b691",
+    "SOURCE_B": "29457043bc6d1180126253b67d9d2b3516d46d2abd0e274ae3517bb2cc2edb48",
+    "TARGET_A": "de0acb54c94a7657975ea42d5b4b626098ec7e6745e3910c72cc6b783b740263",
+    "TARGET_B": "c81b8e315206fb77aafdae670f367c79c4871644e2936ebb0463d03c5492c579"
+  },
+  "definition_set_hash": "13c720dd573a036dee7401e15caec392b3c4f5a771c0624e89b3c198da2caca5",
+  "tick_state_digests": [
+    "55c86dcb436dc3ebc3a8b985b125abdb0d41faea123bb2fd8a6222c8921d2fbe",
+    "9ce7504357c400616bdc0a4f12d65a4bd21f7a6f60bfc529ccfea20d823eb729",
+    "3912b66fc4e3313b0f21991558bdf3d01ffeb6141b88fc87047756148658748a"
+  ],
+  "target_steps_after_each_tick": [null, 0, 1],
+  "final_state_digest": "3912b66fc4e3313b0f21991558bdf3d01ffeb6141b88fc87047756148658748a",
+  "expected": {
+    "tick": 3,
+    "lifecycle": {"1": "RUNNING", "2": "RUNNING", "3": "RUNNING"},
+    "definitions": {
+      "1": "83c25459caaef5393a36560552c99dab63a4b2afdc850e8b3a4967784c59b691",
+      "2": "29457043bc6d1180126253b67d9d2b3516d46d2abd0e274ae3517bb2cc2edb48",
+      "3": "de0acb54c94a7657975ea42d5b4b626098ec7e6745e3910c72cc6b783b740263"
+    },
+    "transition_serials": {"1": 1, "2": 0, "3": 0},
+    "local_steps": {"1": 0, "2": 0, "3": 1},
+    "stamina": 0,
+    "slot": {"capacity": 1, "instance_ids": [3], "usage": 1},
+    "next_action_instance_id": 4
+  }
+}
