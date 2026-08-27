@@ -236,6 +236,7 @@ def _transition(value: dict[str, Any]) -> TransitionDefinition:
         consume_policy=str(value.get("consume_policy", "ON_ACCEPT")),  # type: ignore[arg-type]
         claims=tuple(_claim(item) for item in value.get("claims", [])),
         effects=tuple(_effect(item) for item in value.get("effects", [])),
+        cycle_delta=int(value.get("cycle_delta", 0)),
     )
 
 

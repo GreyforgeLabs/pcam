@@ -15,6 +15,8 @@ def test_python_complete_runtime_matches_shared_ledger_policy_outcomes():
     for case in vector["cases"]:
         document = json.loads(json.dumps(vector))
         document["definitions"][0]["semantic_facts"][0]["hit_policy"] = case["policy"]
+        if "extra_transition" in case:
+            document["definitions"][0]["transitions"].append(case["extra_transition"])
         document["ticks"] = case["ticks"]
         run = run_vector(document)
         state = run.final_state
@@ -43,6 +45,8 @@ def test_python_complete_runtime_matches_shared_ledger_policy_outcomes():
             "predicate_entry_serials": state.action_instances["1"].predicate_entry_serials,
             "predicate_exit_serials": state.action_instances["1"].predicate_exit_serials,
         }
+        if "cycle" in case["expected"]:
+            summary["cycle"] = state.action_instances["1"].cycle
         assert state.action_instances["1"].definition_hash == case["definition_hash"]
         assert run.executor.definition_set_hash == case["definition_set_hash"]
         assert [trace["state_digest"] for trace in run.traces] == case["tick_state_digests"]

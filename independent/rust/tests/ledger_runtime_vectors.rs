@@ -16,6 +16,12 @@ fn independent_complete_runtime_matches_shared_ledger_policy_outcomes() {
     for case in vector["cases"].as_array().unwrap() {
         let mut document = vector.clone();
         document["definitions"][0]["semantic_facts"][0]["hit_policy"] = case["policy"].clone();
+        if let Some(transition) = case.get("extra_transition") {
+            document["definitions"][0]["transitions"]
+                .as_array_mut()
+                .unwrap()
+                .push(transition.clone());
+        }
         document["ticks"] = case["ticks"].clone();
         let runtime = SimulationRuntime::from_vector(&document).unwrap();
         let mut state = runtime.initial_state(&document).unwrap();
@@ -73,7 +79,7 @@ fn independent_complete_runtime_matches_shared_ledger_policy_outcomes() {
             .map(|receipt| receipt["origin_tick"].as_u64().unwrap())
             .collect::<Vec<_>>();
         ledger_origin_ticks.sort_unstable();
-        let summary = json!({
+        let mut summary = json!({
             "hp": state.resource_banks["2"]["hp"],
             "ledger_count": state.interaction_ledgers.len(),
             "ledger_origin_ticks": ledger_origin_ticks,
@@ -84,6 +90,9 @@ fn independent_complete_runtime_matches_shared_ledger_policy_outcomes() {
             "predicate_entry_serials": action.predicate_entry_serials,
             "predicate_exit_serials": action.predicate_exit_serials,
         });
+        if case["expected"].get("cycle").is_some() {
+            summary["cycle"] = json!(action.cycle);
+        }
         assert_eq!(
             action.definition_hash,
             case["definition_hash"].as_str().unwrap(),

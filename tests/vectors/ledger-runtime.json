@@ -272,6 +272,58 @@
       }
     },
     {
+      "id": "once-per-cycle",
+      "policy": {"kind": "ONCE_PER_CYCLE", "receipt_on": "ON_IMPACT"},
+      "extra_transition": {
+        "id": "next-cycle",
+        "source_node": "ACTIVE",
+        "evaluation_point": "PRE_ADVANCE",
+        "priority": 2,
+        "target_kind": "NODE",
+        "target_node": "ACTIVE",
+        "input_command": "NEXT",
+        "consume_policy": "ON_ACCEPT",
+        "cycle_delta": 1
+      },
+      "ticks": [
+        {
+          "inputs": [
+            {"input_id": "start", "source_entity_id": 1, "sequence": 0, "command_id": "START", "assigned_tick": 0, "action_definition_id": "STRIKER"}
+          ],
+          "contacts": [
+            {"candidate_id": "cycle-0", "source_instance_id": 1, "source_entity_id": 1, "target_entity_id": 2, "fact_id": "strike", "contact_id": "a"}
+          ]
+        },
+        {
+          "inputs": [
+            {"input_id": "next", "source_entity_id": 1, "sequence": 1, "command_id": "NEXT", "assigned_tick": 1}
+          ],
+          "contacts": [
+            {"candidate_id": "cycle-1", "source_instance_id": 1, "source_entity_id": 1, "target_entity_id": 2, "fact_id": "strike", "contact_id": "b"}
+          ]
+        }
+      ],
+      "definition_hash": "1672c8fb91022d7a2b9742572e5acc1644fbd987e6c03dfaba2620b94872d94d",
+      "definition_set_hash": "4b059d24c7a11ba0495d0b6b7668e48140f5b08ba34567ca271f230a3a695a02",
+      "tick_state_digests": [
+        "3aca8d61205b0a593e021c121d4bc38159135336e13ad0568e8ced442f452af3",
+        "126bcb0c021dee8ef9129ae91d99646ce828bf48a78175519259bf1c895ff20e"
+      ],
+      "final_state_digest": "126bcb0c021dee8ef9129ae91d99646ce828bf48a78175519259bf1c895ff20e",
+      "expected": {
+        "hp": 80,
+        "ledger_count": 2,
+        "ledger_origin_ticks": [0, 1],
+        "effects_by_tick": [["0:1:cycle-0:materialize:0:0"], ["1:1:cycle-1:materialize:0:0"]],
+        "accepted_by_tick": [[true], [true]],
+        "receipt_written_by_tick": [[true], [true]],
+        "reasons_by_tick": [[null], [null]],
+        "predicate_entry_serials": {"ACTIVE": 1},
+        "predicate_exit_serials": {},
+        "cycle": 1
+      }
+    },
+    {
       "id": "predicate-activation",
       "policy": {
         "kind": "ONCE_PER_PREDICATE_ACTIVATION",

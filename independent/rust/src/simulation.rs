@@ -75,6 +75,7 @@ struct SimulationTransition {
     source_node: String,
     evaluation_point: String,
     priority: i64,
+    cycle_delta: u64,
     claims: Vec<ArbitrationClaim>,
     target_kind: String,
     target_node: Option<String>,
@@ -1471,6 +1472,10 @@ impl SimulationRuntime {
             .iter()
             .position(|action| action.instance_id == action_id)
             .ok_or(SimulationError::RuntimeFault)?;
+        state.action_instances[index].cycle = state.action_instances[index]
+            .cycle
+            .checked_add(transition.cycle_delta)
+            .ok_or(SimulationError::RuntimeFault)?;
         match transition.target_kind.as_str() {
             "NODE" => {
                 let target = transition
@@ -2307,6 +2312,10 @@ fn parse_definition(raw: &Value, hash: String) -> Result<Definition, SimulationE
                 priority: transition["priority"]
                     .as_i64()
                     .ok_or(SimulationError::InvalidVector)?,
+                cycle_delta: transition
+                    .get("cycle_delta")
+                    .and_then(Value::as_u64)
+                    .unwrap_or(0),
                 claims: transition
                     .get("claims")
                     .and_then(Value::as_array)
