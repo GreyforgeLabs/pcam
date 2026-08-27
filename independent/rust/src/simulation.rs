@@ -178,6 +178,7 @@ impl SimulationState {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SimulationTrace {
     pub input_order: Vec<String>,
+    pub events_delivered: Vec<String>,
     pub candidate_order: Vec<String>,
     pub effects: Vec<EffectEnvelope>,
     pub faults: Vec<Value>,
@@ -508,7 +509,14 @@ impl SimulationRuntime {
             action_instances: Vec::new(),
             action_slots,
             definition_set_hash: self.definition_set_hash.clone(),
-            entity_records: BTreeMap::new(),
+            entity_records: initial
+                .get("entity_records")
+                .cloned()
+                .map(|records| {
+                    serde_json::from_value(records).map_err(|_| SimulationError::InvalidVector)
+                })
+                .transpose()?
+                .unwrap_or_default(),
             extension_state: BTreeMap::new(),
             fault_state: BTreeMap::new(),
             freeze_tokens: Vec::new(),
@@ -517,7 +525,11 @@ impl SimulationRuntime {
             interaction_ledgers: BTreeMap::new(),
             next_action_instance_id: 1,
             next_freeze_token_id: 1,
-            pending_events: Vec::new(),
+            pending_events: initial
+                .get("pending_events")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default(),
             pending_inputs: Vec::new(),
             resource_banks: serde_json::from_value(resource_banks)
                 .map_err(|_| SimulationError::InvalidVector)?,
@@ -553,6 +565,7 @@ impl SimulationRuntime {
                     contained,
                     SimulationTrace {
                         input_order: Vec::new(),
+                        events_delivered: Vec::new(),
                         candidate_order: Vec::new(),
                         effects: Vec::new(),
                         faults: vec![fault],
@@ -568,6 +581,63 @@ impl SimulationRuntime {
         }
     }
 
+    pub fn deliver_events(
+        &self,
+        state: &SimulationState,
+    ) -> Result<(SimulationState, Vec<String>), SimulationError> {
+        let pending_events = state
+            .pending_events
+            .iter()
+            .map(|event| {
+                serde_json::from_value::<EventEnvelope>(event.clone())
+                    .map_err(|_| SimulationError::RuntimeFault)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let frozen_targets = pending_events
+            .iter()
+            .filter(|event| {
+                matches!(
+                    event.delivery_mode.as_str(),
+                    "TARGET_ACTION" | "PARENT" | "CHILD"
+                ) && domain_frozen(state, event.target_id, "EVENT_DELIVERY")
+            })
+            .map(|event| event.target_id)
+            .collect::<BTreeSet<_>>();
+        let (delivered, pending) = deliver_due(&pending_events, state.tick, &frozen_targets)
+            .map_err(|_| SimulationError::RuntimeFault)?;
+        let mut work = state.clone();
+        work.pending_events = pending
+            .iter()
+            .map(|event| serde_json::to_value(event).map_err(|_| SimulationError::RuntimeFault))
+            .collect::<Result<Vec<_>, _>>()?;
+        let mut delivered_ids = Vec::new();
+        for event in delivered {
+            delivered_ids.push(event.event_id.clone());
+            let snapshot =
+                serde_json::to_value(&event).map_err(|_| SimulationError::RuntimeFault)?;
+            match event.delivery_mode.as_str() {
+                "TARGET_ACTION" | "PARENT" | "CHILD" => {
+                    let action = work
+                        .action_instances
+                        .iter_mut()
+                        .find(|action| action.instance_id == event.target_id)
+                        .ok_or(SimulationError::RuntimeFault)?;
+                    action.event_inbox.push(snapshot);
+                }
+                "TARGET_ENTITY" => {
+                    append_entity_event(&mut work.entity_records, event.target_id, snapshot)?;
+                }
+                "BROADCAST" => {
+                    for record in work.entity_records.values_mut() {
+                        append_event_to_record(record, snapshot.clone())?;
+                    }
+                }
+                _ => return Err(SimulationError::RuntimeFault),
+            }
+        }
+        Ok((work, delivered_ids))
+    }
+
     fn tick_once(
         &self,
         state: &SimulationState,
@@ -576,37 +646,7 @@ impl SimulationRuntime {
         if state.definition_set_hash != self.definition_set_hash {
             return Err(SimulationError::RuntimeFault);
         }
-        let mut work = state.clone();
-        let pending_events = work
-            .pending_events
-            .iter()
-            .map(|event| {
-                serde_json::from_value::<EventEnvelope>(event.clone())
-                    .map_err(|_| SimulationError::RuntimeFault)
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-        let (delivered_events, pending_events) =
-            deliver_due(&pending_events, state.tick, &BTreeSet::new())
-                .map_err(|_| SimulationError::RuntimeFault)?;
-        work.pending_events = pending_events
-            .iter()
-            .map(|event| serde_json::to_value(event).map_err(|_| SimulationError::RuntimeFault))
-            .collect::<Result<Vec<_>, _>>()?;
-        for event in delivered_events {
-            if matches!(
-                event.delivery_mode.as_str(),
-                "TARGET_ACTION" | "PARENT" | "CHILD"
-            ) {
-                let action = work
-                    .action_instances
-                    .iter_mut()
-                    .find(|action| action.instance_id == event.target_id)
-                    .ok_or(SimulationError::RuntimeFault)?;
-                action
-                    .event_inbox
-                    .push(serde_json::to_value(event).map_err(|_| SimulationError::RuntimeFault)?);
-            }
-        }
+        let (mut work, events_delivered) = self.deliver_events(state)?;
         let contacts = canonical_contacts(array(tick, "contacts")?)?;
         work.host_state = json!({"contacts": contacts, "imports": {}});
 
@@ -869,6 +909,12 @@ impl SimulationRuntime {
         for action in &mut work.action_instances {
             action.event_inbox.clear();
         }
+        for record in work.entity_records.values_mut() {
+            let object = record
+                .as_object_mut()
+                .ok_or(SimulationError::RuntimeFault)?;
+            object.insert("event_inbox".to_owned(), Value::Array(Vec::new()));
+        }
         for token in &mut work.freeze_tokens {
             let active = token["activation_tick"]
                 .as_u64()
@@ -894,6 +940,7 @@ impl SimulationRuntime {
             work,
             SimulationTrace {
                 input_order,
+                events_delivered,
                 candidate_order,
                 effects,
                 faults: Vec::new(),
@@ -1998,16 +2045,48 @@ impl SimulationRuntime {
                 .insert("pcam.child_result_emitted".to_owned(), json!(true));
         }
         state.pending_events.sort_by(|left, right| {
-            (
-                left["delivery_tick"].as_u64().unwrap_or_default(),
-                left["target_id"].as_u64().unwrap_or_default(),
-                left["event_id"].as_str().unwrap_or_default(),
-            )
-                .cmp(&(
-                    right["delivery_tick"].as_u64().unwrap_or_default(),
-                    right["target_id"].as_u64().unwrap_or_default(),
-                    right["event_id"].as_str().unwrap_or_default(),
-                ))
+            left["delivery_tick"]
+                .as_u64()
+                .unwrap_or_default()
+                .cmp(&right["delivery_tick"].as_u64().unwrap_or_default())
+                .then_with(|| {
+                    left["target_id"]
+                        .as_u64()
+                        .unwrap_or_default()
+                        .cmp(&right["target_id"].as_u64().unwrap_or_default())
+                })
+                .then_with(|| {
+                    left["delivery_mode"]
+                        .as_str()
+                        .unwrap_or_default()
+                        .as_bytes()
+                        .cmp(
+                            right["delivery_mode"]
+                                .as_str()
+                                .unwrap_or_default()
+                                .as_bytes(),
+                        )
+                })
+                .then_with(|| {
+                    left["source_id"]
+                        .as_u64()
+                        .unwrap_or_default()
+                        .cmp(&right["source_id"].as_u64().unwrap_or_default())
+                })
+                .then_with(|| {
+                    left["event_type"]
+                        .as_str()
+                        .unwrap_or_default()
+                        .as_bytes()
+                        .cmp(right["event_type"].as_str().unwrap_or_default().as_bytes())
+                })
+                .then_with(|| {
+                    left["event_id"]
+                        .as_str()
+                        .unwrap_or_default()
+                        .as_bytes()
+                        .cmp(right["event_id"].as_str().unwrap_or_default().as_bytes())
+                })
         });
         Ok(())
     }
@@ -2170,6 +2249,30 @@ fn runtime_effect_fault(fault: &str, message: &str, effect: &RuntimeEffect) -> S
         action_instance_id: Some(effect.source_action_instance_id),
         owner_entity_id: Some(effect.source_entity_id),
     })
+}
+
+fn append_entity_event(
+    records: &mut BTreeMap<String, Value>,
+    target_id: u64,
+    event: Value,
+) -> Result<(), SimulationError> {
+    let record = records
+        .entry(target_id.to_string())
+        .or_insert_with(|| json!({}));
+    append_event_to_record(record, event)
+}
+
+fn append_event_to_record(record: &mut Value, event: Value) -> Result<(), SimulationError> {
+    let object = record
+        .as_object_mut()
+        .ok_or(SimulationError::RuntimeFault)?;
+    let inbox = object
+        .entry("event_inbox".to_owned())
+        .or_insert_with(|| Value::Array(Vec::new()))
+        .as_array_mut()
+        .ok_or(SimulationError::RuntimeFault)?;
+    inbox.push(event);
+    Ok(())
 }
 
 fn parse_runtime_effect(raw: &Value) -> Result<RuntimeEffect, SimulationError> {

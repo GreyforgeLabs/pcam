@@ -1,0 +1,93 @@
+{
+  "pcam_vector_version": "1",
+  "kind": "runtime_vector",
+  "id": "event-delivery-runtime",
+  "runtime_profile": {
+    "pcam_version": "3.0",
+    "kind": "runtime_profile",
+    "id": "pcam.reference.event-delivery-runtime.v1",
+    "revision": 1,
+    "fault_policy": "ABORT_SIMULATION",
+    "limits": {
+      "max_actions_per_entity": 8,
+      "max_action_nesting_depth": 4,
+      "max_children_per_action": 4,
+      "max_quanta_per_action_per_tick": 8,
+      "max_internal_transitions_per_action_per_tick": 8,
+      "max_buffer_entries_per_action": 8,
+      "max_pending_events_per_entity": 8,
+      "max_candidates_per_tick": 32,
+      "max_effects_per_tick": 32,
+      "max_redirects_per_candidate": 4,
+      "max_definition_size_bytes": 65536,
+      "max_snapshot_size_bytes": 262144,
+      "max_extension_state_bytes": 4096,
+      "max_expression_depth": 64,
+      "max_expression_nodes": 4096
+    },
+    "rng_profiles": ["pcam.pcg32.v1"],
+    "network_profiles": [
+      {"id": "pcam.local.v1", "topology": "LOCAL_DETERMINISTIC"}
+    ],
+    "extensions": {}
+  },
+  "definitions": [
+    {
+      "id": "LISTENER",
+      "rate_scale": 1,
+      "units_per_tick": 0,
+      "nodes": [
+        {"id": "RUN", "mode": "EVENT_DRIVEN"},
+        {"id": "MID", "mode": "EVENT_DRIVEN"},
+        {"id": "DONE", "mode": "EVENT_DRIVEN"}
+      ],
+      "transitions": [
+        {"id": "on-child", "source_node": "RUN", "evaluation_point": "PRE_ADVANCE", "priority": 20, "target_kind": "NODE", "target_node": "MID", "event_type": "CHILD_EVENT"},
+        {"id": "on-parent", "source_node": "MID", "evaluation_point": "POST_ADVANCE", "priority": 20, "target_kind": "NODE", "target_node": "DONE", "event_type": "PARENT_EVENT"}
+      ]
+    }
+  ],
+  "interaction_rules": [],
+  "effect_registry": {
+    "combat.damage": ["hp", -1],
+    "combat.stagger": ["stagger", 1]
+  },
+  "initial_state": {
+    "resource_banks": {},
+    "slot_capacities": {},
+    "entity_records": {
+      "1": {"name": "one", "event_inbox": []},
+      "2": {"name": "two", "event_inbox": []}
+    },
+    "pending_events": [
+      {"event_id": "broadcast", "event_type": "BROADCAST_EVENT", "source_id": 9, "target_id": 0, "origin_tick": 0, "delivery_tick": 1, "payload": {"mode": "broadcast"}, "delivery_mode": "BROADCAST"},
+      {"event_id": "child", "event_type": "CHILD_EVENT", "source_id": 9, "target_id": 1, "origin_tick": 0, "delivery_tick": 1, "payload": {"mode": "child"}, "delivery_mode": "CHILD"},
+      {"event_id": "parent", "event_type": "PARENT_EVENT", "source_id": 9, "target_id": 1, "origin_tick": 0, "delivery_tick": 1, "payload": {"mode": "parent"}, "delivery_mode": "PARENT"},
+      {"event_id": "action", "event_type": "ACTION_EVENT", "source_id": 9, "target_id": 1, "origin_tick": 0, "delivery_tick": 1, "payload": {"mode": "action"}, "delivery_mode": "TARGET_ACTION"},
+      {"event_id": "entity", "event_type": "ENTITY_EVENT", "source_id": 9, "target_id": 1, "origin_tick": 0, "delivery_tick": 1, "payload": {"mode": "entity"}, "delivery_mode": "TARGET_ENTITY"}
+    ]
+  },
+  "ticks": [
+    {
+      "inputs": [
+        {"input_id": "start", "source_entity_id": 1, "sequence": 0, "command_id": "START", "assigned_tick": 0, "action_definition_id": "LISTENER"}
+      ],
+      "contacts": []
+    },
+    {"inputs": [], "contacts": []}
+  ],
+  "expected": {
+    "tick_state_digests": [
+      "957f789e957b15ebd56cc4aace7311f6782d9709133a0ef95eb6221c20c2457d",
+      "fbdb66e5c09072b2da7177c967bd93a7a80be95b00e70c17ea11a4f7290f65c1"
+    ],
+    "delivered_ids": ["broadcast", "child", "parent", "action", "entity"],
+    "delivery_routes": {
+      "action_1": ["child", "parent", "action"],
+      "entity_1": ["broadcast", "entity"],
+      "entity_2": ["broadcast"]
+    },
+    "final_node": "DONE",
+    "final_transition_serial": 2
+  }
+}

@@ -58,6 +58,8 @@ def run_vector(document: dict[str, Any], max_ticks: int = 10_000) -> VectorRun:
         resource_banks={str(key): dict(value) for key, value in initial.get("resource_banks", {}).items()},
         slot_capacities={str(key): dict(value) for key, value in initial.get("slot_capacities", {}).items()},
         rng_streams={str(key): dict(value) for key, value in initial.get("rng_streams", {}).items()},
+        entity_records={str(key): dict(value) for key, value in initial.get("entity_records", {}).items()},
+        pending_events=tuple(dict(value) for value in initial.get("pending_events", [])),
     )
     initial_snapshot = executor.save(state)
     traces: list[dict[str, object]] = []

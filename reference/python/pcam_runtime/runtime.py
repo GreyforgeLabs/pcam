@@ -114,6 +114,8 @@ class TickExecutor:
         resource_banks: dict[str, dict[str, int]] | None = None,
         slot_capacities: dict[str, dict[str, int]] | None = None,
         rng_streams: dict[str, object] | None = None,
+        entity_records: dict[str, dict[str, object]] | None = None,
+        pending_events: tuple[dict[str, object], ...] = (),
     ) -> SimulationState:
         action_slots = {
             str(entity): {
@@ -125,8 +127,10 @@ class TickExecutor:
         return SimulationState(
             tick=0,
             definition_set_hash=self.definition_set_hash,
+            entity_records=entity_records or {},
             resource_banks=resource_banks or {},
             action_slots=action_slots,
+            pending_events=pending_events,
             rng_streams=rng_streams or {},
         )
 
