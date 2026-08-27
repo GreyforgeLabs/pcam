@@ -292,6 +292,54 @@
       ]
     },
     {
+      "id": "buffer-expiry-normal",
+      "definition": {
+        "id": "BUFFER_TTL",
+        "rate": {"scale": 1, "units_per_tick": 0},
+        "initial_node": "WAIT",
+        "default_buffer_lifetime": 1,
+        "nodes": [{"id": "WAIT", "mode": "EVENT_DRIVEN"}],
+        "transitions": []
+      },
+      "ticks": 2,
+      "final_state_sha256": "4087f25a9c043b6d3c99683a225d19fabc41da1eb9b034512100a018140ace42",
+      "continuation_state_sha256": "4087f25a9c043b6d3c99683a225d19fabc41da1eb9b034512100a018140ace42",
+      "inputs": [
+        [],
+        [{"assigned_tick": 1, "source_entity_id": 1, "sequence": 1, "command_id": "TTL", "payload": {}, "input_id": "ttl"}]
+      ],
+      "freezes": [{}, {}],
+      "expected": [
+        {"input_buffer": []},
+        {"input_buffer": []}
+      ]
+    },
+    {
+      "id": "buffer-expiry-frozen",
+      "definition": {
+        "id": "BUFFER_TTL",
+        "rate": {"scale": 1, "units_per_tick": 0},
+        "initial_node": "WAIT",
+        "default_buffer_lifetime": 1,
+        "nodes": [{"id": "WAIT", "mode": "EVENT_DRIVEN"}],
+        "transitions": []
+      },
+      "ticks": 3,
+      "final_state_sha256": "4087f25a9c043b6d3c99683a225d19fabc41da1eb9b034512100a018140ace42",
+      "continuation_state_sha256": "4087f25a9c043b6d3c99683a225d19fabc41da1eb9b034512100a018140ace42",
+      "inputs": [
+        [],
+        [{"assigned_tick": 1, "source_entity_id": 1, "sequence": 1, "command_id": "TTL", "payload": {}, "input_id": "ttl"}],
+        []
+      ],
+      "freezes": [{}, {"buffer_expiry": true}, {}],
+      "expected": [
+        {"input_buffer": []},
+        {"input_buffer": [{"buffer_entry_id": "buffer:ttl", "input_id": "ttl", "command_id": "TTL", "payload": {}, "captured_tick": 1, "remaining_eligibility_ticks": 1, "priority": 0, "sequence": 1}]},
+        {"input_buffer": []}
+      ]
+    },
+    {
       "id": "matched-input-operation-order-and-effects",
       "definition": {
         "id": "OPERATIONS",
