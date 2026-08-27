@@ -80,6 +80,7 @@ struct SimulationTransition {
     claims: Vec<ArbitrationClaim>,
     target_kind: String,
     target_node: Option<String>,
+    target_step: u64,
     target_action: Option<String>,
     child_slot_id: Option<String>,
     parent_policy: Option<String>,
@@ -1705,7 +1706,7 @@ impl SimulationRuntime {
                     })
                     .ok_or(SimulationError::RuntimeFault)?;
                 state.action_instances[index].current_node_id = target.clone();
-                state.action_instances[index].node_step = 0;
+                state.action_instances[index].node_step = transition.target_step;
                 state.action_instances[index].transition_serial = state.action_instances[index]
                     .transition_serial
                     .checked_add(1)
@@ -2733,6 +2734,10 @@ fn parse_definition(raw: &Value, hash: String) -> Result<Definition, SimulationE
                     .get("target_node")
                     .and_then(Value::as_str)
                     .map(str::to_owned),
+                target_step: transition
+                    .get("target_step")
+                    .and_then(Value::as_u64)
+                    .unwrap_or(0),
                 target_action: transition
                     .get("target_action")
                     .and_then(Value::as_str)

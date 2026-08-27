@@ -13,7 +13,7 @@ This map names current executable evidence for specification §38. A mapped test
 | 38.3 Once per action during freeze | `vectors/once-freeze-runtime.json` in Python and independent Rust complete-state runtimes | implemented directly with one hit, two frozen emission ticks, post-freeze ledger suppression, and four exact state digests |
 | 38.4 Once per cycle | `test_ledgers.py::test_cycle_and_predicate_activation_are_part_of_policy_key` | implemented key eligibility; full looping runtime vector pending |
 | 38.5 Predicate reactivation | same ledger test plus predicate edge runtime tests | implemented across composed unit surfaces |
-| 38.6 Explicit skip | seekable validation and transition target-step runtime behavior | partial; entry/exit effect model breadth pending |
+| 38.6 Explicit skip | `vectors/explicit-skip-runtime.json` in Python and independent Rust complete-state runtimes | implemented directly with seekable target step 3, one declared resource effect, no implicit continuation effect, snapshot restore, and three exact state digests |
 | 38.7 Buffer expiration | `test_buffers.py` and runtime freeze integration | implemented for normal/frozen expiry primitives |
 | 38.8 Resource arbitration | `test_intents.py` and competing start runtime test | implemented |
 | 38.9 Slot replacement | runtime failed/successful atomic replacement tests | implemented |

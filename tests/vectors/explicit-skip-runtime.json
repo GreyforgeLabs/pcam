@@ -1,0 +1,107 @@
+{
+  "pcam_vector_version": "1",
+  "kind": "runtime_vector",
+  "id": "explicit-skip-runtime",
+  "runtime_profile": {
+    "pcam_version": "3.0",
+    "kind": "runtime_profile",
+    "id": "pcam.reference.explicit-skip-runtime.v1",
+    "revision": 1,
+    "fault_policy": "ABORT_SIMULATION",
+    "limits": {
+      "max_actions_per_entity": 8,
+      "max_action_nesting_depth": 4,
+      "max_children_per_action": 4,
+      "max_quanta_per_action_per_tick": 8,
+      "max_internal_transitions_per_action_per_tick": 8,
+      "max_buffer_entries_per_action": 8,
+      "max_pending_events_per_entity": 8,
+      "max_candidates_per_tick": 32,
+      "max_effects_per_tick": 32,
+      "max_redirects_per_candidate": 4,
+      "max_definition_size_bytes": 65536,
+      "max_snapshot_size_bytes": 262144,
+      "max_extension_state_bytes": 4096,
+      "max_expression_depth": 64,
+      "max_expression_nodes": 4096
+    },
+    "rng_profiles": ["pcam.pcg32.v1"],
+    "network_profiles": [
+      {"id": "pcam.local.v1", "topology": "LOCAL_DETERMINISTIC"}
+    ],
+    "extensions": {}
+  },
+  "definitions": [
+    {
+      "id": "SEEKER",
+      "rate_scale": 1,
+      "units_per_tick": 0,
+      "nodes": [
+        {"id": "A", "mode": "EVENT_DRIVEN"},
+        {"id": "B", "mode": "TIMED", "duration_quanta": 10, "seekable": true}
+      ],
+      "transitions": [
+        {
+          "id": "explicit-skip",
+          "source_node": "A",
+          "evaluation_point": "PRE_ADVANCE",
+          "priority": 10,
+          "target_kind": "NODE",
+          "target_node": "B",
+          "target_step": 3,
+          "input_command": "SKIP",
+          "effects": [
+            {
+              "id": "skip-cost",
+              "kind": "RESOURCE_DELTA",
+              "effect_class": "RESOURCE",
+              "source_entity_id": 1,
+              "target_entity_id": 1,
+              "source_action_instance_id": 1,
+              "origin_tick": 1,
+              "resource": "skip_count",
+              "amount": 1,
+              "priority": 0
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "interaction_rules": [],
+  "effect_registry": {
+    "combat.damage": ["hp", -1],
+    "combat.stagger": ["stagger", 1]
+  },
+  "initial_state": {
+    "resource_banks": {"1": {"skip_count": 0}},
+    "slot_capacities": {}
+  },
+  "ticks": [
+    {
+      "inputs": [
+        {"input_id": "start", "source_entity_id": 1, "sequence": 0, "command_id": "START", "assigned_tick": 0, "action_definition_id": "SEEKER"}
+      ],
+      "contacts": []
+    },
+    {
+      "inputs": [
+        {"input_id": "skip", "source_entity_id": 1, "sequence": 1, "command_id": "SKIP", "assigned_tick": 1}
+      ],
+      "contacts": []
+    },
+    {"inputs": [], "contacts": []}
+  ],
+  "expected": {
+    "tick_state_digests": [
+      "6568e6f36feb091c6f5443d7224ed68a1b6665c73eae30ac8d636adc25ab49dc",
+      "777e8b8e2b56e6bf32f0d1aba2c7b318770fc5c6e4d00ebb888a75d602e367ff",
+      "7df3a43ba2582599541d10c0f3f75a114d079935d8f5706fc9ac08e671323a2e"
+    ],
+    "node": ["A", "B", "B"],
+    "node_step": [0, 3, 3],
+    "transition_serial": [0, 1, 1],
+    "skip_count": [0, 1, 1],
+    "legacy_effect_count": [0, 1, 0]
+  }
+}
