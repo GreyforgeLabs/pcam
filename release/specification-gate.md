@@ -16,6 +16,8 @@ Reference-runtime work then exposed that three required transition operation fie
 
 Fault-policy implementation exposed a second executable ambiguity: the three declared policies had no attribution, rollback, tick-advance, or containment semantics. §30.3 now defines these behaviors and fail-closed escalation for unattributable faults.
 
+Parameter execution exposed that declarations had no portable direct-start binding. §8.4 now binds direct inputs through a `parameters` payload object, requires validation before allocation and deep capture, and defines the default-only rule for action and child transition targets.
+
 ## Required evidence
 
 - no unresolved normative contradictions

@@ -29,6 +29,7 @@ The audit compared every normative issue against the master text and the executa
 | Canonical transition list conflicted with omitted empty design fields | §14.1 requires explicit machine-document defaults while allowing labeled readable shorthand |
 | Required transition operations had no execution position | §8.5, §14.6, §14.7, and §23.1 define assignment targets, complete mutation order, initial entry, effect defaults, and payload timing |
 | Fault policies named scopes without containment semantics | §30.3 defines attribution, tick-start rollback, scope mutation, tick advancement, records, discarded output, and escalation |
+| Parameter declarations had no portable start binding | §8.4 defines direct-input bindings, validation timing, deep capture, and transition-target defaults |
 
 ## Gate conclusion
 

@@ -53,3 +53,7 @@ Resolved in §8.5, §14.6, §14.7, and §23.1. The required transition `exit_ass
 ## Fault-policy containment
 
 Resolved in §30.3. Fault attribution, tick-start rollback, logical-tick advancement, action and entity scope, child and cross-entity relationship handling, trace behavior, input consumption, and escalation of unattributable faults are explicit for all three runtime policies.
+
+## Parameter binding
+
+Resolved in §8.4. Direct-start bindings use the input payload's `parameters` object and are validated before instance allocation. Captures are authoritative deep copies. Core action and child transitions have no binding field and therefore can start only targets whose required parameters have defaults.

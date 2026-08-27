@@ -568,6 +568,8 @@ Parameters MUST be captured into the action instance.
 
 An action MUST NOT rely on a mutable external parameter after start unless it is explicitly declared as a live host import.
 
+A direct action-start input supplies bindings in its payload's `parameters` object. The runtime MUST reject an unknown binding, a missing required binding without a default, or a value that violates the declared type, bounds, capacity, or allowed values before allocating the action instance. Captured values are deep immutable copies for authoritative purposes. An `ACTION` or `CHILD_ACTION` transition has no Core parameter-binding field, so its target action MUST be startable from declared defaults alone; otherwise the accepted transition faults atomically.
+
 ## 8.5 Registers
 
 Registers are mutable action-local authoritative values.

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import replace
 
 from .buffers import BufferEntry, apply_consumption, capture_entry, end_tick as expire_buffers, select_entry
@@ -673,6 +674,7 @@ class TickExecutor:
                             "definition_id": definition.id,
                             "kind": "START",
                             "owner_entity_id": tick_input.source_entity_id,
+                            "parameters": tick_input.payload.get("parameters", {}),
                         },
                     ),
                 )
@@ -720,6 +722,7 @@ class TickExecutor:
                             state,
                             str(operation["definition_id"]),
                             int(operation["owner_entity_id"]),
+                            operation.get("parameters"),
                         )
                         typed_effects.extend(emitted_typed)
                     elif operation["kind"] == "TRANSITION":
@@ -804,6 +807,7 @@ class TickExecutor:
         state: SimulationState,
         definition_id: str,
         owner_entity_id: int,
+        supplied_parameters: object = None,
         parent_instance_id: int | None = None,
         parent_slot_id: str | None = None,
     ) -> tuple[SimulationState, list[EffectEnvelope]]:
@@ -819,6 +823,7 @@ class TickExecutor:
             if depth >= self.profile.max_action_nesting_depth:
                 raise PCAMError(ResultCode.RUNTIME_FAULT, PCAMFault.NESTING_LIMIT_EXCEEDED, definition_id)
         instance_id = state.next_action_instance_id
+        captured_parameters = self._capture_parameters(definition, supplied_parameters)
         action = ActionInstance(
             instance_id=instance_id,
             owner_entity_id=owner_entity_id,
@@ -826,7 +831,7 @@ class TickExecutor:
             lifecycle_state="RUNNING",
             current_node_id=node.id,
             current_rate_units=definition.units_per_tick,
-            captured_parameters=dict(definition.parameter_defaults),
+            captured_parameters=captured_parameters,
             registers=dict(definition.register_initials),
             parent_instance_id=parent_instance_id,
             parent_slot_id=parent_slot_id,
@@ -1186,6 +1191,72 @@ class TickExecutor:
             ),
         )
         return _put_action(state, action), list(transition.effects), typed_effects
+
+    def _capture_parameters(
+        self,
+        definition: ActionDefinition,
+        supplied_parameters: object,
+    ) -> dict[str, object]:
+        supplied = {} if supplied_parameters is None else supplied_parameters
+        if not isinstance(supplied, dict) or any(type(key) is not str for key in supplied):
+            raise PCAMError(
+                ResultCode.INVALID_INPUT,
+                PCAMFault.STATE_INVARIANT_FAILURE,
+                f"{definition.id}: START parameters must be an object",
+            )
+        if not definition.parameter_declarations:
+            if supplied:
+                raise PCAMError(
+                    ResultCode.INVALID_INPUT,
+                    PCAMFault.MISSING_REFERENCE,
+                    f"{definition.id}: action declares no parameters",
+                )
+            return deepcopy(definition.parameter_defaults)
+        unknown = sorted(set(supplied) - set(definition.parameter_declarations))
+        if unknown:
+            raise PCAMError(
+                ResultCode.INVALID_INPUT,
+                PCAMFault.MISSING_REFERENCE,
+                f"{definition.id}: unknown parameters: {unknown}",
+            )
+        captured: dict[str, object] = {}
+        for parameter_id in sorted(
+            definition.parameter_declarations,
+            key=lambda item: item.encode("utf-8"),
+        ):
+            declaration = definition.parameter_declarations[parameter_id]
+            if parameter_id in supplied:
+                value = supplied[parameter_id]
+            elif parameter_id in definition.parameter_defaults:
+                value = definition.parameter_defaults[parameter_id]
+            else:
+                raise PCAMError(
+                    ResultCode.INVALID_INPUT,
+                    PCAMFault.MISSING_REFERENCE,
+                    f"{definition.id}: missing required parameter: {parameter_id}",
+                )
+            normalized_declaration = {**declaration, "overflow": "FAULT"}
+            try:
+                normalized = self._normalize_register_value(
+                    parameter_id,
+                    value,
+                    normalized_declaration,
+                )
+            except PCAMError as error:
+                raise PCAMError(
+                    ResultCode.INVALID_INPUT,
+                    error.fault,
+                    f"{definition.id}: invalid parameter {parameter_id}: {error.message}",
+                ) from error
+            allowed = declaration.get("allowed_values")
+            if isinstance(allowed, list) and normalized not in allowed:
+                raise PCAMError(
+                    ResultCode.INVALID_INPUT,
+                    PCAMFault.STATE_INVARIANT_FAILURE,
+                    f"{definition.id}: parameter outside allowed_values: {parameter_id}",
+                )
+            captured[parameter_id] = deepcopy(normalized)
+        return captured
 
     def _apply_assignments(
         self,
