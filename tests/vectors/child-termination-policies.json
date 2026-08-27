@@ -1,0 +1,32 @@
+{
+  "pcam_vector_version": "1", "kind": "runtime_vector", "id": "child-termination-policies",
+  "runtime_profile": {
+    "pcam_version": "3.0", "kind": "runtime_profile", "id": "pcam.reference.child-termination.v1", "revision": 1, "fault_policy": "ABORT_SIMULATION",
+    "limits": {"max_actions_per_entity": 8, "max_action_nesting_depth": 4, "max_children_per_action": 4, "max_quanta_per_action_per_tick": 8, "max_internal_transitions_per_action_per_tick": 8, "max_buffer_entries_per_action": 8, "max_pending_events_per_entity": 8, "max_candidates_per_tick": 32, "max_effects_per_tick": 32, "max_redirects_per_candidate": 4, "max_definition_size_bytes": 65536, "max_snapshot_size_bytes": 262144, "max_extension_state_bytes": 4096, "max_expression_depth": 64, "max_expression_nodes": 4096},
+    "rng_profiles": ["pcam.pcg32.v1"], "network_profiles": [{"id": "pcam.local.v1", "topology": "LOCAL_DETERMINISTIC"}], "extensions": {}
+  },
+  "definitions": [
+    {
+      "id": "PARENT", "rate_scale": 1, "units_per_tick": 0, "nodes": [{"id": "WAIT", "mode": "EVENT_DRIVEN"}],
+      "child_slot_capacities": {"SUB": 1}, "child_termination_policies": {"SUB": "ALLOW_CHILD_TO_COMPLETE"},
+      "transitions": [
+        {"id": "launch", "source_node": "WAIT", "evaluation_point": "PRE_ADVANCE", "priority": 10, "target_kind": "CHILD_ACTION", "target_action": "CHILD", "child_slot_id": "SUB", "parent_policy": "CONTINUE", "input_command": "LAUNCH"},
+        {"id": "stop", "source_node": "WAIT", "evaluation_point": "PRE_ADVANCE", "priority": 5, "target_kind": "TERMINATE", "input_command": "STOP", "consume_policy": "ON_ATTEMPT"}
+      ]
+    },
+    {"id": "CHILD", "rate_scale": 1, "units_per_tick": 0, "nodes": [{"id": "RUN", "mode": "EVENT_DRIVEN"}]}
+  ],
+  "interaction_rules": [], "effect_registry": {"combat.damage": ["hp", -1], "combat.stagger": ["stagger", 1]},
+  "initial_state": {"resource_banks": {}, "slot_capacities": {}},
+  "ticks": [
+    {"inputs": [{"input_id": "start", "source_entity_id": 1, "sequence": 0, "command_id": "START", "assigned_tick": 0, "action_definition_id": "PARENT"}], "contacts": []},
+    {"inputs": [{"input_id": "launch", "source_entity_id": 1, "sequence": 1, "command_id": "LAUNCH", "assigned_tick": 1}], "contacts": []},
+    {"inputs": [{"input_id": "stop", "source_entity_id": 1, "sequence": 2, "command_id": "STOP", "assigned_tick": 2}], "contacts": []}
+  ],
+  "cases": [
+    {"policy": "TERMINATE_CHILD", "tick_state_digests": ["99a7739f303c77f9c7f82e624ade64b423086a12d890db3c7c981f6a6b6a1735", "d11c485277e9eae604fa73cc3e8d74fc2970c45fa3c3b32c0ef3d5c520fa10ab", "7633d6cf6f6edbc73c79bb0eb732d87cfc807e14bfdcdbebf2b5fc64b57fc111"], "expected": {"parent_lifecycle": "TERMINATED", "parent_children": [], "child_lifecycle": "TERMINATED", "child_parent": 1, "child_slot": "SUB", "pending_event_types": ["CHILD_RESULT"], "child_result_emitted": true}},
+    {"policy": "DETACH_CHILD", "tick_state_digests": ["fdd8683f69647db768662a4cad0bf05ccae0f50784a94583a7810ee8e3a36797", "462e720d1d50194c8f85d75cf0939bea7ee721f2ca8a35e8c27a810de147a327", "6a913225ee4efc26a9a4ea93796538bb5fb54a4543d22cda9db7b8c8fd63d708"], "expected": {"parent_lifecycle": "TERMINATED", "parent_children": [], "child_lifecycle": "RUNNING", "child_parent": null, "child_slot": null, "pending_event_types": [], "child_result_emitted": false}},
+    {"policy": "ALLOW_CHILD_TO_COMPLETE", "tick_state_digests": ["f81532b492860ae260b1f02de2bd251fc553dc01fc95e6f0613d2f108485fb1b", "825b0621e918e9d8a11f5deae2bef39e89349e3bbf10b3136674619c24d37997", "cd683f1d556520ff015014b8bb0787437cca89756e9c2cec9122c65d623c3655"], "expected": {"parent_lifecycle": "TERMINATED", "parent_children": [2], "child_lifecycle": "RUNNING", "child_parent": 1, "child_slot": "SUB", "pending_event_types": [], "child_result_emitted": false}},
+    {"policy": "FAULT_IF_OCCUPIED", "pre_fault_digest": "07e8b9b52d45a436272ffdaeb0e4806facb5d4d02f4c0e0ca8e66a4141f09b13", "fault": "STATE_INVARIANT_FAILURE"}
+  ]
+}

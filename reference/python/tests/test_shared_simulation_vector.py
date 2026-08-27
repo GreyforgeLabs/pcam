@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from pcam_runtime import PCAMError, RetainedRollbackHistory
+from pcam_runtime import PCAMError, RetainedRollbackHistory, TickInput
 from pcam_runtime.vectors import rollback_vector, run_vector
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -40,6 +40,12 @@ def _interaction_runtime_document():
 
 def _parent_policies_document():
     return json.loads((ROOT / "tests/vectors/parent-policies.json").read_text(encoding="utf-8"))
+
+
+def _child_termination_document():
+    return json.loads(
+        (ROOT / "tests/vectors/child-termination-policies.json").read_text(encoding="utf-8")
+    )
 
 
 def test_python_typed_strike_matches_shared_full_state_identity_and_tick_digests():
@@ -259,6 +265,45 @@ def test_python_parent_policies_match_shared_domain_specific_outcomes():
             "freeze_domains": [list(token.domains) for token in state.freeze_tokens],
             "freeze_remaining": [token.remaining_ticks for token in state.freeze_tokens],
             "next_freeze_token_id": state.next_freeze_token_id,
+        }
+        assert [item["state_digest"] for item in run.traces] == case["tick_state_digests"]
+        assert summary == case["expected"], case["policy"]
+
+
+def test_python_child_termination_policies_match_shared_atomic_outcomes():
+    vector = _child_termination_document()
+    for case in vector["cases"]:
+        document = json.loads(json.dumps(vector))
+        document["definitions"][0]["child_termination_policies"]["SUB"] = case["policy"]
+        if case["policy"] == "FAULT_IF_OCCUPIED":
+            stop = document["ticks"][2]["inputs"][0]
+            document["ticks"] = document["ticks"][:2]
+            run = run_vector(document)
+            assert run.final_state.state_hash() == case["pre_fault_digest"]
+            tick_input = TickInput(
+                stop["input_id"],
+                stop["source_entity_id"],
+                stop["sequence"],
+                stop["command_id"],
+                stop["assigned_tick"],
+            )
+            with pytest.raises(PCAMError) as raised:
+                run.executor.tick(run.final_state, (tick_input,))
+            assert raised.value.fault.value == case["fault"]
+            assert run.final_state.state_hash() == case["pre_fault_digest"]
+            continue
+        run = run_vector(document)
+        state = run.final_state
+        parent = state.action_instances["1"]
+        child = state.action_instances["2"]
+        summary = {
+            "parent_lifecycle": parent.lifecycle_state,
+            "parent_children": list(parent.child_instance_ids),
+            "child_lifecycle": child.lifecycle_state,
+            "child_parent": child.parent_instance_id,
+            "child_slot": child.parent_slot_id,
+            "pending_event_types": [event["event_type"] for event in state.pending_events],
+            "child_result_emitted": child.extension_state.get("pcam.child_result_emitted", False),
         }
         assert [item["state_digest"] for item in run.traces] == case["tick_state_digests"]
         assert summary == case["expected"], case["policy"]

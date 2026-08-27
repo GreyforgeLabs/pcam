@@ -61,6 +61,7 @@ struct Definition {
     facts: Vec<FactBinding>,
     transitions: Vec<SimulationTransition>,
     child_slot_capacities: BTreeMap<String, u64>,
+    child_termination_policies: BTreeMap<String, String>,
     start_claims: Vec<ArbitrationClaim>,
     slot_claims: Vec<ArbitrationClaim>,
 }
@@ -1502,7 +1503,7 @@ impl SimulationRuntime {
                     .get(target)
                     .is_some_and(|mode| mode == "TERMINAL")
                 {
-                    state.action_instances[index].lifecycle_state = "TERMINATED".to_owned();
+                    self.terminate_action(state, action_id, "TERMINATED", None)?;
                 }
             }
             "TERMINATE" => {
@@ -1510,15 +1511,15 @@ impl SimulationRuntime {
                     .transition_serial
                     .checked_add(1)
                     .ok_or(SimulationError::RuntimeFault)?;
-                state.action_instances[index].lifecycle_state = "TERMINATED".to_owned();
+                self.terminate_action(state, action_id, "TERMINATED", None)?;
             }
             "FAULT" => {
                 state.action_instances[index].transition_serial = state.action_instances[index]
                     .transition_serial
                     .checked_add(1)
                     .ok_or(SimulationError::RuntimeFault)?;
-                state.action_instances[index].lifecycle_state = "FAULTED".to_owned();
                 state.action_instances[index].fault_record = Some(transition.id.clone());
+                self.terminate_action(state, action_id, "FAULTED", None)?;
             }
             "ACTION" => {
                 let target_action = transition
@@ -1536,7 +1537,7 @@ impl SimulationRuntime {
                     .ok_or(SimulationError::RuntimeFault)?;
                 match transition.source_disposition.as_str() {
                     "TERMINATE_SOURCE" => {
-                        state.action_instances[index].lifecycle_state = "TERMINATED".to_owned();
+                        self.terminate_action(state, action_id, "TERMINATED", None)?;
                     }
                     "SUSPEND_SOURCE" => {
                         state.action_instances[index].lifecycle_state = "SUSPENDED".to_owned();
@@ -1729,7 +1730,7 @@ impl SimulationRuntime {
                     transition_serial: 0,
                 });
                 if parent_policy == "TERMINATE_PARENT" {
-                    state.action_instances[index].lifecycle_state = "TERMINATED".to_owned();
+                    self.terminate_action(state, action_id, "TERMINATED", Some(child_id))?;
                 }
                 state
                     .action_instances
@@ -1832,6 +1833,70 @@ impl SimulationRuntime {
                     right["event_id"].as_str().unwrap_or_default(),
                 ))
         });
+        Ok(())
+    }
+
+    fn terminate_action(
+        &self,
+        state: &mut SimulationState,
+        action_id: u64,
+        lifecycle: &str,
+        exempt_child_id: Option<u64>,
+    ) -> Result<(), SimulationError> {
+        let index = state
+            .action_instances
+            .iter()
+            .position(|action| action.instance_id == action_id)
+            .ok_or(SimulationError::RuntimeFault)?;
+        let action = state.action_instances[index].clone();
+        let definition = self
+            .definitions
+            .values()
+            .find(|definition| definition.hash == action.definition_hash)
+            .ok_or(SimulationError::RuntimeFault)?;
+        let mut retained = Vec::new();
+        for child_id in action.child_instance_ids {
+            if Some(child_id) == exempt_child_id {
+                retained.push(child_id);
+                continue;
+            }
+            let child_index = state
+                .action_instances
+                .iter()
+                .position(|child| child.instance_id == child_id)
+                .ok_or(SimulationError::RuntimeFault)?;
+            let slot = state.action_instances[child_index]
+                .parent_slot_id
+                .as_ref()
+                .ok_or(SimulationError::RuntimeFault)?;
+            let policy = definition
+                .child_termination_policies
+                .get(slot)
+                .ok_or(SimulationError::RuntimeFault)?;
+            match policy.as_str() {
+                "TERMINATE_CHILD" => {
+                    self.terminate_action(state, child_id, "TERMINATED", None)?;
+                    retained.push(child_id);
+                }
+                "DETACH_CHILD" => {
+                    state.action_instances[child_index].parent_instance_id = None;
+                    state.action_instances[child_index].parent_slot_id = None;
+                }
+                "ALLOW_CHILD_TO_COMPLETE" => retained.push(child_id),
+                "FAULT_IF_OCCUPIED" => return Err(SimulationError::RuntimeFault),
+                _ => return Err(SimulationError::RuntimeFault),
+            }
+        }
+        let index = state
+            .action_instances
+            .iter()
+            .position(|action| action.instance_id == action_id)
+            .ok_or(SimulationError::RuntimeFault)?;
+        state.action_instances[index].child_instance_ids = retained;
+        state.action_instances[index].lifecycle_state = lifecycle.to_owned();
+        state
+            .freeze_tokens
+            .retain(|token| token.get("target_id").and_then(Value::as_u64) != Some(action_id));
         Ok(())
     }
 }
@@ -2297,6 +2362,12 @@ fn parse_definition(raw: &Value, hash: String) -> Result<Definition, SimulationE
         transitions,
         child_slot_capacities: serde_json::from_value(child_slot_capacities)
             .map_err(|_| SimulationError::InvalidVector)?,
+        child_termination_policies: serde_json::from_value(
+            raw.get("child_termination_policies")
+                .cloned()
+                .unwrap_or_else(|| json!({})),
+        )
+        .map_err(|_| SimulationError::InvalidVector)?,
         start_claims: serde_json::from_value(start_claims)
             .map_err(|_| SimulationError::InvalidVector)?,
         slot_claims: serde_json::from_value(slot_claims)
