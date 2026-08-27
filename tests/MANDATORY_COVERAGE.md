@@ -27,6 +27,6 @@ This map names current executable evidence for specification §38. A mapped test
 | 38.17 Rollback equivalence | `vectors/typed-strike.json` retained-history correction in Python and independent Rust plus the §45.6 rollback gate | implemented directly with corrected replay equal to direct execution, atomic correction failure, retained-window rejection, and every required rewind case |
 | 38.18 RNG restore | `vectors/rng-runtime.json` and `vectors/numeric-rng.json` in Python and independent Rust | implemented directly with pre-draw snapshot restoration, identical draw value and count, exact stream state, complete-state continuation, and pinned digests |
 | 38.19 Cross-architecture digest | no Linux ARM64 execution evidence | missing |
-| 38.20 Invalid definitions | schema negative vectors and semantic validator tests | partial breadth |
+| 38.20 Invalid definitions | 14 shared `definition_fault_cases` in `vectors/action-runtime.json`, plus schema negative vectors | implemented directly for bounded action semantics with stable `DEFINITION_REJECTED` across Python and independent Rust, including missing references, duplicate priority and node ambiguity, invalid seek, rate, node, buffer, evaluation, consume, source, and target semantics; broader malformed-document/schema breadth remains partial |
 
 Release conformance remains open until every row is direct, complete evidence against the full normative behavior.

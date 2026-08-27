@@ -463,6 +463,8 @@ def validate_definition(definition: ActionDefinition) -> None:
         raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.DIVISION_BY_ZERO, definition.id)
     if definition.units_per_tick < 0:
         raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.INTEGER_OVERFLOW, definition.id)
+    if definition.buffer_overflow_policy not in {"DROP_OLDEST", "DROP_NEWEST", "FAULT"}:
+        raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.STATE_INVARIANT_FAILURE, definition.id)
     if definition.buffer_capacity < 0 or definition.default_buffer_lifetime <= 0:
         raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.STATE_INVARIANT_FAILURE, definition.id)
     if any(capacity <= 0 for capacity in definition.child_slot_capacities.values()):
@@ -470,6 +472,8 @@ def validate_definition(definition: ActionDefinition) -> None:
     if set(definition.child_termination_policies) != set(definition.child_slot_capacities):
         raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.STATE_INVARIANT_FAILURE, definition.id)
     node_ids = {node.id for node in definition.nodes}
+    if len(node_ids) != len(definition.nodes):
+        raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.STATE_INVARIANT_FAILURE, definition.id)
     predicate_ids = {predicate.id for predicate in definition.predicates}
     register_ids = set(definition.register_initials)
 
@@ -505,6 +509,18 @@ def validate_definition(definition: ActionDefinition) -> None:
     for transition in definition.transitions:
         if transition.cycle_delta < 0:
             raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.INTEGER_OVERFLOW, transition.id)
+        if transition.evaluation_point not in {"PRE_ADVANCE", "AFTER_QUANTUM", "POST_ADVANCE"}:
+            raise PCAMError(
+                ResultCode.DEFINITION_REJECTED,
+                PCAMFault.STATE_INVARIANT_FAILURE,
+                transition.id,
+            )
+        if transition.consume_policy not in {"ON_ACCEPT", "ON_ATTEMPT", "NEVER"}:
+            raise PCAMError(
+                ResultCode.DEFINITION_REJECTED,
+                PCAMFault.STATE_INVARIANT_FAILURE,
+                transition.id,
+            )
         validate_assignments(transition.exit_assignments)
         validate_assignments(transition.assignments)
         validate_assignments(transition.entry_assignments)

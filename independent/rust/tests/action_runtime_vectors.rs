@@ -66,6 +66,7 @@ struct FaultCase {
 #[derive(Deserialize)]
 struct DefinitionFaultCase {
     id: String,
+    code: String,
     definition: ActionDefinition,
 }
 
@@ -189,11 +190,8 @@ fn independent_runtime_matches_shared_limit_faults() {
 #[test]
 fn independent_runtime_rejects_shared_invalid_definitions() {
     for case in vectors().definition_fault_cases {
-        assert_eq!(
-            validate_definition(&case.definition).unwrap_err(),
-            ActionError::InvalidDefinition,
-            "{}",
-            case.id
-        );
+        let error = validate_definition(&case.definition).unwrap_err();
+        assert_eq!(error, ActionError::InvalidDefinition, "{}", case.id);
+        assert_eq!(case.code, "DEFINITION_REJECTED", "{}", case.id);
     }
 }

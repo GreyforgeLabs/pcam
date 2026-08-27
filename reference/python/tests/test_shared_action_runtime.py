@@ -183,5 +183,6 @@ def test_python_runtime_matches_shared_limit_faults():
 
 def test_python_runtime_rejects_shared_invalid_definitions():
     for case in _vectors()["definition_fault_cases"]:
-        with pytest.raises(PCAMError):
+        with pytest.raises(PCAMError) as raised:
             TickExecutor((_definition(case["definition"]),))
+        assert raised.value.code.value == case["code"], case["id"]
