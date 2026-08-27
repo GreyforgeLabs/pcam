@@ -33,8 +33,8 @@ This matrix preserves the complete target. A row is complete only when its named
 | §35 tracing | complete deterministic trace contract and canonicalized vectors | missing |
 | §36 extensions | namespace, required/optional, authoritative extension validation | missing |
 | §37 classes | evidence manifest for each claimed class | missing |
-| §38 mandatory tests | all 20 tests implemented and passing | missing |
-| §39 generated tests | all listed generators plus determinism and continuation properties | missing |
+| §38 mandatory tests | all 20 tests implemented and passing | partial: coverage map committed; 38.19 missing and several rows still composed/partial |
+| §39 generated tests | all listed generators plus determinism and continuation properties | partial: deterministic generated surfaces cover every listed category; breadth and independent execution remain open |
 | §40 migration | v1/v2 importer warnings and version rejection vectors | missing |
 | §41 repository | required structure and documentation | partial: required lanes and authority files exist |
 | §42 tooling | all eleven commands with stable machine-readable result codes | partial: all eleven command paths execute with JSON envelopes; broader normative vectors and diagnostics remain open |
