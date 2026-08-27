@@ -1216,8 +1216,14 @@ impl SimulationRuntime {
         let Some(expression) = &transition.guard_expression else {
             return Ok(true);
         };
-        let context =
-            transition_guard_context(state, action, definition, matched_input, matched_event)?;
+        let context = transition_guard_context(
+            state,
+            action,
+            definition,
+            expression,
+            matched_input,
+            matched_event,
+        )?;
         evaluate_expression(
             expression,
             &context,
@@ -3194,6 +3200,7 @@ fn transition_guard_context(
     state: &SimulationState,
     action: &ActionSnapshot,
     definition: &Definition,
+    guard_expression: &Value,
     matched_input: Option<&Value>,
     matched_event: Option<&Value>,
 ) -> Result<BTreeMap<String, Value>, SimulationError> {
@@ -3253,24 +3260,22 @@ fn transition_guard_context(
         .get("imports")
         .and_then(Value::as_object)
         .ok_or(SimulationError::RuntimeFault)?;
-    for (identifier, declaration) in &definition.import_declarations {
-        let value = if let Some(value) = imports.get(identifier) {
+    for identifier in host_import_references(guard_expression) {
+        let declaration = definition
+            .import_declarations
+            .get(&identifier)
+            .ok_or_else(|| invalid_host_import_fault(action, &identifier))?;
+        let value = if let Some(value) = imports.get(&identifier) {
             value
         } else if declaration.get("failure_policy").and_then(Value::as_str) == Some("USE_DEFAULT") {
             declaration
                 .get("default")
-                .ok_or(SimulationError::RuntimeFault)?
+                .ok_or_else(|| invalid_host_import_fault(action, &identifier))?
         } else {
-            continue;
+            return Err(invalid_host_import_fault(action, &identifier));
         };
         if !valid_host_import(value, declaration) {
-            return Err(SimulationError::Fault(FaultContext {
-                code: "RUNTIME_FAULT".to_owned(),
-                fault: "INVALID_HOST_IMPORT".to_owned(),
-                message: identifier.clone(),
-                action_instance_id: Some(action.instance_id),
-                owner_entity_id: Some(action.owner_entity_id),
-            }));
+            return Err(invalid_host_import_fault(action, &identifier));
         }
         flatten_guard_context(&format!("host.{identifier}"), value, &mut context);
     }
@@ -3281,6 +3286,45 @@ fn transition_guard_context(
         flatten_guard_context("event", event, &mut context);
     }
     Ok(context)
+}
+
+fn host_import_references(expression: &Value) -> BTreeSet<String> {
+    let mut references = BTreeSet::new();
+    collect_host_import_references(expression, &mut references);
+    references
+}
+
+fn collect_host_import_references(expression: &Value, references: &mut BTreeSet<String>) {
+    match expression {
+        Value::Object(object) => {
+            if object.len() == 1 {
+                if let Some(reference) = object.get("ref").and_then(Value::as_str) {
+                    if let Some(identifier) = reference.strip_prefix("host.") {
+                        references.insert(identifier.to_owned());
+                    }
+                }
+            }
+            for value in object.values() {
+                collect_host_import_references(value, references);
+            }
+        }
+        Value::Array(values) => {
+            for value in values {
+                collect_host_import_references(value, references);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn invalid_host_import_fault(action: &ActionSnapshot, identifier: &str) -> SimulationError {
+    SimulationError::Fault(FaultContext {
+        code: "RUNTIME_FAULT".to_owned(),
+        fault: "INVALID_HOST_IMPORT".to_owned(),
+        message: identifier.to_owned(),
+        action_instance_id: Some(action.instance_id),
+        owner_entity_id: Some(action.owner_entity_id),
+    })
 }
 
 fn valid_host_import(value: &Value, declaration: &Value) -> bool {

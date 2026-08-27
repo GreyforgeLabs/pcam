@@ -35,6 +35,7 @@
 - Integrated complete-state predicate and expression transition guards into the independent runtime with immutable action, owner-resource, input, event, and host context, and fixed the reference vector adapter so guard expressions remain authoritative and hash-bound.
 - Added shared complete-state event-payload and multi-source transition-context vectors, preserved typed host imports in the independent tick snapshot, and completed declaration-aware action, owner-resource/register, input, event, and host guard lookup.
 - Added bounded supplied-parameter capture and definition register initialization to independent complete-state action creation, including typed range checks and default capture for transition-spawned actions.
+- Completed declared host-import guard handling in the independent runtime with referenced-only resolution, deterministic defaults, bounded types, and stable missing or invalid import faults.
 - Added independent runtime freeze controls and shared schedules for HOLD/ACCRUE progression, transition domains, input capture, and buffer expiry.
 - Added canonical cross-language action-state projection hashes plus restore-and-continue digest vectors for every shared runtime case.
 - Added a schema-valid conformance claim manifest with exact §37 requirement sets, evidence-path validation, dependency enforcement, and fail-closed premature-claim tests.

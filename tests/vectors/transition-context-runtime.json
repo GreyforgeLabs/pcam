@@ -98,17 +98,32 @@
   "cases": [
     {
       "id": "all-contexts-match",
-      "allowed": true,
+      "imports": {"allowed": true},
+      "failure_policy": "FAULT",
       "tick_state_digests": ["67cf2064a5c8760b2a260b869c739d28db95c82c01cf4bbc8aeec50093469ed7", "52b23911ea09f0a9ca0ebaaaf69eb756275a9739664e5fd8ee153df41c2d70f6"],
       "final_state_digest": "52b23911ea09f0a9ca0ebaaaf69eb756275a9739664e5fd8ee153df41c2d70f6",
       "expected": {"node": "DONE", "transition_serial": 1, "captured_parameters": {"threshold": 5}, "registers": {"mode": "ready"}, "input_buffer": [], "host_imports": {"allowed": true}}
     },
     {
       "id": "host-context-rejects",
-      "allowed": false,
+      "imports": {"allowed": false},
+      "failure_policy": "FAULT",
       "tick_state_digests": ["67cf2064a5c8760b2a260b869c739d28db95c82c01cf4bbc8aeec50093469ed7", "628cef8803877d1bcee86dd09fe76a247b175bedf9cbbeb903a94900b21ba358"],
       "final_state_digest": "628cef8803877d1bcee86dd09fe76a247b175bedf9cbbeb903a94900b21ba358",
       "expected": {"node": "WAIT", "transition_serial": 0, "captured_parameters": {"threshold": 5}, "registers": {"mode": "ready"}, "input_buffer": [{"buffer_entry_id": "buffer:go", "captured_tick": 1, "command_id": "GO", "input_id": "go", "payload": {"permit": true}, "priority": 0, "remaining_eligibility_ticks": 2, "sequence": 1}], "host_imports": {"allowed": false}}
+    },
+    {
+      "id": "host-default-matches",
+      "imports": {},
+      "failure_policy": "USE_DEFAULT",
+      "default": true,
+      "tick_state_digests": ["2efcb22e35335e90923024b15e8ff161725584d0fe49dbcdc1f1094e29930ef8", "34909d8cfd0da5dbcffb7ffdbba971aa2935dc7339a89dc4d4a2f646ae88ff79"],
+      "final_state_digest": "34909d8cfd0da5dbcffb7ffdbba971aa2935dc7339a89dc4d4a2f646ae88ff79",
+      "expected": {"node": "DONE", "transition_serial": 1, "captured_parameters": {"threshold": 5}, "registers": {"mode": "ready"}, "input_buffer": [], "host_imports": {}}
     }
+  ],
+  "fault_cases": [
+    {"id": "missing-required-host-import", "imports": {}, "failure_policy": "FAULT", "fault": "INVALID_HOST_IMPORT"},
+    {"id": "invalid-host-import-type", "imports": {"allowed": "yes"}, "failure_policy": "FAULT", "fault": "INVALID_HOST_IMPORT"}
   ]
 }
