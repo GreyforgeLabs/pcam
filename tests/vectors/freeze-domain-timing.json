@@ -1,0 +1,47 @@
+{
+  "pcam_vector_version": "1",
+  "kind": "freeze_domain_vector",
+  "id": "all-core-freeze-domains",
+  "domains": [
+    "PROGRESSION",
+    "PRE_ADVANCE_TRANSITIONS",
+    "POST_ADVANCE_TRANSITIONS",
+    "INPUT_CAPTURE",
+    "BUFFER_EXPIRY",
+    "EVENT_DELIVERY",
+    "INTERACTION_EMISSION",
+    "INTERACTION_RECEPTION",
+    "RESOURCE_REGENERATION",
+    "RNG_CONSUMPTION"
+  ],
+  "token": {
+    "token_id": 1,
+    "source_id": 99,
+    "target_id": 7,
+    "activation_tick": 2,
+    "remaining_ticks": 2,
+    "domains": [
+      "PROGRESSION",
+      "PRE_ADVANCE_TRANSITIONS",
+      "POST_ADVANCE_TRANSITIONS",
+      "INPUT_CAPTURE",
+      "BUFFER_EXPIRY",
+      "EVENT_DELIVERY",
+      "INTERACTION_EMISSION",
+      "INTERACTION_RECEPTION",
+      "RESOURCE_REGENERATION",
+      "RNG_CONSUMPTION"
+    ],
+    "accrual_policy": "HOLD",
+    "stack_group": "all-core",
+    "stack_policy": "INDEPENDENT",
+    "metadata": {"test": "18.2-all-core-domains"}
+  },
+  "expected": [
+    {"tick": 0, "target_frozen": false, "other_target_frozen": false, "remaining_after_tick": 2},
+    {"tick": 1, "target_frozen": false, "other_target_frozen": false, "remaining_after_tick": 2},
+    {"tick": 2, "target_frozen": true, "other_target_frozen": false, "remaining_after_tick": 1},
+    {"tick": 3, "target_frozen": true, "other_target_frozen": false, "remaining_after_tick": null},
+    {"tick": 4, "target_frozen": false, "other_target_frozen": false, "remaining_after_tick": null}
+  ]
+}

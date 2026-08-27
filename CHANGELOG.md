@@ -50,6 +50,7 @@
 - Completed bounded Core RNG coverage with strict four-field PCG32 snapshots, hashed profile-to-stream algorithm binding, initial and restore validation, two-action shared-stream call ordering under raw input permutations, exact continuation, and atomic missing-stream and draw-count-overflow faults in Python and Rust.
 - Completed bounded parent-child coverage by binding Rust definitions and launches to `max_children_per_action`, correcting slot arbitration to count only children in the claimed slot, and adding shared two-slot success plus atomic global-limit fault evidence.
 - Integrated the `RNG_CONSUMPTION` freeze domain into Stage 10 with action-targeted draw suppression, unaffected shared-stream consumption, exact expiry, and restore continuation in Python and Rust.
+- Completed bounded Core freeze-domain timing with one shared Python/Rust vector covering activation, target scope, decrement, and expiry for all ten declared domains, while leaving undefined regeneration production out of the runtime.
 - Added independent runtime freeze controls and shared schedules for HOLD/ACCRUE progression, transition domains, input capture, and buffer expiry.
 - Added canonical cross-language action-state projection hashes plus restore-and-continue digest vectors for every shared runtime case.
 - Added a schema-valid conformance claim manifest with exact §37 requirement sets, evidence-path validation, dependency enforcement, and fail-closed premature-claim tests.
