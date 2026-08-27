@@ -39,6 +39,7 @@
 - Integrated recursive expression-backed predicates into independent complete-state semantic snapshots, including action/owner context, dependent predicate references, sparse truth-state updates, and edge serials pinned by the shared transition-context vector.
 - Moved complete-state predicate-cycle and missing-dependency detection to Python and Rust definition construction with shared fail-closed fault evidence.
 - Added shared complete-state definition faults for negative cycle and target-step values, non-seekable skips, and out-of-range timed-node entry.
+- Added shared complete-state structural definition rejection for duplicate transition priorities, missing source and guard references, illegal AFTER_QUANTUM claims, and missing cross-definition action targets.
 - Added independent runtime freeze controls and shared schedules for HOLD/ACCRUE progression, transition domains, input capture, and buffer expiry.
 - Added canonical cross-language action-state projection hashes plus restore-and-continue digest vectors for every shared runtime case.
 - Added a schema-valid conformance claim manifest with exact §37 requirement sets, evidence-path validation, dependency enforcement, and fail-closed premature-claim tests.

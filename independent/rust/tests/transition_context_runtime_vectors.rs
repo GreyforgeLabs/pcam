@@ -126,3 +126,57 @@ fn independent_complete_state_rejects_invalid_transition_bounds() {
         assert_eq!(context.fault, case["fault"], "{}:fault", case["id"]);
     }
 }
+
+fn structural_fault_document(vector: &Value, case: &Value) -> Value {
+    let mut document = vector.clone();
+    let transition = document["definitions"][0]["transitions"][0].clone();
+    match case["mutation"].as_str().unwrap() {
+        "DUPLICATE_PRIORITY" => {
+            let mut duplicate = transition;
+            duplicate["id"] = json!("duplicate-context-match");
+            document["definitions"][0]["transitions"]
+                .as_array_mut()
+                .unwrap()
+                .push(duplicate);
+        }
+        "MISSING_SOURCE" => {
+            document["definitions"][0]["transitions"][0]["source_node"] = json!("MISSING");
+        }
+        "MISSING_GUARD" => {
+            document["definitions"][0]["transitions"][0]["guard_predicate"] = json!("MISSING");
+        }
+        "AFTER_QUANTUM_CLAIM" => {
+            document["definitions"][0]["transitions"][0]["evaluation_point"] =
+                json!("AFTER_QUANTUM");
+            document["definitions"][0]["transitions"][0]["claims"] =
+                json!([{"kind": "RESOURCE", "key": "STAMINA", "amount": 1}]);
+        }
+        "MISSING_ACTION_TARGET" => {
+            let transition = document["definitions"][0]["transitions"][0]
+                .as_object_mut()
+                .unwrap();
+            transition.insert("target_kind".to_owned(), json!("ACTION"));
+            transition.insert("target_action".to_owned(), json!("MISSING"));
+            transition.remove("target_node");
+        }
+        mutation => panic!("unexpected mutation: {mutation}"),
+    }
+    document
+}
+
+#[test]
+fn independent_complete_state_rejects_invalid_transition_structure() {
+    let vector = vector();
+    for case in vector["structural_definition_fault_cases"]
+        .as_array()
+        .unwrap()
+    {
+        let error =
+            SimulationRuntime::from_vector(&structural_fault_document(&vector, case)).unwrap_err();
+        let SimulationError::Fault(context) = error else {
+            panic!("{}: unexpected error", case["id"]);
+        };
+        assert_eq!(context.code, "DEFINITION_REJECTED", "{}:code", case["id"]);
+        assert_eq!(context.fault, case["fault"], "{}:fault", case["id"]);
+    }
+}

@@ -86,3 +86,36 @@ def test_python_complete_state_rejects_invalid_transition_bounds():
             run_vector(document)
         assert raised.value.code.value == "DEFINITION_REJECTED", case["id"]
         assert raised.value.fault.value == case["fault"], case["id"]
+
+
+def _structural_fault_document(vector, case):
+    document = json.loads(json.dumps(vector))
+    transition = document["definitions"][0]["transitions"][0]
+    mutation = case["mutation"]
+    if mutation == "DUPLICATE_PRIORITY":
+        duplicate = json.loads(json.dumps(transition))
+        duplicate["id"] = "duplicate-context-match"
+        document["definitions"][0]["transitions"].append(duplicate)
+    elif mutation == "MISSING_SOURCE":
+        transition["source_node"] = "MISSING"
+    elif mutation == "MISSING_GUARD":
+        transition["guard_predicate"] = "MISSING"
+    elif mutation == "AFTER_QUANTUM_CLAIM":
+        transition["evaluation_point"] = "AFTER_QUANTUM"
+        transition["claims"] = [{"kind": "RESOURCE", "key": "STAMINA", "amount": 1}]
+    elif mutation == "MISSING_ACTION_TARGET":
+        transition["target_kind"] = "ACTION"
+        transition["target_action"] = "MISSING"
+        transition.pop("target_node", None)
+    else:  # pragma: no cover - vector enum is closed by review
+        raise AssertionError(mutation)
+    return document
+
+
+def test_python_complete_state_rejects_invalid_transition_structure():
+    vector = _vector()
+    for case in vector["structural_definition_fault_cases"]:
+        with pytest.raises(PCAMError) as raised:
+            run_vector(_structural_fault_document(vector, case))
+        assert raised.value.code.value == "DEFINITION_REJECTED", case["id"]
+        assert raised.value.fault.value == case["fault"], case["id"]

@@ -187,5 +187,12 @@
       "target_mode": "TIMED",
       "target_duration_quanta": 2
     }
+  ],
+  "structural_definition_fault_cases": [
+    {"id": "duplicate-transition-priority", "fault": "DUPLICATE_TRANSITION_PRIORITY", "mutation": "DUPLICATE_PRIORITY"},
+    {"id": "missing-transition-source", "fault": "STATE_INVARIANT_FAILURE", "mutation": "MISSING_SOURCE"},
+    {"id": "missing-guard-predicate", "fault": "STATE_INVARIANT_FAILURE", "mutation": "MISSING_GUARD"},
+    {"id": "claims-after-quantum", "fault": "STATE_INVARIANT_FAILURE", "mutation": "AFTER_QUANTUM_CLAIM"},
+    {"id": "missing-action-target", "fault": "MISSING_REFERENCE", "mutation": "MISSING_ACTION_TARGET"}
   ]
 }

@@ -439,8 +439,17 @@ impl SimulationRuntime {
                 "interaction_profile_hash": interaction_profile_hash,
                 "runtime_profile_hash": profile_hash,
             }));
-            definitions.insert(definition.id.clone(), definition);
+            if definitions
+                .insert(definition.id.clone(), definition)
+                .is_some()
+            {
+                return Err(definition_fault(
+                    "DUPLICATE_IDENTIFIER",
+                    "definition identifier must be unique",
+                ));
+            }
         }
+        validate_simulation_definition_targets(&definitions)?;
         identities.sort_by(|left, right| {
             left["definition_id"]
                 .as_str()
@@ -2889,7 +2898,8 @@ fn canonical_interaction_template(template: &Value) -> Value {
 }
 
 fn parse_definition(raw: &Value, hash: String) -> Result<Definition, SimulationError> {
-    let nodes = array(raw, "nodes")?
+    let raw_nodes = array(raw, "nodes")?;
+    let nodes = raw_nodes
         .iter()
         .map(|node| {
             Ok((
@@ -2901,6 +2911,12 @@ fn parse_definition(raw: &Value, hash: String) -> Result<Definition, SimulationE
             ))
         })
         .collect::<Result<BTreeMap<_, _>, SimulationError>>()?;
+    if nodes.len() != raw_nodes.len() {
+        return Err(definition_fault(
+            "DUPLICATE_IDENTIFIER",
+            "node identifier must be unique",
+        ));
+    }
     let predicates = raw
         .get("predicates")
         .and_then(Value::as_array)
@@ -3133,7 +3149,7 @@ fn parse_definition(raw: &Value, hash: String) -> Result<Definition, SimulationE
     if default_buffer_lifetime == 0 {
         return Err(SimulationError::InvalidVector);
     }
-    Ok(Definition {
+    let definition = Definition {
         id: string_field(raw, "id")?.to_owned(),
         hash,
         initial_node: raw
@@ -3186,7 +3202,9 @@ fn parse_definition(raw: &Value, hash: String) -> Result<Definition, SimulationE
             .map_err(|_| SimulationError::InvalidVector)?,
         slot_claims: serde_json::from_value(slot_claims)
             .map_err(|_| SimulationError::InvalidVector)?,
-    })
+    };
+    validate_simulation_definition(&definition)?;
+    Ok(definition)
 }
 
 fn canonical_inputs(raw: &[Value], tick: u64) -> Result<Vec<Value>, SimulationError> {
@@ -3526,6 +3544,157 @@ fn validate_simulation_transition_target(
                 "STATE_INVARIANT_FAILURE",
                 "target step must be less than the TIMED node duration",
             ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_simulation_definition(definition: &Definition) -> Result<(), SimulationError> {
+    if !definition.nodes.contains_key(&definition.initial_node) {
+        return Err(definition_fault(
+            "STATE_INVARIANT_FAILURE",
+            "initial node does not exist",
+        ));
+    }
+    let predicate_ids = definition
+        .predicates
+        .iter()
+        .map(|predicate| predicate.id.as_str())
+        .collect::<BTreeSet<_>>();
+    for fact in &definition.facts {
+        if !predicate_ids.contains(fact.when_predicate.as_str()) {
+            return Err(definition_fault(
+                "MISSING_REFERENCE",
+                "semantic fact predicate does not exist",
+            ));
+        }
+    }
+    let mut priorities = BTreeSet::new();
+    for transition in &definition.transitions {
+        if !matches!(
+            transition.evaluation_point.as_str(),
+            "PRE_ADVANCE" | "AFTER_QUANTUM" | "POST_ADVANCE"
+        ) {
+            return Err(definition_fault(
+                "STATE_INVARIANT_FAILURE",
+                "invalid transition evaluation point",
+            ));
+        }
+        if transition.evaluation_point == "AFTER_QUANTUM" && !transition.claims.is_empty() {
+            return Err(definition_fault(
+                "STATE_INVARIANT_FAILURE",
+                "AFTER_QUANTUM transitions cannot contain contested claims",
+            ));
+        }
+        if !definition.nodes.contains_key(&transition.source_node) {
+            return Err(definition_fault(
+                "STATE_INVARIANT_FAILURE",
+                "transition source node does not exist",
+            ));
+        }
+        if transition
+            .guard_predicate
+            .as_ref()
+            .is_some_and(|identifier| !predicate_ids.contains(identifier.as_str()))
+        {
+            return Err(definition_fault(
+                "STATE_INVARIANT_FAILURE",
+                "transition guard predicate does not exist",
+            ));
+        }
+        let priority_key = (
+            transition.source_node.as_str(),
+            transition.evaluation_point.as_str(),
+            transition.priority,
+        );
+        if !priorities.insert(priority_key) {
+            return Err(definition_fault(
+                "DUPLICATE_TRANSITION_PRIORITY",
+                "transition priority must be unique per source and evaluation point",
+            ));
+        }
+        match transition.target_kind.as_str() {
+            "NODE" => {
+                if transition
+                    .target_node
+                    .as_ref()
+                    .is_none_or(|target| !definition.nodes.contains_key(target))
+                {
+                    return Err(definition_fault(
+                        "STATE_INVARIANT_FAILURE",
+                        "transition target node does not exist",
+                    ));
+                }
+            }
+            "ACTION" => {
+                if transition.target_action.is_none()
+                    || !matches!(
+                        transition.source_disposition.as_str(),
+                        "TERMINATE_SOURCE" | "SUSPEND_SOURCE" | "KEEP_SOURCE"
+                    )
+                {
+                    return Err(definition_fault(
+                        "STATE_INVARIANT_FAILURE",
+                        "invalid ACTION target",
+                    ));
+                }
+            }
+            "CHILD_ACTION" => {
+                if transition.target_action.is_none()
+                    || transition
+                        .child_slot_id
+                        .as_ref()
+                        .is_none_or(|slot| !definition.child_slot_capacities.contains_key(slot))
+                {
+                    return Err(definition_fault(
+                        "MISSING_REFERENCE",
+                        "invalid CHILD_ACTION target or slot",
+                    ));
+                }
+                if !matches!(
+                    transition.parent_policy.as_deref(),
+                    Some(
+                        "CONTINUE"
+                            | "FREEZE_PROGRESSION"
+                            | "FREEZE_TRANSITIONS"
+                            | "FREEZE_ALL_ACTION_LOGIC"
+                            | "TERMINATE_PARENT"
+                    )
+                ) {
+                    return Err(definition_fault(
+                        "STATE_INVARIANT_FAILURE",
+                        "invalid CHILD_ACTION parent policy",
+                    ));
+                }
+            }
+            "TERMINATE" | "FAULT" => {}
+            _ => {
+                return Err(definition_fault(
+                    "STATE_INVARIANT_FAILURE",
+                    "invalid transition target kind",
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_simulation_definition_targets(
+    definitions: &BTreeMap<String, Definition>,
+) -> Result<(), SimulationError> {
+    for definition in definitions.values() {
+        for transition in &definition.transitions {
+            if matches!(transition.target_kind.as_str(), "ACTION" | "CHILD_ACTION")
+                && transition
+                    .target_action
+                    .as_ref()
+                    .is_none_or(|target| !definitions.contains_key(target))
+            {
+                return Err(definition_fault(
+                    "MISSING_REFERENCE",
+                    "target action definition does not exist",
+                ));
+            }
         }
     }
     Ok(())
