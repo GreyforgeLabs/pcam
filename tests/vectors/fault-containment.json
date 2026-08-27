@@ -1,0 +1,62 @@
+{
+  "profile": "pcam.fault-containment.v1",
+  "cases": [
+    {
+      "id": "fault-action",
+      "policy": "FAULT_ACTION",
+      "tick": 1,
+      "actions": [
+        {"instance_id": 1, "owner_entity_id": 1},
+        {"instance_id": 2, "owner_entity_id": 2}
+      ],
+      "fault": {"code": "RUNTIME_FAULT", "fault": "QUANTUM_LIMIT_EXCEEDED", "message": "1", "action_instance_id": 1, "owner_entity_id": 1},
+      "expected": {
+        "tick": 2,
+        "lifecycle": {"1": "FAULTED", "2": "RUNNING"},
+        "fault_records": {"1": "QUANTUM_LIMIT_EXCEEDED", "2": null},
+        "parents": {"1": null, "2": null},
+        "children": {"1": [], "2": []},
+        "entity_fault_owner": null
+      }
+    },
+    {
+      "id": "fault-entity-cross-link-detach",
+      "policy": "FAULT_ENTITY",
+      "tick": 1,
+      "actions": [
+        {"instance_id": 1, "owner_entity_id": 1, "parent_instance_id": 3, "parent_slot_id": "cross"},
+        {"instance_id": 2, "owner_entity_id": 1},
+        {"instance_id": 3, "owner_entity_id": 2, "child_instance_ids": [1]}
+      ],
+      "fault": {"code": "RUNTIME_FAULT", "fault": "QUANTUM_LIMIT_EXCEEDED", "message": "1", "action_instance_id": 1, "owner_entity_id": 1},
+      "expected": {
+        "tick": 2,
+        "lifecycle": {"1": "FAULTED", "2": "FAULTED", "3": "RUNNING"},
+        "fault_records": {"1": "QUANTUM_LIMIT_EXCEEDED", "2": "QUANTUM_LIMIT_EXCEEDED", "3": null},
+        "parents": {"1": null, "2": null, "3": null},
+        "children": {"1": [], "2": [], "3": []},
+        "entity_fault_owner": 1
+      }
+    },
+    {
+      "id": "fault-entity-direct-start",
+      "policy": "FAULT_ENTITY",
+      "tick": 0,
+      "actions": [],
+      "fault": {"code": "INVALID_INPUT", "fault": "INTEGER_OVERFLOW", "message": "BAD_START", "action_instance_id": null, "owner_entity_id": 4},
+      "expected": {
+        "tick": 1,
+        "lifecycle": {},
+        "fault_records": {},
+        "parents": {},
+        "children": {},
+        "entity_fault_owner": 4
+      }
+    }
+  ],
+  "abort_cases": [
+    {"id": "explicit-abort", "policy": "ABORT_SIMULATION", "fault": {"code": "RUNTIME_FAULT", "fault": "STATE_INVARIANT_FAILURE", "message": "global", "action_instance_id": null, "owner_entity_id": null}},
+    {"id": "unattributable-action-policy", "policy": "FAULT_ACTION", "fault": {"code": "RUNTIME_FAULT", "fault": "STATE_INVARIANT_FAILURE", "message": "global", "action_instance_id": null, "owner_entity_id": null}},
+    {"id": "unattributable-entity-policy", "policy": "FAULT_ENTITY", "fault": {"code": "RUNTIME_FAULT", "fault": "STATE_INVARIANT_FAILURE", "message": "global", "action_instance_id": null, "owner_entity_id": null}}
+  ]
+}
