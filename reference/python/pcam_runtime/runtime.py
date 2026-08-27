@@ -45,6 +45,10 @@ class TickExecutor:
         self.profile = profile or RuntimeProfile()
         self.extension_registry = extension_registry or ExtensionRegistry()
         self.extension_registry.validate(self.profile.extensions, self.profile.max_extension_state_bytes)
+        self.extension_registry.require_executable(
+            self.profile.extensions,
+            self.profile.max_extension_state_bytes,
+        )
         validate_rules(interaction_rules)
         self.interaction_rules = interaction_rules
         self.effect_registry = effect_registry or {
@@ -75,6 +79,10 @@ class TickExecutor:
                     f"child slot capacity exceeds runtime profile: {definition.id}",
                 )
             self.extension_registry.validate(definition.extensions, self.profile.max_extension_state_bytes)
+            self.extension_registry.require_executable(
+                definition.extensions,
+                self.profile.max_extension_state_bytes,
+            )
         self.definitions_by_id = {definition.id: definition for definition in definitions}
         self.definitions_by_hash = {definition.definition_hash: definition for definition in definitions}
         for definition in definitions:
@@ -164,6 +172,19 @@ class TickExecutor:
 
         self._stage(trace, 1, "tick_start_snapshot")
         work, delivered_events = self._deliver_events(work)
+        work = self.extension_registry.apply_tick_start(work, self.profile.extensions)
+        for key in sorted(work.action_instances, key=int):
+            action = work.action_instances[key]
+            if action.lifecycle_state in {"TERMINATED", "FAULTED"}:
+                continue
+            definition = self.definitions_by_hash[action.definition_hash]
+            try:
+                work = self.extension_registry.apply_tick_start(work, definition.extensions)
+            except PCAMError as error:
+                raise error.with_context(
+                    action_instance_id=action.instance_id,
+                    owner_entity_id=action.owner_entity_id,
+                ) from error
         trace["events_delivered"] = delivered_events
         work = replace(work, host_state={"contacts": [contact.__dict__ for contact in canonical_contacts], "imports": host.imports})
 

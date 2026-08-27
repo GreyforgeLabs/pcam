@@ -5,6 +5,7 @@ use unicode_normalization::UnicodeNormalization;
 
 pub mod action;
 pub mod expression;
+pub mod extension;
 pub mod numeric;
 pub mod rng;
 

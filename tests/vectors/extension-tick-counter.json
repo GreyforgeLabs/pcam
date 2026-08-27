@@ -1,0 +1,12 @@
+{
+  "pcam_vector_version": "1",
+  "kind": "extension_determinism_vector",
+  "implementation_path": "reference/extensions/tick-counter-v1.json",
+  "implementation_sha256": "99c887cedffd0575b1994942752843c5cb2ffacfecf08873aec684288395535f",
+  "namespace": "tech.greyforge.pcam.tick-counter",
+  "runtime_hook": "TICK_START_COUNTER",
+  "payload": {"increment": 2},
+  "ticks": 3,
+  "expected_counters": [2, 4, 6],
+  "rollback": {"restore_tick": 1, "expected_counter_after_two_ticks": 6}
+}

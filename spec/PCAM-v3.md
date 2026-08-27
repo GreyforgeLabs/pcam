@@ -3286,6 +3286,8 @@ Portable PCAM definition files MUST NOT embed arbitrary executable code.
 
 Host-native extension modules MAY execute code, but they reduce portability and MUST be included in the definition-set identity.
 
+An authoritative host-native module MUST be loaded only through an explicit runtime registration. The host MUST verify the SHA-256 of the exact registered module source artifact against the declared implementation hash before execution. Runtime hook identifiers and ordering contracts MUST be allowlisted by the implementation and included in extension identity. Portable documents MUST NOT select filesystem paths, network locations, import names, or arbitrary callbacks. A missing source artifact, hash mismatch, or unknown hook MUST fail closed before simulation starts.
+
 ---
 
 # 37. Conformance Classes

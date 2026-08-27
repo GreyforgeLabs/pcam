@@ -30,6 +30,7 @@ def test_resolved_normative_contracts_remain_in_master_text():
         "Starting an action enters its declared initial node",
         "A runtime fault is action-attributable",
         "FAULT_ACTION` contains only an action-attributable fault",
+        "An authoritative host-native module MUST be loaded only through an explicit runtime registration",
         "Phase is an optional projection, never the whole state",
     )
     assert all(contract in specification for contract in required_contracts)

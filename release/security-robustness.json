@@ -3,7 +3,7 @@
   "untrusted_inputs": ["definitions", "snapshots", "replays", "network_inputs"],
   "bounds": {
     "collection_lengths": ["reference/python/tests/test_schema.py", "reference/python/tests/test_security_limits.py"],
-    "recursion_depth": ["reference/python/tests/test_expressions.py", "independent/rust/tests/expression_vectors.rs"],
+    "recursion_depth": ["reference/python/tests/test_expressions.py", "reference/python/tests/test_extensions.py", "independent/rust/tests/expression_vectors.rs"],
     "definition_size": ["reference/python/tests/test_security_limits.py"],
     "snapshot_size": ["reference/python/tests/test_security_limits.py"],
     "integer_bounds": ["reference/python/tests/test_numeric.py", "independent/rust/tests/numeric_rng_vectors.rs"],

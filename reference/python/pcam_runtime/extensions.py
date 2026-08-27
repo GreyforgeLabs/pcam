@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
-from dataclasses import dataclass, field
-from typing import Any, Mapping
+from dataclasses import dataclass, field, replace
+from typing import Any, Literal, Mapping
 
 from jsonschema import Draft202012Validator
 
@@ -15,6 +16,7 @@ from .errors import PCAMError, PCAMFault, ResultCode
 NAMESPACE = re.compile(r"^[A-Za-z][A-Za-z0-9-]*(\.[A-Za-z][A-Za-z0-9-]*)+$")
 IDENTIFIER = re.compile(r"^[A-Za-z][A-Za-z0-9_.:-]{0,127}$")
 DIGEST = re.compile(r"^[0-9a-f]{64}$")
+MAX_EXTENSION_DOCUMENT_DEPTH = 64
 
 
 @dataclass(frozen=True)
@@ -33,6 +35,8 @@ class ExtensionRegistration:
     snapshot_schema_id: str = "pcam.snapshot.extension-state"
     rollback_behavior_id: str = "pcam.rollback.snapshot-restore"
     determinism_vectors: tuple[str, ...] = ()
+    runtime_hook: Literal["TICK_START_COUNTER"] | None = None
+    implementation_source: bytes | None = field(default=None, repr=False, compare=False)
     _schema_bytes: bytes = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
@@ -60,6 +64,8 @@ class ExtensionRegistration:
             _fault("extension determinism vectors must be unique")
         if any(not DIGEST.fullmatch(value) for value in self.determinism_vectors):
             _fault("extension determinism vector identifiers must be lowercase SHA-256")
+        if self.implementation_source is not None and hashlib.sha256(self.implementation_source).hexdigest() != self.implementation_hash:
+            _fault("extension implementation source does not match implementation_hash")
         Draft202012Validator.check_schema(self.payload_schema)
         object.__setattr__(self, "_schema_bytes", canonical_dumps(self.payload_schema))
 
@@ -75,6 +81,7 @@ class ExtensionRegistration:
             "fault_behavior_id": self.fault_behavior_id,
             "implementation_hash": self.implementation_hash,
             "implementation_id": self.implementation_id,
+            "runtime_hook": self.runtime_hook,
             "namespace": self.namespace,
             "ordering_id": self.ordering_id,
             "payload_schema": self.schema_document,
@@ -111,6 +118,7 @@ class ExtensionRegistry:
         )
 
     def validate(self, declarations: Mapping[str, object], max_bytes: int) -> ExtensionValidation:
+        _validate_depth(declarations)
         if len(canonical_dumps(declarations)) > max_bytes:
             raise PCAMError(
                 ResultCode.DEFINITION_REJECTED,
@@ -157,6 +165,48 @@ class ExtensionRegistry:
             accepted.append(namespace)
         return ExtensionValidation(tuple(accepted), tuple(ignored))
 
+    def require_executable(self, declarations: Mapping[str, object], max_bytes: int) -> None:
+        validation = self.validate(declarations, max_bytes)
+        known = {item.namespace: item for item in self.registrations}
+        for namespace in validation.accepted:
+            declaration = declarations[namespace]
+            if not isinstance(declaration, Mapping) or declaration.get("authoritative") is not True:
+                continue
+            registration = known[namespace]
+            if registration.runtime_hook is None or registration.implementation_source is None:
+                _fault(f"authoritative extension has no verified runtime module: {namespace}")
+
+    def apply_tick_start(
+        self,
+        state: Any,
+        declarations: Mapping[str, object],
+    ) -> Any:
+        extension_state = dict(state.extension_state)
+        registrations = {item.namespace: item for item in self.registrations}
+        for namespace in sorted(declarations, key=lambda item: item.encode("utf-8")):
+            registration = registrations.get(namespace)
+            declaration = declarations[namespace]
+            if (
+                registration is None
+                or registration.runtime_hook is None
+                or not isinstance(declaration, Mapping)
+                or declaration.get("authoritative") is not True
+            ):
+                continue
+            if registration.runtime_hook == "TICK_START_COUNTER":
+                payload = declaration.get("payload")
+                if not isinstance(payload, Mapping) or type(payload.get("increment")) is not int:
+                    raise PCAMError(ResultCode.RUNTIME_FAULT, PCAMFault.INVALID_EXTENSION, namespace)
+                increment = int(payload["increment"])
+                current = extension_state.get(namespace, {"counter": 0})
+                if not isinstance(current, Mapping) or type(current.get("counter")) is not int:
+                    raise PCAMError(ResultCode.RUNTIME_FAULT, PCAMFault.INVALID_EXTENSION, namespace)
+                counter = int(current["counter"]) + increment
+                if not 0 <= counter <= (1 << 64) - 1:
+                    raise PCAMError(ResultCode.RUNTIME_FAULT, PCAMFault.INTEGER_OVERFLOW, namespace)
+                extension_state[namespace] = {"counter": counter}
+        return replace(state, extension_state=extension_state)
+
     @staticmethod
     def _validate_contract(
         namespace: str,
@@ -187,6 +237,22 @@ class ExtensionRegistry:
 def _validate_namespace(namespace: str) -> None:
     if len(namespace) > 128 or not NAMESPACE.fullmatch(namespace):
         _fault(f"invalid extension namespace: {namespace}")
+
+
+def _validate_depth(value: object) -> None:
+    stack = [(value, 0)]
+    while stack:
+        current, depth = stack.pop()
+        if depth > MAX_EXTENSION_DOCUMENT_DEPTH:
+            raise PCAMError(
+                ResultCode.DEFINITION_REJECTED,
+                PCAMFault.EXTENSION_LIMIT_EXCEEDED,
+                f"extension document depth exceeds {MAX_EXTENSION_DOCUMENT_DEPTH}",
+            )
+        if isinstance(current, Mapping):
+            stack.extend((item, depth + 1) for item in current.values())
+        elif isinstance(current, (list, tuple)):
+            stack.extend((item, depth + 1) for item in current)
 
 
 def _fault(message: str) -> None:

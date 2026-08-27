@@ -1,0 +1,1 @@
+{"implementation_id":"greyforge.extension.tick_counter.v1","kind":"pcam_host_extension_module","operation":"checked_u64_add","ordering":["profile_namespace_utf8","action_instance_id","definition_namespace_utf8"],"runtime_hook":"TICK_START_COUNTER","state_path":"simulation.extension_state.<namespace>.counter","version":"1"}
