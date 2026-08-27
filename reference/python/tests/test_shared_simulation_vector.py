@@ -30,6 +30,10 @@ def _fault_trigger_document():
     return json.loads((ROOT / "tests/vectors/fault-trigger-runtime.json").read_text(encoding="utf-8"))
 
 
+def _transition_replacement_document():
+    return json.loads((ROOT / "tests/vectors/transition-replacement.json").read_text(encoding="utf-8"))
+
+
 def test_python_typed_strike_matches_shared_full_state_identity_and_tick_digests():
     document = _document()
     expected = document["expected"]
@@ -175,3 +179,30 @@ def test_python_fault_trigger_discards_tick_work_and_applies_shared_policy():
         }
         assert summary == case["expected"], case["policy"]
         assert state.state_hash() == case["final_state_digest"], case["policy"]
+
+
+def test_python_transition_replacement_matches_shared_atomic_outcomes():
+    vector = _transition_replacement_document()
+    for case in vector["cases"]:
+        document = json.loads(json.dumps(vector))
+        document["initial_state"]["resource_banks"]["1"]["STAMINA"] = case["stamina"]
+        run = run_vector(document)
+        state = run.final_state
+        summary = {
+            "tick": state.tick,
+            "lifecycle": {
+                key: action.lifecycle_state for key, action in state.action_instances.items()
+            },
+            "definitions": {
+                key: action.definition_hash for key, action in state.action_instances.items()
+            },
+            "transition_serials": {
+                key: action.transition_serial for key, action in state.action_instances.items()
+            },
+            "stamina": state.resource_banks["1"]["STAMINA"],
+            "slot": state.action_slots["1"]["FULL_BODY"],
+            "next_action_instance_id": state.next_action_instance_id,
+        }
+        assert [trace["state_digest"] for trace in run.traces] == case["tick_state_digests"]
+        assert state.state_hash() == case["final_state_digest"], case["id"]
+        assert summary == case["expected"], case["id"]

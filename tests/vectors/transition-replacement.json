@@ -1,0 +1,97 @@
+{
+  "pcam_vector_version": "1",
+  "kind": "runtime_vector",
+  "id": "transition-replacement",
+  "runtime_profile": {
+    "pcam_version": "3.0",
+    "kind": "runtime_profile",
+    "id": "pcam.reference.transition-replacement.v1",
+    "revision": 1,
+    "fault_policy": "ABORT_SIMULATION",
+    "limits": {
+      "max_actions_per_entity": 8,
+      "max_action_nesting_depth": 4,
+      "max_children_per_action": 4,
+      "max_quanta_per_action_per_tick": 8,
+      "max_internal_transitions_per_action_per_tick": 8,
+      "max_buffer_entries_per_action": 8,
+      "max_pending_events_per_entity": 8,
+      "max_candidates_per_tick": 32,
+      "max_effects_per_tick": 32,
+      "max_redirects_per_candidate": 4,
+      "max_definition_size_bytes": 65536,
+      "max_snapshot_size_bytes": 262144,
+      "max_extension_state_bytes": 4096,
+      "max_expression_depth": 64,
+      "max_expression_nodes": 4096
+    },
+    "rng_profiles": ["pcam.pcg32.v1"],
+    "network_profiles": [{"id": "pcam.local.v1", "topology": "LOCAL_DETERMINISTIC"}],
+    "extensions": {}
+  },
+  "definitions": [
+    {
+      "id": "SOURCE",
+      "rate_scale": 1,
+      "units_per_tick": 0,
+      "nodes": [{"id": "WAIT", "mode": "EVENT_DRIVEN"}],
+      "slot_claims": [{"kind": "ACTION_SLOT", "key": "FULL_BODY", "amount": 1}],
+      "transitions": [
+        {
+          "id": "replace-with-dodge",
+          "source_node": "WAIT",
+          "evaluation_point": "PRE_ADVANCE",
+          "priority": 10,
+          "target_kind": "ACTION",
+          "target_action": "DODGE",
+          "source_disposition": "TERMINATE_SOURCE",
+          "input_command": "REPLACE",
+          "consume_policy": "ON_ATTEMPT"
+        }
+      ]
+    },
+    {
+      "id": "DODGE",
+      "rate_scale": 1,
+      "units_per_tick": 0,
+      "nodes": [{"id": "DODGING", "mode": "EVENT_DRIVEN"}],
+      "start_claims": [{"kind": "RESOURCE", "key": "STAMINA", "amount": 5}],
+      "slot_claims": [{"kind": "ACTION_SLOT", "key": "FULL_BODY", "amount": 1}]
+    }
+  ],
+  "interaction_rules": [],
+  "effect_registry": {
+    "combat.damage": ["hp", -1],
+    "combat.stagger": ["stagger", 1]
+  },
+  "initial_state": {
+    "resource_banks": {"1": {"STAMINA": 0}},
+    "slot_capacities": {"1": {"FULL_BODY": 1}}
+  },
+  "ticks": [
+    {
+      "inputs": [{"input_id": "start", "source_entity_id": 1, "sequence": 0, "command_id": "START", "assigned_tick": 0, "action_definition_id": "SOURCE"}],
+      "contacts": []
+    },
+    {
+      "inputs": [{"input_id": "replace", "source_entity_id": 1, "sequence": 1, "command_id": "REPLACE", "assigned_tick": 1}],
+      "contacts": []
+    }
+  ],
+  "cases": [
+    {
+      "id": "replacement-accepted",
+      "stamina": 5,
+      "tick_state_digests": ["009954916f92724501fc6b22b6c5318ea80d24b8d46aedebaf3f968ad370bb73", "0b0b583f116e68437302b878e94ed97ca24dd3a4bfdf2ddd972d63ef3ad00302"],
+      "final_state_digest": "0b0b583f116e68437302b878e94ed97ca24dd3a4bfdf2ddd972d63ef3ad00302",
+      "expected": {"tick": 2, "lifecycle": {"1": "TERMINATED", "2": "RUNNING"}, "definitions": {"1": "3f9216b1cfe2dc752e172a23331c6d7fd09c5e82e4e96fd26d62d13f13ba15a3", "2": "6272d59782d71b7dbf48e58c57002542878c7de96496620070a6a5c3c319fe74"}, "transition_serials": {"1": 1, "2": 0}, "stamina": 0, "slot": {"capacity": 1, "instance_ids": [2], "usage": 1}, "next_action_instance_id": 3}
+    },
+    {
+      "id": "replacement-rejected-atomically",
+      "stamina": 4,
+      "tick_state_digests": ["2e77689de3cd8fd5f57fe449ce501af24b223504cadd74eaa3f15ce40e0a147b", "beaaf9f0ed6de25ef2b12b0d6727734968dd6663d4def2ceb2bee7c9de2b1791"],
+      "final_state_digest": "beaaf9f0ed6de25ef2b12b0d6727734968dd6663d4def2ceb2bee7c9de2b1791",
+      "expected": {"tick": 2, "lifecycle": {"1": "RUNNING"}, "definitions": {"1": "3f9216b1cfe2dc752e172a23331c6d7fd09c5e82e4e96fd26d62d13f13ba15a3"}, "transition_serials": {"1": 0}, "stamina": 4, "slot": {"capacity": 1, "instance_ids": [1], "usage": 1}, "next_action_instance_id": 2}
+    }
+  ]
+}
