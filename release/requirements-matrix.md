@@ -19,7 +19,7 @@ This matrix preserves the complete target. A row is complete only when its named
 | §15-16 intents, claims, slots | atomic arbitration and replacement vectors | partial: permutation-invariant atomic claim arbitration and ID allocation; replacement integration and group semantics open |
 | §17 parent-child | lifecycle, freeze, result event, nesting, restore vectors | missing |
 | §18 freezes | domains, timing, expiry, stacking, accrual vectors | partial: runtime progression, transition, capture, and expiry domains plus provisional stacking; normative gap open |
-| §19-22 facts, candidates, interactions, ledgers | frozen snapshot, typed stages, redirection, receipt vectors | partial: pure five-stage typed resolver, parry, armor, trade, redirect, and original ledger slice; defense selection gap open |
+| §19-22 facts, candidates, interactions, ledgers | frozen snapshot, typed stages, redirection, receipt vectors | partial: pure five-stage resolver plus all six ledger-key policies, receipt timing, cooldown, and provisional visibility primitives; runtime integration and defense selection remain open |
 | §23 effects | identifiers, canonical order, reducers, exclusive/custom vectors | partial: all core reducer primitives, canonical order, and exclusive rejection traces |
 | §24 tick pipeline | deterministic twelve-stage trace vectors | partial: ordered vertical-slice trace |
 | §25 events | delivery order, modes, and lifetime vectors | missing |

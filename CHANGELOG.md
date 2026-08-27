@@ -12,3 +12,4 @@
 - Integrated authoritative buffers and freeze tokens into the tick pipeline, including capture, transition consumption, expiry, progression HOLD, serialized deferred ACCRUE quanta, and snapshot round trips.
 - Added permutation-invariant atomic intent arbitration, deterministic instance-ID allocation, all core effect reducer primitives, exclusive-effect rejection traces, and open-issue tracking for undefined cross-intent atomic groups.
 - Added a directed five-stage typed interaction resolver with canonical candidate order, parry, armor modification, independent outgoing attacks, simultaneous trade, deterministic redirection limits, materialization, and interaction-spec gap tracking.
+- Added all six core hit-policy key strategies, explicit receipt timing, same-tick provisional receipt behavior, cooldown eligibility, cycle distinction, and predicate-reactivation vectors.

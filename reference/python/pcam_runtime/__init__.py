@@ -36,6 +36,7 @@ from .interactions import (
     resolve_candidate,
     validate_rules,
 )
+from .ledgers import HitPolicy, LedgerContext, Receipt, is_eligible as ledger_is_eligible, ledger_key, receipt_required, write_receipt
 from .numeric import OverflowPolicy, apply_i64, apply_u64, euclidean_divmod, scale_ratio
 from .rng import PCG32Stream
 from .schema import Diagnostic, load_document, validate_document
@@ -54,11 +55,13 @@ __all__ = [
     "EffectTemplate",
     "FreezeToken",
     "HostSnapshot",
+    "HitPolicy",
     "Intent",
     "IntentDecision",
     "InteractionCandidate",
     "InteractionDecision",
     "InteractionRule",
+    "LedgerContext",
     "NodeDefinition",
     "OverflowPolicy",
     "PCAMError",
@@ -66,6 +69,7 @@ __all__ = [
     "PCG32Stream",
     "PredicateDefinition",
     "ReducedEffect",
+    "Receipt",
     "RejectedEffect",
     "ResultCode",
     "RollbackManager",
@@ -94,12 +98,16 @@ __all__ = [
     "expire_freeze_tokens",
     "load_document",
     "is_frozen",
+    "ledger_is_eligible",
+    "ledger_key",
     "progression_accrual",
     "reduce_effects",
+    "receipt_required",
     "resolve_candidate",
     "select_entry",
     "add_token",
     "validate_document",
     "validate_rules",
+    "write_receipt",
     "scale_ratio",
 ]
