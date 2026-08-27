@@ -74,12 +74,15 @@ def test_all_normative_positive_documents_validate():
 
 def test_machine_negative_mutation_corpus_fails_with_stable_codes():
     corpus = json.loads((ROOT / "tests/invalid/schema-mutations.json").read_text())
+    assert len(corpus["cases"]) == 23
     for case in corpus["cases"]:
+        assert "expected_code" in case or "expected_fault" in case, case["id"]
         document = load_document(ROOT / case["base"])
         for operation in case["operations"]:
             _mutate(document, operation)
         diagnostics = validate_document(document)
         assert diagnostics, case["id"]
+        assert validate_document(document) == diagnostics, case["id"]
         if "expected_code" in case:
             assert any(item.code == case["expected_code"] for item in diagnostics), case["id"]
         if "expected_fault" in case:
