@@ -321,6 +321,73 @@ def test_python_shared_generated_cross_stage_arbitration_is_atomic_and_permutati
         ]
 
 
+def _interaction_pipeline_document(case, order):
+    document = json.loads((ROOT / "tests/vectors/interaction-runtime.json").read_text())
+    document.pop("cases")
+    document["id"] = case["id"]
+    document["runtime_profile"]["id"] = f"pcam.generated.{case['id']}.v1"
+    templates = document["definitions"][0]["semantic_facts"][0]["fact"][
+        "effect_templates"
+    ]
+    templates[0]["payload"] = case["damage"]
+    templates[1]["payload"] = case["stagger"]
+    document["definitions"][1]["semantic_facts"][0]["fact"]["tags"] = (
+        [] if case["mode"] == "PLAIN" else [case["mode"]]
+    )
+    document["initial_state"]["resource_banks"]["2"] = case["initial_resources"]
+    base_contact = document["ticks"][0]["contacts"][0]
+    contacts = {
+        candidate_id: {
+            **base_contact,
+            "candidate_id": candidate_id,
+            "contact_id": "a" if candidate_id == "c1" else "b",
+        }
+        for candidate_id in ("c1", "c2")
+    }
+    document["ticks"][0]["contacts"] = [
+        contacts[candidate_id] for candidate_id in order
+    ]
+    return document
+
+
+def test_python_shared_generated_interaction_pipeline_is_typed_atomic_and_permutation_invariant():
+    for case in _corpus()["interaction_pipeline_cases"]:
+        runs = []
+        for order in (case["contact_order"], list(reversed(case["contact_order"]))):
+            run = run_vector(_interaction_pipeline_document(case, order))
+            runs.append(run)
+            state = run.final_state
+            trace = run.traces[0]
+            decisions = trace["decision_record_mutations"]
+            assert trace["candidate_order"] == ["c1", "c2"], case["id"]
+            assert len(state.interaction_ledgers) == 1, case["id"]
+            assert state.resource_banks["2"] == case["expected_resources"], case["id"]
+            assert [
+                [effect["effect_class"], effect["payload"]]
+                for effect in trace["typed_effects_emitted"]
+            ] == case["expected_effects"], case["id"]
+            assert decisions[0]["candidate_id"] == "c1", case["id"]
+            assert decisions[0]["accepted"] is case["expected_first_accepted"], case[
+                "id"
+            ]
+            assert [item["rule_id"] for item in decisions[0]["rules_fired"]] == case[
+                "expected_rule_ids"
+            ], case["id"]
+            assert decisions[0]["receipt_written"] is True, case["id"]
+            assert decisions[1] == {
+                "accepted": False,
+                "candidate_id": "c2",
+                "reason": "ONCE_PER_ACTION_INSTANCE",
+            }, case["id"]
+            assert run.executor.restore(run.executor.save(state)) == state
+        assert runs[0].final_state.to_snapshot() == runs[1].final_state.to_snapshot(), case[
+            "id"
+        ]
+        assert runs[0].final_state.state_hash() == runs[1].final_state.state_hash(), case[
+            "id"
+        ]
+
+
 def _freeze_tokens(values):
     return tuple(
         FreezeToken(

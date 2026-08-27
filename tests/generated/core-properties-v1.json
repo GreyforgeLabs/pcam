@@ -22272,6 +22272,800 @@
       ]
     }
   ],
+  "interaction_pipeline_cases": [
+    {
+      "contact_order": [
+        "c1",
+        "c2"
+      ],
+      "damage": 10,
+      "expected_effects": [
+        [
+          "DAMAGE",
+          10
+        ],
+        [
+          "STAGGER",
+          19
+        ]
+      ],
+      "expected_first_accepted": true,
+      "expected_resources": {
+        "hp": 72,
+        "parries": 5,
+        "stagger": 43
+      },
+      "expected_rule_ids": [
+        "materialize"
+      ],
+      "id": "interaction-pipeline-000",
+      "initial_resources": {
+        "hp": 82,
+        "parries": 5,
+        "stagger": 24
+      },
+      "mode": "PLAIN",
+      "stagger": 19
+    },
+    {
+      "contact_order": [
+        "c2",
+        "c1"
+      ],
+      "damage": 47,
+      "expected_effects": [
+        [
+          "DAMAGE",
+          47
+        ],
+        [
+          "STAGGER",
+          0
+        ]
+      ],
+      "expected_first_accepted": true,
+      "expected_resources": {
+        "hp": 26,
+        "parries": 4,
+        "stagger": 12
+      },
+      "expected_rule_ids": [
+        "armor",
+        "materialize"
+      ],
+      "id": "interaction-pipeline-001",
+      "initial_resources": {
+        "hp": 73,
+        "parries": 4,
+        "stagger": 12
+      },
+      "mode": "ARMOR",
+      "stagger": 29
+    },
+    {
+      "contact_order": [
+        "c1",
+        "c2"
+      ],
+      "damage": 6,
+      "expected_effects": [
+        [
+          "REACTION",
+          1
+        ]
+      ],
+      "expected_first_accepted": false,
+      "expected_resources": {
+        "hp": 72,
+        "parries": 2,
+        "stagger": 21
+      },
+      "expected_rule_ids": [
+        "parry"
+      ],
+      "id": "interaction-pipeline-002",
+      "initial_resources": {
+        "hp": 72,
+        "parries": 1,
+        "stagger": 21
+      },
+      "mode": "PARRY",
+      "stagger": 20
+    },
+    {
+      "contact_order": [
+        "c1",
+        "c2"
+      ],
+      "damage": 64,
+      "expected_effects": [
+        [
+          "DAMAGE",
+          64
+        ],
+        [
+          "STAGGER",
+          16
+        ]
+      ],
+      "expected_first_accepted": true,
+      "expected_resources": {
+        "hp": 35,
+        "parries": 2,
+        "stagger": 31
+      },
+      "expected_rule_ids": [
+        "materialize"
+      ],
+      "id": "interaction-pipeline-003",
+      "initial_resources": {
+        "hp": 99,
+        "parries": 2,
+        "stagger": 15
+      },
+      "mode": "PLAIN",
+      "stagger": 16
+    },
+    {
+      "contact_order": [
+        "c2",
+        "c1"
+      ],
+      "damage": 62,
+      "expected_effects": [
+        [
+          "DAMAGE",
+          62
+        ],
+        [
+          "STAGGER",
+          0
+        ]
+      ],
+      "expected_first_accepted": true,
+      "expected_resources": {
+        "hp": 59,
+        "parries": 2,
+        "stagger": 3
+      },
+      "expected_rule_ids": [
+        "armor",
+        "materialize"
+      ],
+      "id": "interaction-pipeline-004",
+      "initial_resources": {
+        "hp": 121,
+        "parries": 2,
+        "stagger": 3
+      },
+      "mode": "ARMOR",
+      "stagger": 47
+    },
+    {
+      "contact_order": [
+        "c1",
+        "c2"
+      ],
+      "damage": 50,
+      "expected_effects": [
+        [
+          "REACTION",
+          1
+        ]
+      ],
+      "expected_first_accepted": false,
+      "expected_resources": {
+        "hp": 105,
+        "parries": 4,
+        "stagger": 2
+      },
+      "expected_rule_ids": [
+        "parry"
+      ],
+      "id": "interaction-pipeline-005",
+      "initial_resources": {
+        "hp": 105,
+        "parries": 3,
+        "stagger": 2
+      },
+      "mode": "PARRY",
+      "stagger": 41
+    },
+    {
+      "contact_order": [
+        "c1",
+        "c2"
+      ],
+      "damage": 17,
+      "expected_effects": [
+        [
+          "DAMAGE",
+          17
+        ],
+        [
+          "STAGGER",
+          63
+        ]
+      ],
+      "expected_first_accepted": true,
+      "expected_resources": {
+        "hp": 21,
+        "parries": 8,
+        "stagger": 79
+      },
+      "expected_rule_ids": [
+        "materialize"
+      ],
+      "id": "interaction-pipeline-006",
+      "initial_resources": {
+        "hp": 38,
+        "parries": 8,
+        "stagger": 16
+      },
+      "mode": "PLAIN",
+      "stagger": 63
+    },
+    {
+      "contact_order": [
+        "c2",
+        "c1"
+      ],
+      "damage": 5,
+      "expected_effects": [
+        [
+          "DAMAGE",
+          5
+        ],
+        [
+          "STAGGER",
+          0
+        ]
+      ],
+      "expected_first_accepted": true,
+      "expected_resources": {
+        "hp": 11,
+        "parries": 5,
+        "stagger": 0
+      },
+      "expected_rule_ids": [
+        "armor",
+        "materialize"
+      ],
+      "id": "interaction-pipeline-007",
+      "initial_resources": {
+        "hp": 16,
+        "parries": 5,
+        "stagger": 0
+      },
+      "mode": "ARMOR",
+      "stagger": 43
+    },
+    {
+      "contact_order": [
+        "c2",
+        "c1"
+      ],
+      "damage": 7,
+      "expected_effects": [
+        [
+          "REACTION",
+          1
+        ]
+      ],
+      "expected_first_accepted": false,
+      "expected_resources": {
+        "hp": 41,
+        "parries": 1,
+        "stagger": 22
+      },
+      "expected_rule_ids": [
+        "parry"
+      ],
+      "id": "interaction-pipeline-008",
+      "initial_resources": {
+        "hp": 41,
+        "parries": 0,
+        "stagger": 22
+      },
+      "mode": "PARRY",
+      "stagger": 1
+    },
+    {
+      "contact_order": [
+        "c1",
+        "c2"
+      ],
+      "damage": 31,
+      "expected_effects": [
+        [
+          "DAMAGE",
+          31
+        ],
+        [
+          "STAGGER",
+          15
+        ]
+      ],
+      "expected_first_accepted": true,
+      "expected_resources": {
+        "hp": 7,
+        "parries": 6,
+        "stagger": 25
+      },
+      "expected_rule_ids": [
+        "materialize"
+      ],
+      "id": "interaction-pipeline-009",
+      "initial_resources": {
+        "hp": 38,
+        "parries": 6,
+        "stagger": 10
+      },
+      "mode": "PLAIN",
+      "stagger": 15
+    },
+    {
+      "contact_order": [
+        "c1",
+        "c2"
+      ],
+      "damage": 13,
+      "expected_effects": [
+        [
+          "DAMAGE",
+          13
+        ],
+        [
+          "STAGGER",
+          0
+        ]
+      ],
+      "expected_first_accepted": true,
+      "expected_resources": {
+        "hp": 70,
+        "parries": 1,
+        "stagger": 0
+      },
+      "expected_rule_ids": [
+        "armor",
+        "materialize"
+      ],
+      "id": "interaction-pipeline-010",
+      "initial_resources": {
+        "hp": 83,
+        "parries": 1,
+        "stagger": 0
+      },
+      "mode": "ARMOR",
+      "stagger": 14
+    },
+    {
+      "contact_order": [
+        "c1",
+        "c2"
+      ],
+      "damage": 13,
+      "expected_effects": [
+        [
+          "REACTION",
+          1
+        ]
+      ],
+      "expected_first_accepted": false,
+      "expected_resources": {
+        "hp": 68,
+        "parries": 3,
+        "stagger": 20
+      },
+      "expected_rule_ids": [
+        "parry"
+      ],
+      "id": "interaction-pipeline-011",
+      "initial_resources": {
+        "hp": 68,
+        "parries": 2,
+        "stagger": 20
+      },
+      "mode": "PARRY",
+      "stagger": 38
+    },
+    {
+      "contact_order": [
+        "c1",
+        "c2"
+      ],
+      "damage": 28,
+      "expected_effects": [
+        [
+          "DAMAGE",
+          28
+        ],
+        [
+          "STAGGER",
+          42
+        ]
+      ],
+      "expected_first_accepted": true,
+      "expected_resources": {
+        "hp": 60,
+        "parries": 0,
+        "stagger": 61
+      },
+      "expected_rule_ids": [
+        "materialize"
+      ],
+      "id": "interaction-pipeline-012",
+      "initial_resources": {
+        "hp": 88,
+        "parries": 0,
+        "stagger": 19
+      },
+      "mode": "PLAIN",
+      "stagger": 42
+    },
+    {
+      "contact_order": [
+        "c2",
+        "c1"
+      ],
+      "damage": 7,
+      "expected_effects": [
+        [
+          "DAMAGE",
+          7
+        ],
+        [
+          "STAGGER",
+          0
+        ]
+      ],
+      "expected_first_accepted": true,
+      "expected_resources": {
+        "hp": 76,
+        "parries": 7,
+        "stagger": 4
+      },
+      "expected_rule_ids": [
+        "armor",
+        "materialize"
+      ],
+      "id": "interaction-pipeline-013",
+      "initial_resources": {
+        "hp": 83,
+        "parries": 7,
+        "stagger": 4
+      },
+      "mode": "ARMOR",
+      "stagger": 59
+    },
+    {
+      "contact_order": [
+        "c1",
+        "c2"
+      ],
+      "damage": 53,
+      "expected_effects": [
+        [
+          "REACTION",
+          1
+        ]
+      ],
+      "expected_first_accepted": false,
+      "expected_resources": {
+        "hp": 53,
+        "parries": 6,
+        "stagger": 13
+      },
+      "expected_rule_ids": [
+        "parry"
+      ],
+      "id": "interaction-pipeline-014",
+      "initial_resources": {
+        "hp": 53,
+        "parries": 5,
+        "stagger": 13
+      },
+      "mode": "PARRY",
+      "stagger": 2
+    },
+    {
+      "contact_order": [
+        "c2",
+        "c1"
+      ],
+      "damage": 44,
+      "expected_effects": [
+        [
+          "DAMAGE",
+          44
+        ],
+        [
+          "STAGGER",
+          49
+        ]
+      ],
+      "expected_first_accepted": true,
+      "expected_resources": {
+        "hp": 17,
+        "parries": 5,
+        "stagger": 55
+      },
+      "expected_rule_ids": [
+        "materialize"
+      ],
+      "id": "interaction-pipeline-015",
+      "initial_resources": {
+        "hp": 61,
+        "parries": 5,
+        "stagger": 6
+      },
+      "mode": "PLAIN",
+      "stagger": 49
+    },
+    {
+      "contact_order": [
+        "c2",
+        "c1"
+      ],
+      "damage": 18,
+      "expected_effects": [
+        [
+          "DAMAGE",
+          18
+        ],
+        [
+          "STAGGER",
+          0
+        ]
+      ],
+      "expected_first_accepted": true,
+      "expected_resources": {
+        "hp": 71,
+        "parries": 1,
+        "stagger": 2
+      },
+      "expected_rule_ids": [
+        "armor",
+        "materialize"
+      ],
+      "id": "interaction-pipeline-016",
+      "initial_resources": {
+        "hp": 89,
+        "parries": 1,
+        "stagger": 2
+      },
+      "mode": "ARMOR",
+      "stagger": 58
+    },
+    {
+      "contact_order": [
+        "c2",
+        "c1"
+      ],
+      "damage": 50,
+      "expected_effects": [
+        [
+          "REACTION",
+          1
+        ]
+      ],
+      "expected_first_accepted": false,
+      "expected_resources": {
+        "hp": 141,
+        "parries": 2,
+        "stagger": 10
+      },
+      "expected_rule_ids": [
+        "parry"
+      ],
+      "id": "interaction-pipeline-017",
+      "initial_resources": {
+        "hp": 141,
+        "parries": 1,
+        "stagger": 10
+      },
+      "mode": "PARRY",
+      "stagger": 19
+    },
+    {
+      "contact_order": [
+        "c2",
+        "c1"
+      ],
+      "damage": 3,
+      "expected_effects": [
+        [
+          "DAMAGE",
+          3
+        ],
+        [
+          "STAGGER",
+          22
+        ]
+      ],
+      "expected_first_accepted": true,
+      "expected_resources": {
+        "hp": 74,
+        "parries": 7,
+        "stagger": 38
+      },
+      "expected_rule_ids": [
+        "materialize"
+      ],
+      "id": "interaction-pipeline-018",
+      "initial_resources": {
+        "hp": 77,
+        "parries": 7,
+        "stagger": 16
+      },
+      "mode": "PLAIN",
+      "stagger": 22
+    },
+    {
+      "contact_order": [
+        "c1",
+        "c2"
+      ],
+      "damage": 6,
+      "expected_effects": [
+        [
+          "DAMAGE",
+          6
+        ],
+        [
+          "STAGGER",
+          0
+        ]
+      ],
+      "expected_first_accepted": true,
+      "expected_resources": {
+        "hp": 31,
+        "parries": 6,
+        "stagger": 18
+      },
+      "expected_rule_ids": [
+        "armor",
+        "materialize"
+      ],
+      "id": "interaction-pipeline-019",
+      "initial_resources": {
+        "hp": 37,
+        "parries": 6,
+        "stagger": 18
+      },
+      "mode": "ARMOR",
+      "stagger": 11
+    },
+    {
+      "contact_order": [
+        "c1",
+        "c2"
+      ],
+      "damage": 12,
+      "expected_effects": [
+        [
+          "REACTION",
+          1
+        ]
+      ],
+      "expected_first_accepted": false,
+      "expected_resources": {
+        "hp": 18,
+        "parries": 2,
+        "stagger": 13
+      },
+      "expected_rule_ids": [
+        "parry"
+      ],
+      "id": "interaction-pipeline-020",
+      "initial_resources": {
+        "hp": 18,
+        "parries": 1,
+        "stagger": 13
+      },
+      "mode": "PARRY",
+      "stagger": 38
+    },
+    {
+      "contact_order": [
+        "c1",
+        "c2"
+      ],
+      "damage": 3,
+      "expected_effects": [
+        [
+          "DAMAGE",
+          3
+        ],
+        [
+          "STAGGER",
+          55
+        ]
+      ],
+      "expected_first_accepted": true,
+      "expected_resources": {
+        "hp": 79,
+        "parries": 2,
+        "stagger": 74
+      },
+      "expected_rule_ids": [
+        "materialize"
+      ],
+      "id": "interaction-pipeline-021",
+      "initial_resources": {
+        "hp": 82,
+        "parries": 2,
+        "stagger": 19
+      },
+      "mode": "PLAIN",
+      "stagger": 55
+    },
+    {
+      "contact_order": [
+        "c2",
+        "c1"
+      ],
+      "damage": 2,
+      "expected_effects": [
+        [
+          "DAMAGE",
+          2
+        ],
+        [
+          "STAGGER",
+          0
+        ]
+      ],
+      "expected_first_accepted": true,
+      "expected_resources": {
+        "hp": 92,
+        "parries": 4,
+        "stagger": 14
+      },
+      "expected_rule_ids": [
+        "armor",
+        "materialize"
+      ],
+      "id": "interaction-pipeline-022",
+      "initial_resources": {
+        "hp": 94,
+        "parries": 4,
+        "stagger": 14
+      },
+      "mode": "ARMOR",
+      "stagger": 42
+    },
+    {
+      "contact_order": [
+        "c2",
+        "c1"
+      ],
+      "damage": 61,
+      "expected_effects": [
+        [
+          "REACTION",
+          1
+        ]
+      ],
+      "expected_first_accepted": false,
+      "expected_resources": {
+        "hp": 78,
+        "parries": 2,
+        "stagger": 19
+      },
+      "expected_rule_ids": [
+        "parry"
+      ],
+      "id": "interaction-pipeline-023",
+      "initial_resources": {
+        "hp": 78,
+        "parries": 1,
+        "stagger": 19
+      },
+      "mode": "PARRY",
+      "stagger": 60
+    }
+  ],
   "interaction_rule_cases": [
     {
       "candidate": {

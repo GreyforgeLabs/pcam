@@ -490,6 +490,58 @@ def _cross_stage_arbitration_cases(
     return cases
 
 
+def _interaction_pipeline_cases(
+    generator: random.Random,
+) -> list[dict[str, object]]:
+    modes = ("PLAIN", "ARMOR", "PARRY")
+    cases = []
+    for case_index in range(24):
+        mode = modes[case_index % len(modes)]
+        damage = generator.randint(1, 64)
+        stagger = generator.randint(1, 64)
+        initial_hp = generator.randint(damage, damage + 96)
+        initial_stagger = generator.randint(0, 24)
+        initial_parries = generator.randint(0, 8)
+        contact_order = ["c1", "c2"]
+        generator.shuffle(contact_order)
+        expected_resources = {
+            "hp": initial_hp,
+            "stagger": initial_stagger,
+            "parries": initial_parries,
+        }
+        if mode == "PARRY":
+            expected_resources["parries"] += 1
+            expected_effects = [["REACTION", 1]]
+            expected_rule_ids = ["parry"]
+        else:
+            expected_resources["hp"] -= damage
+            applied_stagger = 0 if mode == "ARMOR" else stagger
+            expected_resources["stagger"] += applied_stagger
+            expected_effects = [["DAMAGE", damage], ["STAGGER", applied_stagger]]
+            expected_rule_ids = (
+                ["armor", "materialize"] if mode == "ARMOR" else ["materialize"]
+            )
+        cases.append(
+            {
+                "id": f"interaction-pipeline-{case_index:03d}",
+                "mode": mode,
+                "damage": damage,
+                "stagger": stagger,
+                "initial_resources": {
+                    "hp": initial_hp,
+                    "stagger": initial_stagger,
+                    "parries": initial_parries,
+                },
+                "contact_order": contact_order,
+                "expected_resources": expected_resources,
+                "expected_effects": expected_effects,
+                "expected_rule_ids": expected_rule_ids,
+                "expected_first_accepted": mode != "PARRY",
+            }
+        )
+    return cases
+
+
 def build_corpus() -> dict[str, object]:
     generator = random.Random(SEED)
     rate_restore_cases = _rate_cases(generator)
@@ -506,6 +558,7 @@ def build_corpus() -> dict[str, object]:
     numeric_ratio_cases = _numeric_ratio_cases(generator)
     numeric_overflow_cases = _numeric_overflow_cases(generator)
     cross_stage_arbitration_cases = _cross_stage_arbitration_cases(generator)
+    interaction_pipeline_cases = _interaction_pipeline_cases(generator)
     return {
         "pcam_generated_corpus_version": "1",
         "kind": "generated_core_properties",
@@ -526,6 +579,7 @@ def build_corpus() -> dict[str, object]:
         "candidate_permutation_cases": candidate_permutation_cases,
         "interaction_rule_cases": interaction_rule_cases,
         "cross_stage_arbitration_cases": cross_stage_arbitration_cases,
+        "interaction_pipeline_cases": interaction_pipeline_cases,
     }
 
 

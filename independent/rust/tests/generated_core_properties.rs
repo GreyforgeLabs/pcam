@@ -381,6 +381,137 @@ fn independent_shared_generated_cross_stage_arbitration_is_atomic_and_permutatio
     }
 }
 
+fn interaction_pipeline_document(case: &Value, order: &[Value]) -> Value {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let mut document: Value = serde_json::from_slice(
+        &fs::read(root.join("tests/vectors/interaction-runtime.json")).unwrap(),
+    )
+    .unwrap();
+    document.as_object_mut().unwrap().remove("cases");
+    document["id"] = case["id"].clone();
+    document["runtime_profile"]["id"] = json!(format!(
+        "pcam.generated.{}.v1",
+        case["id"].as_str().unwrap()
+    ));
+    document["definitions"][0]["semantic_facts"][0]["fact"]["effect_templates"][0]["payload"] =
+        case["damage"].clone();
+    document["definitions"][0]["semantic_facts"][0]["fact"]["effect_templates"][1]["payload"] =
+        case["stagger"].clone();
+    document["definitions"][1]["semantic_facts"][0]["fact"]["tags"] = if case["mode"] == "PLAIN" {
+        Value::Array(Vec::new())
+    } else {
+        json!([case["mode"].as_str().unwrap()])
+    };
+    document["initial_state"]["resource_banks"]["2"] = case["initial_resources"].clone();
+    let base_contact = document["ticks"][0]["contacts"][0].clone();
+    document["ticks"][0]["contacts"] = Value::Array(
+        order
+            .iter()
+            .map(|candidate_id| {
+                let mut contact = base_contact.clone();
+                contact["candidate_id"] = candidate_id.clone();
+                contact["contact_id"] = json!(if candidate_id == "c1" { "a" } else { "b" });
+                contact
+            })
+            .collect(),
+    );
+    document
+}
+
+#[test]
+fn independent_shared_generated_interaction_pipeline_is_typed_atomic_and_permutation_invariant() {
+    let corpus = corpus();
+    for case in corpus["interaction_pipeline_cases"].as_array().unwrap() {
+        let original = case["contact_order"].as_array().unwrap().clone();
+        let mut reversed = original.clone();
+        reversed.reverse();
+        let mut states = Vec::new();
+        for order in [&original, &reversed] {
+            let document = interaction_pipeline_document(case, order);
+            let runtime = SimulationRuntime::from_vector(&document).unwrap();
+            let initial = runtime.initial_state(&document).unwrap();
+            let (state, trace) = runtime.tick(&initial, &document["ticks"][0]).unwrap();
+            assert_eq!(
+                trace.candidate_order,
+                vec!["c1".to_owned(), "c2".to_owned()],
+                "{}:candidate-order",
+                case["id"]
+            );
+            assert_eq!(state.interaction_ledgers.len(), 1, "{}:ledger", case["id"]);
+            assert_eq!(
+                serde_json::to_value(&state.resource_banks["2"]).unwrap(),
+                case["expected_resources"],
+                "{}:resources",
+                case["id"]
+            );
+            assert_eq!(
+                Value::Array(
+                    trace
+                        .effects
+                        .iter()
+                        .map(|effect| json!([effect.effect_class, effect.payload]))
+                        .collect()
+                ),
+                case["expected_effects"],
+                "{}:effects",
+                case["id"]
+            );
+            assert_eq!(
+                trace.receipts[0]["candidate_id"], "c1",
+                "{}:first",
+                case["id"]
+            );
+            assert_eq!(
+                trace.receipts[0]["accepted"], case["expected_first_accepted"],
+                "{}:accepted",
+                case["id"]
+            );
+            assert_eq!(
+                Value::Array(
+                    trace.receipts[0]["rules_fired"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .map(|item| item["rule_id"].clone())
+                        .collect()
+                ),
+                case["expected_rule_ids"],
+                "{}:rules",
+                case["id"]
+            );
+            assert_eq!(
+                trace.receipts[0]["receipt_written"], true,
+                "{}:receipt",
+                case["id"]
+            );
+            assert_eq!(
+                trace.receipts[1],
+                json!({
+                    "accepted": false,
+                    "candidate_id": "c2",
+                    "reason": "ONCE_PER_ACTION_INSTANCE",
+                }),
+                "{}:duplicate",
+                case["id"]
+            );
+            assert_eq!(
+                SimulationState::restore(&state.snapshot().unwrap()).unwrap(),
+                state,
+                "{}:restore",
+                case["id"]
+            );
+            states.push(state);
+        }
+        assert_eq!(states[0], states[1], "{}:permutation", case["id"]);
+        assert_eq!(
+            states[0].digest().unwrap(),
+            states[1].digest().unwrap(),
+            "{}:digest",
+            case["id"]
+        );
+    }
+}
+
 #[test]
 fn independent_shared_generated_freeze_token_combinations_match_timing_and_domains() {
     let corpus = corpus();
