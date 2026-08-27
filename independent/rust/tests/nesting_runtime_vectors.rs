@@ -53,3 +53,16 @@ fn independent_nesting_limit_matches_shared_success_and_atomic_fault() {
         assert_eq!(summary, case["expected"]);
     }
 }
+
+#[test]
+fn independent_child_slot_capacity_cannot_exceed_runtime_child_limit() {
+    let mut document = vector();
+    document["runtime_profile"]["limits"]["max_children_per_action"] = json!(1);
+    document["definitions"][0]["child_slot_capacities"]["SUB"] = json!(2);
+    let error = SimulationRuntime::from_vector(&document).unwrap_err();
+    let SimulationError::Fault(context) = error else {
+        panic!("expected definition fault")
+    };
+    assert_eq!(context.code, "DEFINITION_REJECTED");
+    assert_eq!(context.fault, "STATE_INVARIANT_FAILURE");
+}

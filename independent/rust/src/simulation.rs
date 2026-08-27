@@ -251,6 +251,7 @@ pub struct SimulationRuntime {
     interaction_rules: Vec<InteractionRule>,
     max_actions_per_entity: u64,
     max_action_nesting_depth: u64,
+    max_children_per_action: u64,
     max_expression_depth: usize,
     max_expression_nodes: usize,
     max_quanta_per_action_per_tick: u64,
@@ -447,6 +448,9 @@ impl SimulationRuntime {
         let max_action_nesting_depth = profile["limits"]["max_action_nesting_depth"]
             .as_u64()
             .ok_or(SimulationError::InvalidVector)?;
+        let max_children_per_action = profile["limits"]["max_children_per_action"]
+            .as_u64()
+            .ok_or(SimulationError::InvalidVector)?;
         let max_quanta_per_action_per_tick = profile["limits"]["max_quanta_per_action_per_tick"]
             .as_u64()
             .ok_or(SimulationError::InvalidVector)?;
@@ -495,6 +499,16 @@ impl SimulationRuntime {
             let canonical = canonical_definition(raw)?;
             let hash = canonical_hash(&canonical)?;
             let definition = parse_definition(raw, hash.clone())?;
+            if definition
+                .child_slot_capacities
+                .values()
+                .any(|capacity| *capacity > max_children_per_action)
+            {
+                return Err(definition_fault(
+                    "STATE_INVARIANT_FAILURE",
+                    "child slot capacity exceeds runtime profile",
+                ));
+            }
             identities.push(json!({
                 "definition_hash": hash,
                 "definition_id": definition.id,
@@ -551,6 +565,7 @@ impl SimulationRuntime {
             interaction_rules,
             max_actions_per_entity,
             max_action_nesting_depth,
+            max_children_per_action,
             max_expression_depth,
             max_expression_nodes,
             max_quanta_per_action_per_tick,
@@ -2600,8 +2615,13 @@ impl SimulationRuntime {
                         })
                     })
                     .count() as u64;
-                if active_children >= capacity {
-                    return Err(SimulationError::RuntimeFault);
+                if active_children >= capacity || active_children >= self.max_children_per_action {
+                    return Err(contextual_runtime_fault(
+                        "STATE_INVARIANT_FAILURE",
+                        "child count exceeds runtime profile or slot capacity",
+                        action_id,
+                        state.action_instances[index].owner_entity_id,
+                    ));
                 }
                 let mut depth = 1_u64;
                 let mut cursor = state.action_instances[index].parent_instance_id;
