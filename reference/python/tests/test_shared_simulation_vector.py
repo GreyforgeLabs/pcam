@@ -48,6 +48,10 @@ def _child_termination_document():
     )
 
 
+def _nesting_runtime_document():
+    return json.loads((ROOT / "tests/vectors/nesting-runtime.json").read_text(encoding="utf-8"))
+
+
 def test_python_typed_strike_matches_shared_full_state_identity_and_tick_digests():
     document = _document()
     expected = document["expected"]
@@ -307,3 +311,43 @@ def test_python_child_termination_policies_match_shared_atomic_outcomes():
         }
         assert [item["state_digest"] for item in run.traces] == case["tick_state_digests"]
         assert summary == case["expected"], case["policy"]
+
+
+def test_python_nesting_limit_matches_shared_success_and_atomic_fault():
+    vector = _nesting_runtime_document()
+    for case in vector["cases"]:
+        document = json.loads(json.dumps(vector))
+        document["runtime_profile"]["limits"]["max_action_nesting_depth"] = case["max_depth"]
+        if case["max_depth"] == 2:
+            last = document["ticks"][2]["inputs"][0]
+            document["ticks"] = document["ticks"][:2]
+            run = run_vector(document)
+            assert run.final_state.state_hash() == case["pre_fault_digest"]
+            tick_input = TickInput(
+                last["input_id"],
+                last["source_entity_id"],
+                last["sequence"],
+                last["command_id"],
+                last["assigned_tick"],
+            )
+            with pytest.raises(PCAMError) as raised:
+                run.executor.tick(run.final_state, (tick_input,))
+            assert raised.value.fault.value == case["fault"]
+            assert run.final_state.state_hash() == case["pre_fault_digest"]
+            continue
+        run = run_vector(document)
+        state = run.final_state
+        summary = {
+            "next_action_instance_id": state.next_action_instance_id,
+            "parents": {
+                key: action.parent_instance_id for key, action in state.action_instances.items()
+            },
+            "children": {
+                key: list(action.child_instance_ids) for key, action in state.action_instances.items()
+            },
+            "lifecycle": {
+                key: action.lifecycle_state for key, action in state.action_instances.items()
+            },
+        }
+        assert [item["state_digest"] for item in run.traces] == case["tick_state_digests"]
+        assert summary == case["expected"]

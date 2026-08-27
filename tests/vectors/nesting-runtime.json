@@ -1,0 +1,24 @@
+{
+  "pcam_vector_version": "1", "kind": "runtime_vector", "id": "nesting-runtime",
+  "runtime_profile": {
+    "pcam_version": "3.0", "kind": "runtime_profile", "id": "pcam.reference.nesting.v1", "revision": 1, "fault_policy": "ABORT_SIMULATION",
+    "limits": {"max_actions_per_entity": 8, "max_action_nesting_depth": 3, "max_children_per_action": 4, "max_quanta_per_action_per_tick": 8, "max_internal_transitions_per_action_per_tick": 8, "max_buffer_entries_per_action": 8, "max_pending_events_per_entity": 8, "max_candidates_per_tick": 32, "max_effects_per_tick": 32, "max_redirects_per_candidate": 4, "max_definition_size_bytes": 65536, "max_snapshot_size_bytes": 262144, "max_extension_state_bytes": 4096, "max_expression_depth": 64, "max_expression_nodes": 4096},
+    "rng_profiles": ["pcam.pcg32.v1"], "network_profiles": [{"id": "pcam.local.v1", "topology": "LOCAL_DETERMINISTIC"}], "extensions": {}
+  },
+  "definitions": [{
+    "id": "NEST", "rate_scale": 1, "units_per_tick": 0, "nodes": [{"id": "RUN", "mode": "EVENT_DRIVEN"}],
+    "child_slot_capacities": {"SUB": 1}, "child_termination_policies": {"SUB": "ALLOW_CHILD_TO_COMPLETE"},
+    "transitions": [{"id": "descend", "source_node": "RUN", "evaluation_point": "PRE_ADVANCE", "priority": 10, "target_kind": "CHILD_ACTION", "target_action": "NEST", "child_slot_id": "SUB", "parent_policy": "CONTINUE", "input_command": "DESCEND", "consume_policy": "ON_ATTEMPT"}]
+  }],
+  "interaction_rules": [], "effect_registry": {"combat.damage": ["hp", -1], "combat.stagger": ["stagger", 1]},
+  "initial_state": {"resource_banks": {}, "slot_capacities": {}},
+  "ticks": [
+    {"inputs": [{"input_id": "start", "source_entity_id": 1, "sequence": 0, "command_id": "START", "assigned_tick": 0, "action_definition_id": "NEST"}], "contacts": []},
+    {"inputs": [{"input_id": "descend-1", "source_entity_id": 1, "sequence": 1, "command_id": "DESCEND", "assigned_tick": 1}], "contacts": []},
+    {"inputs": [{"input_id": "descend-2", "source_entity_id": 1, "sequence": 2, "command_id": "DESCEND", "assigned_tick": 2}], "contacts": []}
+  ],
+  "cases": [
+    {"max_depth": 3, "tick_state_digests": ["ce54d61737c460027eb6da8c8f898f76343bd7335c7d90ff684d80ac684ecd6e", "c58944b0ba54dea567468515d7669e5655db54243aa553e3a6f8e92a8a4457a7", "47a0b4eaf8e77f3044f65dd4b8d451cd568e0782271609973023d14be7fecef6"], "expected": {"next_action_instance_id": 4, "parents": {"1": null, "2": 1, "3": 2}, "children": {"1": [2], "2": [3], "3": []}, "lifecycle": {"1": "RUNNING", "2": "RUNNING", "3": "RUNNING"}}},
+    {"max_depth": 2, "pre_fault_digest": "be2b8d0ea464f5d4d6ce5b480f73a2bb0d36e7fc96def791b7b07e17fe718f99", "fault": "NESTING_LIMIT_EXCEEDED"}
+  ]
+}

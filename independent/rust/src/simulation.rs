@@ -177,6 +177,7 @@ pub struct SimulationRuntime {
     fault_policy: String,
     interaction_rules: Vec<InteractionRule>,
     max_actions_per_entity: u64,
+    max_action_nesting_depth: u64,
     max_expression_depth: usize,
     max_expression_nodes: usize,
     max_quanta_per_action_per_tick: u64,
@@ -360,6 +361,9 @@ impl SimulationRuntime {
         let max_actions_per_entity = profile["limits"]["max_actions_per_entity"]
             .as_u64()
             .ok_or(SimulationError::InvalidVector)?;
+        let max_action_nesting_depth = profile["limits"]["max_action_nesting_depth"]
+            .as_u64()
+            .ok_or(SimulationError::InvalidVector)?;
         let max_quanta_per_action_per_tick = profile["limits"]["max_quanta_per_action_per_tick"]
             .as_u64()
             .ok_or(SimulationError::InvalidVector)?;
@@ -439,6 +443,7 @@ impl SimulationRuntime {
             fault_policy,
             interaction_rules,
             max_actions_per_entity,
+            max_action_nesting_depth,
             max_expression_depth,
             max_expression_nodes,
             max_quanta_per_action_per_tick,
@@ -1638,6 +1643,26 @@ impl SimulationRuntime {
                     .count() as u64;
                 if active_children >= capacity {
                     return Err(SimulationError::RuntimeFault);
+                }
+                let mut depth = 1_u64;
+                let mut cursor = state.action_instances[index].parent_instance_id;
+                while let Some(parent_id) = cursor {
+                    depth = depth.checked_add(1).ok_or(SimulationError::RuntimeFault)?;
+                    cursor = state
+                        .action_instances
+                        .iter()
+                        .find(|action| action.instance_id == parent_id)
+                        .ok_or(SimulationError::RuntimeFault)?
+                        .parent_instance_id;
+                }
+                if depth >= self.max_action_nesting_depth {
+                    return Err(SimulationError::Fault(FaultContext {
+                        code: "RUNTIME_FAULT".to_owned(),
+                        fault: "NESTING_LIMIT_EXCEEDED".to_owned(),
+                        message: target_action.clone(),
+                        action_instance_id: Some(action_id),
+                        owner_entity_id: Some(state.action_instances[index].owner_entity_id),
+                    }));
                 }
                 let definition = self
                     .definitions
