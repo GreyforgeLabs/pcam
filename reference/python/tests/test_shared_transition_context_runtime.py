@@ -39,6 +39,8 @@ def test_python_complete_state_transition_context_matches_shared_vectors():
             "transition_serial": action.transition_serial,
             "captured_parameters": action.captured_parameters,
             "registers": action.registers,
+            "predicate_truth_state": action.predicate_truth_state,
+            "predicate_entry_serials": action.predicate_entry_serials,
             "input_buffer": [entry.__dict__ for entry in action.input_buffer],
             "host_imports": state.host_state["imports"],
         }

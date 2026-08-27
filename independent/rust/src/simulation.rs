@@ -40,6 +40,7 @@ struct Predicate {
     node_ids: Vec<String>,
     min_node_step: u64,
     max_node_step_exclusive: Option<u64>,
+    expression: Option<Value>,
     track_edges: bool,
 }
 
@@ -696,18 +697,30 @@ impl SimulationRuntime {
             &mut runtime_effects,
         )?;
 
-        for action in &mut work.action_instances {
+        let action_ids = work
+            .action_instances
+            .iter()
+            .map(|action| action.instance_id)
+            .collect::<Vec<_>>();
+        for action_id in action_ids {
+            let action_index = work
+                .action_instances
+                .iter()
+                .position(|action| action.instance_id == action_id)
+                .ok_or(SimulationError::RuntimeFault)?;
+            let action = work.action_instances[action_index].clone();
             let definition = self
                 .definitions
                 .values()
                 .find(|definition| definition.hash == action.definition_hash)
                 .ok_or(SimulationError::RuntimeFault)?;
+            let predicate_values = self.predicate_values(&work, &action, definition)?;
             for predicate in &definition.predicates {
-                let now = predicate.node_ids.contains(&action.current_node_id)
-                    && action.node_step >= predicate.min_node_step
-                    && predicate
-                        .max_node_step_exclusive
-                        .is_none_or(|maximum| action.node_step < maximum);
+                let now = predicate_values
+                    .get(&predicate.id)
+                    .copied()
+                    .ok_or(SimulationError::RuntimeFault)?;
+                let action = &mut work.action_instances[action_index];
                 let before = action
                     .predicate_truth_state
                     .get(&predicate.id)
@@ -1233,6 +1246,95 @@ impl SimulationRuntime {
         .map_err(|error| transition_expression_fault(error, action))?
         .as_bool()
         .ok_or_else(|| transition_expression_fault(EvalError::StateInvariant, action))
+    }
+
+    fn predicate_values(
+        &self,
+        state: &SimulationState,
+        action: &ActionSnapshot,
+        definition: &Definition,
+    ) -> Result<BTreeMap<String, bool>, SimulationError> {
+        let predicates = definition
+            .predicates
+            .iter()
+            .map(|predicate| (predicate.id.as_str(), predicate))
+            .collect::<BTreeMap<_, _>>();
+        if predicates.len() != definition.predicates.len() {
+            return Err(SimulationError::InvalidVector);
+        }
+        let mut values = BTreeMap::new();
+        let mut visiting = BTreeSet::new();
+        for identifier in predicates.keys() {
+            self.predicate_value(
+                state,
+                action,
+                definition,
+                identifier,
+                &predicates,
+                &mut values,
+                &mut visiting,
+            )?;
+        }
+        Ok(values)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn predicate_value(
+        &self,
+        state: &SimulationState,
+        action: &ActionSnapshot,
+        definition: &Definition,
+        identifier: &str,
+        predicates: &BTreeMap<&str, &Predicate>,
+        values: &mut BTreeMap<String, bool>,
+        visiting: &mut BTreeSet<String>,
+    ) -> Result<bool, SimulationError> {
+        if let Some(value) = values.get(identifier) {
+            return Ok(*value);
+        }
+        if !visiting.insert(identifier.to_owned()) {
+            return Err(predicate_expression_fault(
+                EvalError::StateInvariant,
+                action,
+            ));
+        }
+        let predicate = predicates
+            .get(identifier)
+            .ok_or_else(|| predicate_expression_fault(EvalError::StateInvariant, action))?;
+        let result = if let Some(expression) = &predicate.expression {
+            let mut context =
+                transition_guard_context(state, action, definition, expression, None, None)?;
+            for dependency in predicate_references(expression) {
+                let value = self.predicate_value(
+                    state,
+                    action,
+                    definition,
+                    &dependency,
+                    predicates,
+                    values,
+                    visiting,
+                )?;
+                context.insert(format!("action.predicate.{dependency}"), json!(value));
+            }
+            evaluate_expression(
+                expression,
+                &context,
+                self.max_expression_depth,
+                self.max_expression_nodes,
+            )
+            .map_err(|error| predicate_expression_fault(error, action))?
+            .as_bool()
+            .ok_or_else(|| predicate_expression_fault(EvalError::StateInvariant, action))?
+        } else {
+            predicate.node_ids.contains(&action.current_node_id)
+                && action.node_step >= predicate.min_node_step
+                && predicate
+                    .max_node_step_exclusive
+                    .is_none_or(|maximum| action.node_step < maximum)
+        };
+        visiting.remove(identifier);
+        values.insert(identifier.to_owned(), result);
+        Ok(result)
     }
 
     fn arbitrate_transition_stage(
@@ -2823,6 +2925,7 @@ fn parse_definition(raw: &Value, hash: String) -> Result<Definition, SimulationE
                 max_node_step_exclusive: predicate
                     .get("max_node_step_exclusive")
                     .and_then(Value::as_u64),
+                expression: predicate.get("expression").cloned(),
                 track_edges: predicate
                     .get("track_edges")
                     .and_then(Value::as_bool)
@@ -3294,6 +3397,35 @@ fn host_import_references(expression: &Value) -> BTreeSet<String> {
     references
 }
 
+fn predicate_references(expression: &Value) -> BTreeSet<String> {
+    let mut references = BTreeSet::new();
+    collect_predicate_references(expression, &mut references);
+    references
+}
+
+fn collect_predicate_references(expression: &Value, references: &mut BTreeSet<String>) {
+    match expression {
+        Value::Object(object) => {
+            if object.len() == 1 {
+                if let Some(reference) = object.get("ref").and_then(Value::as_str) {
+                    if let Some(identifier) = reference.strip_prefix("action.predicate.") {
+                        references.insert(identifier.to_owned());
+                    }
+                }
+            }
+            for value in object.values() {
+                collect_predicate_references(value, references);
+            }
+        }
+        Value::Array(values) => {
+            for value in values {
+                collect_predicate_references(value, references);
+            }
+        }
+        _ => {}
+    }
+}
+
 fn collect_host_import_references(expression: &Value, references: &mut BTreeSet<String>) {
     match expression {
         Value::Object(object) => {
@@ -3412,6 +3544,18 @@ fn flatten_guard_context(prefix: &str, value: &Value, context: &mut BTreeMap<Str
 }
 
 fn transition_expression_fault(error: EvalError, action: &ActionSnapshot) -> SimulationError {
+    action_expression_fault(error, action, "transition guard expression failed")
+}
+
+fn predicate_expression_fault(error: EvalError, action: &ActionSnapshot) -> SimulationError {
+    action_expression_fault(error, action, "predicate expression failed")
+}
+
+fn action_expression_fault(
+    error: EvalError,
+    action: &ActionSnapshot,
+    message: &str,
+) -> SimulationError {
     let fault = match error {
         EvalError::DivisionByZero => "DIVISION_BY_ZERO",
         EvalError::IntegerOverflow => "INTEGER_OVERFLOW",
@@ -3420,7 +3564,7 @@ fn transition_expression_fault(error: EvalError, action: &ActionSnapshot) -> Sim
     SimulationError::Fault(FaultContext {
         code: "RUNTIME_FAULT".to_owned(),
         fault: fault.to_owned(),
-        message: "transition guard expression failed".to_owned(),
+        message: message.to_owned(),
         action_instance_id: Some(action.instance_id),
         owner_entity_id: Some(action.owner_entity_id),
     })

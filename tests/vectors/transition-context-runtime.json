@@ -38,6 +38,24 @@
       "parameter_declarations": {"threshold": {"type": "U64", "minimum": 0, "maximum": 10}},
       "parameter_defaults": {"threshold": 4},
       "register_initials": {"mode": "ready"},
+      "predicates": [
+        {
+          "id": "CONTEXT_READY",
+          "expression": {
+            "op": "and",
+            "args": [
+              {"op": "eq", "args": [{"ref": "action.parameter.threshold"}, {"literal": 5}]},
+              {"op": "eq", "args": [{"ref": "action.register.mode"}, {"literal": "ready"}]},
+              {"op": "eq", "args": [{"ref": "owner.resource.STAMINA"}, {"literal": 5}]},
+              {"op": "eq", "args": [{"ref": "owner.register.mode"}, {"literal": "armed"}]}
+            ]
+          }
+        },
+        {
+          "id": "DERIVED_READY",
+          "expression": {"ref": "action.predicate.CONTEXT_READY"}
+        }
+      ],
       "import_declarations": {
         "allowed": {
           "type": "BOOL",
@@ -60,6 +78,7 @@
           "target_kind": "NODE",
           "target_node": "DONE",
           "input_command": "GO",
+          "guard_predicate": "DERIVED_READY",
           "guard_expression": {
             "op": "and",
             "args": [
@@ -100,26 +119,26 @@
       "id": "all-contexts-match",
       "imports": {"allowed": true},
       "failure_policy": "FAULT",
-      "tick_state_digests": ["67cf2064a5c8760b2a260b869c739d28db95c82c01cf4bbc8aeec50093469ed7", "52b23911ea09f0a9ca0ebaaaf69eb756275a9739664e5fd8ee153df41c2d70f6"],
-      "final_state_digest": "52b23911ea09f0a9ca0ebaaaf69eb756275a9739664e5fd8ee153df41c2d70f6",
-      "expected": {"node": "DONE", "transition_serial": 1, "captured_parameters": {"threshold": 5}, "registers": {"mode": "ready"}, "input_buffer": [], "host_imports": {"allowed": true}}
+      "tick_state_digests": ["92af9fd5475b3be4da1dfa8e7052432468a6e30b4a39c20327f635f9f12e986d", "32e718109fb0b227706b121c9df4b8a6d05e494c903c718b6d6983c4adcfd1c9"],
+      "final_state_digest": "32e718109fb0b227706b121c9df4b8a6d05e494c903c718b6d6983c4adcfd1c9",
+      "expected": {"node": "DONE", "transition_serial": 1, "captured_parameters": {"threshold": 5}, "registers": {"mode": "ready"}, "predicate_truth_state": {"CONTEXT_READY": true, "DERIVED_READY": true}, "predicate_entry_serials": {"CONTEXT_READY": 1, "DERIVED_READY": 1}, "input_buffer": [], "host_imports": {"allowed": true}}
     },
     {
       "id": "host-context-rejects",
       "imports": {"allowed": false},
       "failure_policy": "FAULT",
-      "tick_state_digests": ["67cf2064a5c8760b2a260b869c739d28db95c82c01cf4bbc8aeec50093469ed7", "628cef8803877d1bcee86dd09fe76a247b175bedf9cbbeb903a94900b21ba358"],
-      "final_state_digest": "628cef8803877d1bcee86dd09fe76a247b175bedf9cbbeb903a94900b21ba358",
-      "expected": {"node": "WAIT", "transition_serial": 0, "captured_parameters": {"threshold": 5}, "registers": {"mode": "ready"}, "input_buffer": [{"buffer_entry_id": "buffer:go", "captured_tick": 1, "command_id": "GO", "input_id": "go", "payload": {"permit": true}, "priority": 0, "remaining_eligibility_ticks": 2, "sequence": 1}], "host_imports": {"allowed": false}}
+      "tick_state_digests": ["92af9fd5475b3be4da1dfa8e7052432468a6e30b4a39c20327f635f9f12e986d", "c59cd043a7237d00c0e1c9909f5957c7573cc0f1c664d8e7cb9cc3485e219310"],
+      "final_state_digest": "c59cd043a7237d00c0e1c9909f5957c7573cc0f1c664d8e7cb9cc3485e219310",
+      "expected": {"node": "WAIT", "transition_serial": 0, "captured_parameters": {"threshold": 5}, "registers": {"mode": "ready"}, "predicate_truth_state": {"CONTEXT_READY": true, "DERIVED_READY": true}, "predicate_entry_serials": {"CONTEXT_READY": 1, "DERIVED_READY": 1}, "input_buffer": [{"buffer_entry_id": "buffer:go", "captured_tick": 1, "command_id": "GO", "input_id": "go", "payload": {"permit": true}, "priority": 0, "remaining_eligibility_ticks": 2, "sequence": 1}], "host_imports": {"allowed": false}}
     },
     {
       "id": "host-default-matches",
       "imports": {},
       "failure_policy": "USE_DEFAULT",
       "default": true,
-      "tick_state_digests": ["2efcb22e35335e90923024b15e8ff161725584d0fe49dbcdc1f1094e29930ef8", "34909d8cfd0da5dbcffb7ffdbba971aa2935dc7339a89dc4d4a2f646ae88ff79"],
-      "final_state_digest": "34909d8cfd0da5dbcffb7ffdbba971aa2935dc7339a89dc4d4a2f646ae88ff79",
-      "expected": {"node": "DONE", "transition_serial": 1, "captured_parameters": {"threshold": 5}, "registers": {"mode": "ready"}, "input_buffer": [], "host_imports": {}}
+      "tick_state_digests": ["a534764326fae65a5258ba1c80c04284f276eee2e27f8dfaa1b2ead17ace71ec", "57b3ded551ed21fe8edc37f0c3bc4406ef82e72bebd8712dfb45fcf59b116bcc"],
+      "final_state_digest": "57b3ded551ed21fe8edc37f0c3bc4406ef82e72bebd8712dfb45fcf59b116bcc",
+      "expected": {"node": "DONE", "transition_serial": 1, "captured_parameters": {"threshold": 5}, "registers": {"mode": "ready"}, "predicate_truth_state": {"CONTEXT_READY": true, "DERIVED_READY": true}, "predicate_entry_serials": {"CONTEXT_READY": 1, "DERIVED_READY": 1}, "input_buffer": [], "host_imports": {}}
     }
   ],
   "fault_cases": [
