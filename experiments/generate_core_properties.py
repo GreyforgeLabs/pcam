@@ -35,6 +35,38 @@ def _rate_cases(generator: random.Random) -> list[dict[str, object]]:
     return cases
 
 
+def _action_graph_cases(generator: random.Random) -> list[dict[str, object]]:
+    cases = []
+    for index in range(24):
+        node_count = generator.randint(2, 8)
+        ticks = node_count + generator.randint(1, 4)
+        cases.append(
+            {
+                "id": f"graph-{index:03d}",
+                "node_count": node_count,
+                "ticks": ticks,
+                "expected_node": f"N{node_count - 1}",
+                "expected_local_step": ticks,
+                "expected_node_step": ticks - (node_count - 1),
+                "expected_transition_serial": node_count - 1,
+            }
+        )
+    return cases
+
+
+def _transition_guard_cases(generator: random.Random) -> list[dict[str, object]]:
+    return [
+        {
+            "id": f"guard-{index:03d}",
+            "threshold": generator.randint(0, 20),
+            "ticks": 24,
+            "expected_node": "DONE",
+            "expected_transition_serial": 1,
+        }
+        for index in range(24)
+    ]
+
+
 def _effect_key(effect: dict[str, object]) -> tuple[object, ...]:
     return (
         effect["target_entity_id"],
@@ -180,16 +212,24 @@ def _rule_cases(generator: random.Random) -> list[dict[str, object]]:
 
 def build_corpus() -> dict[str, object]:
     generator = random.Random(SEED)
+    rate_restore_cases = _rate_cases(generator)
+    effect_aggregation_cases = _effect_cases(generator)
+    candidate_permutation_cases = _candidate_cases(generator)
+    interaction_rule_cases = _rule_cases(generator)
+    action_graph_cases = _action_graph_cases(generator)
+    transition_guard_cases = _transition_guard_cases(generator)
     return {
         "pcam_generated_corpus_version": "1",
         "kind": "generated_core_properties",
         "id": "pcam.generated.core.v1",
         "seed": SEED,
         "generator": "experiments/generate_core_properties.py",
-        "rate_restore_cases": _rate_cases(generator),
-        "effect_aggregation_cases": _effect_cases(generator),
-        "candidate_permutation_cases": _candidate_cases(generator),
-        "interaction_rule_cases": _rule_cases(generator),
+        "rate_restore_cases": rate_restore_cases,
+        "action_graph_cases": action_graph_cases,
+        "transition_guard_cases": transition_guard_cases,
+        "effect_aggregation_cases": effect_aggregation_cases,
+        "candidate_permutation_cases": candidate_permutation_cases,
+        "interaction_rule_cases": interaction_rule_cases,
     }
 
 

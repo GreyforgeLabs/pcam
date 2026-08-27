@@ -103,6 +103,117 @@ fn independent_shared_generated_rates_repeat_and_restore_exactly() {
 }
 
 #[test]
+fn independent_shared_generated_action_graphs_are_repeatable_and_reach_expected_nodes() {
+    let corpus = corpus();
+    for case in corpus["action_graph_cases"].as_array().unwrap() {
+        let node_count = case["node_count"].as_u64().unwrap();
+        let definition: ActionDefinition = serde_json::from_value(json!({
+            "id": format!(
+                "GENERATED_GRAPH_{}",
+                case["id"].as_str().unwrap().trim_start_matches("graph-")
+            ),
+            "rate": {"scale": 1, "units_per_tick": 1},
+            "initial_node": "N0",
+            "nodes": (0..node_count)
+                .map(|index| json!({"id": format!("N{index}"), "mode": "EVENT_DRIVEN"}))
+                .collect::<Vec<_>>(),
+            "transitions": (0..node_count - 1)
+                .map(|index| json!({
+                    "id": format!("T{index}"),
+                    "source_node": format!("N{index}"),
+                    "evaluation_point": "AFTER_QUANTUM",
+                    "priority": 10,
+                    "target_kind": "NODE",
+                    "target_node": format!("N{}", index + 1),
+                }))
+                .collect::<Vec<_>>(),
+        }))
+        .unwrap();
+        let ticks = case["ticks"].as_u64().unwrap();
+        let mut first = start(&definition).unwrap();
+        let mut second = start(&definition).unwrap();
+        advance_rate(&mut first, &definition, 0, ticks);
+        advance_rate(&mut second, &definition, 0, ticks);
+        assert_eq!(first, second, "{}:repeat", case["id"]);
+        assert_eq!(
+            first.current_node_id, case["expected_node"],
+            "{}:node",
+            case["id"]
+        );
+        assert_eq!(
+            first.local_step,
+            case["expected_local_step"].as_u64().unwrap(),
+            "{}:local-step",
+            case["id"]
+        );
+        assert_eq!(
+            first.node_step,
+            case["expected_node_step"].as_u64().unwrap(),
+            "{}:node-step",
+            case["id"]
+        );
+        assert_eq!(
+            first.transition_serial,
+            case["expected_transition_serial"].as_u64().unwrap(),
+            "{}:transition-serial",
+            case["id"]
+        );
+    }
+}
+
+#[test]
+fn independent_shared_generated_transition_guards_repeat_and_fire() {
+    let corpus = corpus();
+    for case in corpus["transition_guard_cases"].as_array().unwrap() {
+        let definition: ActionDefinition = serde_json::from_value(json!({
+            "id": format!(
+                "GENERATED_GUARD_{}",
+                case["id"].as_str().unwrap().trim_start_matches("guard-")
+            ),
+            "rate": {"scale": 1, "units_per_tick": 1},
+            "initial_node": "RUN",
+            "nodes": [
+                {"id": "RUN", "mode": "EVENT_DRIVEN"},
+                {"id": "DONE", "mode": "EVENT_DRIVEN"},
+            ],
+            "transitions": [{
+                "id": "guarded",
+                "source_node": "RUN",
+                "evaluation_point": "POST_ADVANCE",
+                "priority": 10,
+                "target_kind": "NODE",
+                "target_node": "DONE",
+                "guard_expression": {
+                    "op": "gte",
+                    "args": [
+                        {"ref": "action.node_step"},
+                        {"literal": case["threshold"]},
+                    ],
+                },
+            }],
+        }))
+        .unwrap();
+        let ticks = case["ticks"].as_u64().unwrap();
+        let mut first = start(&definition).unwrap();
+        let mut second = start(&definition).unwrap();
+        advance_rate(&mut first, &definition, 0, ticks);
+        advance_rate(&mut second, &definition, 0, ticks);
+        assert_eq!(first, second, "{}:repeat", case["id"]);
+        assert_eq!(
+            first.current_node_id, case["expected_node"],
+            "{}:node",
+            case["id"]
+        );
+        assert_eq!(
+            first.transition_serial,
+            case["expected_transition_serial"].as_u64().unwrap(),
+            "{}:transition-serial",
+            case["id"]
+        );
+    }
+}
+
+#[test]
 fn independent_shared_generated_effect_aggregation_is_permutation_invariant() {
     let corpus = corpus();
     for case in corpus["effect_aggregation_cases"].as_array().unwrap() {

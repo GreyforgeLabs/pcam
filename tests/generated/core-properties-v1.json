@@ -1,4 +1,222 @@
 {
+  "action_graph_cases": [
+    {
+      "expected_local_step": 10,
+      "expected_node": "N5",
+      "expected_node_step": 5,
+      "expected_transition_serial": 5,
+      "id": "graph-000",
+      "node_count": 6,
+      "ticks": 10
+    },
+    {
+      "expected_local_step": 8,
+      "expected_node": "N3",
+      "expected_node_step": 5,
+      "expected_transition_serial": 3,
+      "id": "graph-001",
+      "node_count": 4,
+      "ticks": 8
+    },
+    {
+      "expected_local_step": 10,
+      "expected_node": "N6",
+      "expected_node_step": 4,
+      "expected_transition_serial": 6,
+      "id": "graph-002",
+      "node_count": 7,
+      "ticks": 10
+    },
+    {
+      "expected_local_step": 6,
+      "expected_node": "N3",
+      "expected_node_step": 3,
+      "expected_transition_serial": 3,
+      "id": "graph-003",
+      "node_count": 4,
+      "ticks": 6
+    },
+    {
+      "expected_local_step": 6,
+      "expected_node": "N4",
+      "expected_node_step": 2,
+      "expected_transition_serial": 4,
+      "id": "graph-004",
+      "node_count": 5,
+      "ticks": 6
+    },
+    {
+      "expected_local_step": 6,
+      "expected_node": "N3",
+      "expected_node_step": 3,
+      "expected_transition_serial": 3,
+      "id": "graph-005",
+      "node_count": 4,
+      "ticks": 6
+    },
+    {
+      "expected_local_step": 6,
+      "expected_node": "N1",
+      "expected_node_step": 5,
+      "expected_transition_serial": 1,
+      "id": "graph-006",
+      "node_count": 2,
+      "ticks": 6
+    },
+    {
+      "expected_local_step": 5,
+      "expected_node": "N3",
+      "expected_node_step": 2,
+      "expected_transition_serial": 3,
+      "id": "graph-007",
+      "node_count": 4,
+      "ticks": 5
+    },
+    {
+      "expected_local_step": 4,
+      "expected_node": "N2",
+      "expected_node_step": 2,
+      "expected_transition_serial": 2,
+      "id": "graph-008",
+      "node_count": 3,
+      "ticks": 4
+    },
+    {
+      "expected_local_step": 10,
+      "expected_node": "N6",
+      "expected_node_step": 4,
+      "expected_transition_serial": 6,
+      "id": "graph-009",
+      "node_count": 7,
+      "ticks": 10
+    },
+    {
+      "expected_local_step": 4,
+      "expected_node": "N2",
+      "expected_node_step": 2,
+      "expected_transition_serial": 2,
+      "id": "graph-010",
+      "node_count": 3,
+      "ticks": 4
+    },
+    {
+      "expected_local_step": 7,
+      "expected_node": "N5",
+      "expected_node_step": 2,
+      "expected_transition_serial": 5,
+      "id": "graph-011",
+      "node_count": 6,
+      "ticks": 7
+    },
+    {
+      "expected_local_step": 9,
+      "expected_node": "N6",
+      "expected_node_step": 3,
+      "expected_transition_serial": 6,
+      "id": "graph-012",
+      "node_count": 7,
+      "ticks": 9
+    },
+    {
+      "expected_local_step": 10,
+      "expected_node": "N7",
+      "expected_node_step": 3,
+      "expected_transition_serial": 7,
+      "id": "graph-013",
+      "node_count": 8,
+      "ticks": 10
+    },
+    {
+      "expected_local_step": 10,
+      "expected_node": "N7",
+      "expected_node_step": 3,
+      "expected_transition_serial": 7,
+      "id": "graph-014",
+      "node_count": 8,
+      "ticks": 10
+    },
+    {
+      "expected_local_step": 9,
+      "expected_node": "N6",
+      "expected_node_step": 3,
+      "expected_transition_serial": 6,
+      "id": "graph-015",
+      "node_count": 7,
+      "ticks": 9
+    },
+    {
+      "expected_local_step": 7,
+      "expected_node": "N5",
+      "expected_node_step": 2,
+      "expected_transition_serial": 5,
+      "id": "graph-016",
+      "node_count": 6,
+      "ticks": 7
+    },
+    {
+      "expected_local_step": 5,
+      "expected_node": "N3",
+      "expected_node_step": 2,
+      "expected_transition_serial": 3,
+      "id": "graph-017",
+      "node_count": 4,
+      "ticks": 5
+    },
+    {
+      "expected_local_step": 9,
+      "expected_node": "N6",
+      "expected_node_step": 3,
+      "expected_transition_serial": 6,
+      "id": "graph-018",
+      "node_count": 7,
+      "ticks": 9
+    },
+    {
+      "expected_local_step": 4,
+      "expected_node": "N1",
+      "expected_node_step": 3,
+      "expected_transition_serial": 1,
+      "id": "graph-019",
+      "node_count": 2,
+      "ticks": 4
+    },
+    {
+      "expected_local_step": 5,
+      "expected_node": "N2",
+      "expected_node_step": 3,
+      "expected_transition_serial": 2,
+      "id": "graph-020",
+      "node_count": 3,
+      "ticks": 5
+    },
+    {
+      "expected_local_step": 10,
+      "expected_node": "N7",
+      "expected_node_step": 3,
+      "expected_transition_serial": 7,
+      "id": "graph-021",
+      "node_count": 8,
+      "ticks": 10
+    },
+    {
+      "expected_local_step": 8,
+      "expected_node": "N6",
+      "expected_node_step": 2,
+      "expected_transition_serial": 6,
+      "id": "graph-022",
+      "node_count": 7,
+      "ticks": 8
+    },
+    {
+      "expected_local_step": 8,
+      "expected_node": "N6",
+      "expected_node_step": 2,
+      "expected_transition_serial": 6,
+      "id": "graph-023",
+      "node_count": 7,
+      "ticks": 8
+    }
+  ],
   "candidate_permutation_cases": [
     {
       "candidates": [
@@ -14615,5 +14833,175 @@
       "warmup_ticks": 7
     }
   ],
-  "seed": 344725736761
+  "seed": 344725736761,
+  "transition_guard_cases": [
+    {
+      "expected_node": "DONE",
+      "expected_transition_serial": 1,
+      "id": "guard-000",
+      "threshold": 9,
+      "ticks": 24
+    },
+    {
+      "expected_node": "DONE",
+      "expected_transition_serial": 1,
+      "id": "guard-001",
+      "threshold": 4,
+      "ticks": 24
+    },
+    {
+      "expected_node": "DONE",
+      "expected_transition_serial": 1,
+      "id": "guard-002",
+      "threshold": 17,
+      "ticks": 24
+    },
+    {
+      "expected_node": "DONE",
+      "expected_transition_serial": 1,
+      "id": "guard-003",
+      "threshold": 16,
+      "ticks": 24
+    },
+    {
+      "expected_node": "DONE",
+      "expected_transition_serial": 1,
+      "id": "guard-004",
+      "threshold": 20,
+      "ticks": 24
+    },
+    {
+      "expected_node": "DONE",
+      "expected_transition_serial": 1,
+      "id": "guard-005",
+      "threshold": 12,
+      "ticks": 24
+    },
+    {
+      "expected_node": "DONE",
+      "expected_transition_serial": 1,
+      "id": "guard-006",
+      "threshold": 19,
+      "ticks": 24
+    },
+    {
+      "expected_node": "DONE",
+      "expected_transition_serial": 1,
+      "id": "guard-007",
+      "threshold": 14,
+      "ticks": 24
+    },
+    {
+      "expected_node": "DONE",
+      "expected_transition_serial": 1,
+      "id": "guard-008",
+      "threshold": 1,
+      "ticks": 24
+    },
+    {
+      "expected_node": "DONE",
+      "expected_transition_serial": 1,
+      "id": "guard-009",
+      "threshold": 0,
+      "ticks": 24
+    },
+    {
+      "expected_node": "DONE",
+      "expected_transition_serial": 1,
+      "id": "guard-010",
+      "threshold": 13,
+      "ticks": 24
+    },
+    {
+      "expected_node": "DONE",
+      "expected_transition_serial": 1,
+      "id": "guard-011",
+      "threshold": 15,
+      "ticks": 24
+    },
+    {
+      "expected_node": "DONE",
+      "expected_transition_serial": 1,
+      "id": "guard-012",
+      "threshold": 13,
+      "ticks": 24
+    },
+    {
+      "expected_node": "DONE",
+      "expected_transition_serial": 1,
+      "id": "guard-013",
+      "threshold": 13,
+      "ticks": 24
+    },
+    {
+      "expected_node": "DONE",
+      "expected_transition_serial": 1,
+      "id": "guard-014",
+      "threshold": 1,
+      "ticks": 24
+    },
+    {
+      "expected_node": "DONE",
+      "expected_transition_serial": 1,
+      "id": "guard-015",
+      "threshold": 15,
+      "ticks": 24
+    },
+    {
+      "expected_node": "DONE",
+      "expected_transition_serial": 1,
+      "id": "guard-016",
+      "threshold": 18,
+      "ticks": 24
+    },
+    {
+      "expected_node": "DONE",
+      "expected_transition_serial": 1,
+      "id": "guard-017",
+      "threshold": 0,
+      "ticks": 24
+    },
+    {
+      "expected_node": "DONE",
+      "expected_transition_serial": 1,
+      "id": "guard-018",
+      "threshold": 15,
+      "ticks": 24
+    },
+    {
+      "expected_node": "DONE",
+      "expected_transition_serial": 1,
+      "id": "guard-019",
+      "threshold": 1,
+      "ticks": 24
+    },
+    {
+      "expected_node": "DONE",
+      "expected_transition_serial": 1,
+      "id": "guard-020",
+      "threshold": 4,
+      "ticks": 24
+    },
+    {
+      "expected_node": "DONE",
+      "expected_transition_serial": 1,
+      "id": "guard-021",
+      "threshold": 2,
+      "ticks": 24
+    },
+    {
+      "expected_node": "DONE",
+      "expected_transition_serial": 1,
+      "id": "guard-022",
+      "threshold": 12,
+      "ticks": 24
+    },
+    {
+      "expected_node": "DONE",
+      "expected_transition_serial": 1,
+      "id": "guard-023",
+      "threshold": 11,
+      "ticks": 24
+    }
+  ]
 }

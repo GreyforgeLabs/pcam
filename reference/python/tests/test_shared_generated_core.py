@@ -13,6 +13,7 @@ from pcam_runtime import (
     SemanticFact,
     TickExecutor,
     TickInput,
+    TransitionDefinition,
     canonical_candidates,
     reduce_effects,
     resolve_candidate,
@@ -88,6 +89,26 @@ def _run_rate_case(case):
     return direct.action_instances["1"]
 
 
+def _run_definition(definition, ticks, case_id):
+    executor = TickExecutor((definition,))
+    state = executor.initial_state()
+    for tick_index in range(ticks):
+        inputs = ()
+        if tick_index == 0:
+            inputs = (
+                TickInput(
+                    input_id=f"start-{case_id}",
+                    source_entity_id=1,
+                    sequence=0,
+                    command_id="START",
+                    assigned_tick=0,
+                    action_definition_id=definition.id,
+                ),
+            )
+        state, _ = executor.tick(state, inputs)
+    return state
+
+
 def _reduced_record(effect):
     return {
         "target_entity_id": effect.target_entity_id,
@@ -136,6 +157,68 @@ def test_python_shared_generated_rates_repeat_and_restore_exactly():
         action = _run_rate_case(case)
         assert action.local_step == case["expected_local_step"], case["id"]
         assert action.quantum_accumulator == case["expected_quantum_accumulator"], case["id"]
+
+
+def test_python_shared_generated_action_graphs_are_repeatable_and_reach_expected_nodes():
+    for case in _corpus()["action_graph_cases"]:
+        nodes = tuple(NodeDefinition(f"N{index}") for index in range(case["node_count"]))
+        transitions = tuple(
+            TransitionDefinition(
+                id=f"T{index}",
+                source_node=f"N{index}",
+                evaluation_point="AFTER_QUANTUM",
+                priority=10,
+                target_node=f"N{index + 1}",
+            )
+            for index in range(case["node_count"] - 1)
+        )
+        definition = ActionDefinition(
+            id=f"GENERATED_GRAPH_{case['id'].removeprefix('graph-')}",
+            rate_scale=1,
+            units_per_tick=1,
+            nodes=nodes,
+            transitions=transitions,
+        )
+        first = _run_definition(definition, case["ticks"], case["id"])
+        second = _run_definition(definition, case["ticks"], case["id"])
+        assert first.to_snapshot() == second.to_snapshot(), case["id"]
+        action = first.action_instances["1"]
+        assert action.current_node_id == case["expected_node"], case["id"]
+        assert action.local_step == case["expected_local_step"], case["id"]
+        assert action.node_step == case["expected_node_step"], case["id"]
+        assert action.transition_serial == case["expected_transition_serial"], case["id"]
+
+
+def test_python_shared_generated_transition_guards_repeat_and_fire():
+    for case in _corpus()["transition_guard_cases"]:
+        definition = ActionDefinition(
+            id=f"GENERATED_GUARD_{case['id'].removeprefix('guard-')}",
+            rate_scale=1,
+            units_per_tick=1,
+            nodes=(NodeDefinition("RUN"), NodeDefinition("DONE")),
+            transitions=(
+                TransitionDefinition(
+                    "guarded",
+                    "RUN",
+                    "POST_ADVANCE",
+                    10,
+                    target_node="DONE",
+                    guard_expression={
+                        "op": "gte",
+                        "args": [
+                            {"ref": "action.node_step"},
+                            {"literal": case["threshold"]},
+                        ],
+                    },
+                ),
+            ),
+        )
+        first = _run_definition(definition, case["ticks"], case["id"])
+        second = _run_definition(definition, case["ticks"], case["id"])
+        assert first.to_snapshot() == second.to_snapshot(), case["id"]
+        action = first.action_instances["1"]
+        assert action.current_node_id == case["expected_node"], case["id"]
+        assert action.transition_serial == case["expected_transition_serial"], case["id"]
 
 
 def test_python_shared_generated_effect_aggregation_is_permutation_invariant():
