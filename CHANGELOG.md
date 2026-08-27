@@ -42,6 +42,7 @@
 - Added shared complete-state structural definition rejection for duplicate transition priorities, missing source and guard references, illegal AFTER_QUANTUM claims, and missing cross-definition action targets.
 - Integrated ordered complete-state register assignments across source exit, transition exit/body/entry, and target entry, fixed the Python vector adapter to retain those assignments, preserved matched input after consumption, and added shared U64 overflow rollback evidence.
 - Integrated complete-state source, transition, and target definition-effect materialization with expanded canonical identity, recursive payload and owner-target resolution, stable emission IDs, presentation exclusion, and authoritative reduction and resource commit.
+- Unified direct, ACTION, and CHILD_ACTION instance creation around initial-node entry assignments and effects, with shared exact envelope, reduction, relationship, and digest evidence in Python and independent Rust.
 - Added independent runtime freeze controls and shared schedules for HOLD/ACCRUE progression, transition domains, input capture, and buffer expiry.
 - Added canonical cross-language action-state projection hashes plus restore-and-continue digest vectors for every shared runtime case.
 - Added a schema-valid conformance claim manifest with exact §37 requirement sets, evidence-path validation, dependency enforcement, and fail-closed premature-claim tests.

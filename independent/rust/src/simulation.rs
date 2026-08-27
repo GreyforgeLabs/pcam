@@ -1701,6 +1701,7 @@ impl SimulationRuntime {
                             &decision.intent.transition_id,
                             decision.intent.owner_entity_id,
                             supplied_parameters,
+                            definition_effects,
                         )?;
                     }
                 }
@@ -1843,7 +1844,31 @@ impl SimulationRuntime {
         definition_id: &str,
         owner_entity_id: u64,
         supplied_parameters: Option<&Value>,
+        definition_effects: &mut Vec<EffectEnvelope>,
     ) -> Result<(), SimulationError> {
+        self.start_action(
+            state,
+            definition_id,
+            owner_entity_id,
+            supplied_parameters,
+            None,
+            None,
+            definition_effects,
+        )?;
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn start_action(
+        &self,
+        state: &mut SimulationState,
+        definition_id: &str,
+        owner_entity_id: u64,
+        supplied_parameters: Option<&Value>,
+        parent_instance_id: Option<u64>,
+        parent_slot_id: Option<String>,
+        definition_effects: &mut Vec<EffectEnvelope>,
+    ) -> Result<u64, SimulationError> {
         let definition = self
             .definitions
             .get(definition_id)
@@ -1868,20 +1893,12 @@ impl SimulationRuntime {
             input_buffer: Vec::new(),
             instance_id,
             interaction_ledger_partition: "default".to_owned(),
-            lifecycle_state: if definition
-                .nodes
-                .get(&definition.initial_node)
-                .is_some_and(|mode| mode == "TERMINAL")
-            {
-                "TERMINATED".to_owned()
-            } else {
-                "RUNNING".to_owned()
-            },
+            lifecycle_state: "RUNNING".to_owned(),
             local_step: 0,
             node_step: 0,
             owner_entity_id,
-            parent_instance_id: None,
-            parent_slot_id: None,
+            parent_instance_id,
+            parent_slot_id,
             predicate_entry_serials: BTreeMap::new(),
             predicate_exit_serials: BTreeMap::new(),
             predicate_truth_state: BTreeMap::new(),
@@ -1904,7 +1921,39 @@ impl SimulationRuntime {
         state
             .action_instances
             .sort_by_key(|action| action.instance_id);
-        Ok(())
+        self.apply_runtime_assignments(
+            state,
+            instance_id,
+            definition,
+            definition
+                .node_entry_assignments
+                .get(&definition.initial_node)
+                .map(Vec::as_slice)
+                .unwrap_or(&[]),
+            None,
+            None,
+        )?;
+        self.materialize_runtime_definition_effects(
+            state,
+            instance_id,
+            definition,
+            definition
+                .node_entry_effects
+                .get(&definition.initial_node)
+                .map(Vec::as_slice)
+                .unwrap_or(&[]),
+            None,
+            None,
+            definition_effects,
+        )?;
+        if definition
+            .nodes
+            .get(&definition.initial_node)
+            .is_some_and(|mode| mode == "TERMINAL")
+        {
+            self.terminate_action(state, instance_id, "TERMINATED", None)?;
+        }
+        Ok(instance_id)
     }
 
     fn rebuild_action_slots(&self, state: &mut SimulationState) -> Result<(), SimulationError> {
@@ -2368,10 +2417,6 @@ impl SimulationRuntime {
                     .target_action
                     .as_ref()
                     .ok_or(SimulationError::RuntimeFault)?;
-                let definition = self
-                    .definitions
-                    .get(target_action)
-                    .ok_or(SimulationError::RuntimeFault)?;
                 let owner_entity_id = state.action_instances[index].owner_entity_id;
                 state.action_instances[index].transition_serial = state.action_instances[index]
                     .transition_serial
@@ -2387,62 +2432,15 @@ impl SimulationRuntime {
                     "KEEP_SOURCE" => {}
                     _ => return Err(SimulationError::RuntimeFault),
                 }
-                let instance_id = state.next_action_instance_id;
-                state.next_action_instance_id = instance_id
-                    .checked_add(1)
-                    .ok_or(SimulationError::RuntimeFault)?;
-                state.action_instances.push(ActionSnapshot {
-                    captured_parameters: definition.parameter_defaults.clone(),
-                    child_instance_ids: Vec::new(),
-                    current_node_id: definition.initial_node.clone(),
-                    current_rate_units: definition.units_per_tick,
-                    cycle: 0,
-                    deferred_quanta: 0,
-                    definition_hash: definition.hash.clone(),
-                    emission_serial: 0,
-                    event_inbox: Vec::new(),
-                    extension_state: BTreeMap::new(),
-                    fault_record: None,
-                    freeze_token_references: Vec::new(),
-                    input_buffer: Vec::new(),
-                    instance_id,
-                    interaction_ledger_partition: "default".to_owned(),
-                    lifecycle_state: if definition
-                        .nodes
-                        .get(&definition.initial_node)
-                        .is_some_and(|mode| mode == "TERMINAL")
-                    {
-                        "TERMINATED".to_owned()
-                    } else {
-                        "RUNNING".to_owned()
-                    },
-                    local_step: 0,
-                    node_step: 0,
+                self.start_action(
+                    state,
+                    target_action,
                     owner_entity_id,
-                    parent_instance_id: None,
-                    parent_slot_id: None,
-                    predicate_entry_serials: BTreeMap::new(),
-                    predicate_exit_serials: BTreeMap::new(),
-                    predicate_truth_state: BTreeMap::new(),
-                    quantum_accumulator: 0,
-                    registers: definition.register_initials.clone(),
-                    rng_stream_ids: Vec::new(),
-                    slot_claims: definition
-                        .slot_claims
-                        .iter()
-                        .map(|claim| {
-                            json!({
-                                "amount": claim.amount,
-                                "key": claim.key,
-                                "kind": claim.kind,
-                            })
-                        })
-                        .collect(),
-                    transition_serial: 0,
-                });
-                state
-                    .action_instances
-                    .sort_by_key(|action| action.instance_id);
+                    None,
+                    None,
+                    None,
+                    definition_effects,
+                )?;
             }
             "CHILD_ACTION" => {
                 let target_action = transition
@@ -2501,15 +2499,16 @@ impl SimulationRuntime {
                         owner_entity_id: Some(state.action_instances[index].owner_entity_id),
                     }));
                 }
-                let definition = self
-                    .definitions
-                    .get(target_action)
-                    .ok_or(SimulationError::RuntimeFault)?;
-                let child_id = state.next_action_instance_id;
-                state.next_action_instance_id = child_id
-                    .checked_add(1)
-                    .ok_or(SimulationError::RuntimeFault)?;
                 let owner_entity_id = state.action_instances[index].owner_entity_id;
+                let child_id = self.start_action(
+                    state,
+                    target_action,
+                    owner_entity_id,
+                    None,
+                    Some(action_id),
+                    Some(child_slot.clone()),
+                    definition_effects,
+                )?;
                 state.action_instances[index].transition_serial = state.action_instances[index]
                     .transition_serial
                     .checked_add(1)
@@ -2560,37 +2559,6 @@ impl SimulationRuntime {
                         "token_id": token_id,
                     }));
                 }
-                state.action_instances.push(ActionSnapshot {
-                    captured_parameters: definition.parameter_defaults.clone(),
-                    child_instance_ids: Vec::new(),
-                    current_node_id: definition.initial_node.clone(),
-                    current_rate_units: definition.units_per_tick,
-                    cycle: 0,
-                    deferred_quanta: 0,
-                    definition_hash: definition.hash.clone(),
-                    emission_serial: 0,
-                    event_inbox: Vec::new(),
-                    extension_state: BTreeMap::new(),
-                    fault_record: None,
-                    freeze_token_references: Vec::new(),
-                    input_buffer: Vec::new(),
-                    instance_id: child_id,
-                    interaction_ledger_partition: "default".to_owned(),
-                    lifecycle_state: "RUNNING".to_owned(),
-                    local_step: 0,
-                    node_step: 0,
-                    owner_entity_id,
-                    parent_instance_id: Some(action_id),
-                    parent_slot_id: Some(child_slot.clone()),
-                    predicate_entry_serials: BTreeMap::new(),
-                    predicate_exit_serials: BTreeMap::new(),
-                    predicate_truth_state: BTreeMap::new(),
-                    quantum_accumulator: 0,
-                    registers: definition.register_initials.clone(),
-                    rng_stream_ids: Vec::new(),
-                    slot_claims: Vec::new(),
-                    transition_serial: 0,
-                });
                 if parent_policy == "TERMINATE_PARENT" {
                     self.terminate_action(state, action_id, "TERMINATED", Some(child_id))?;
                 }

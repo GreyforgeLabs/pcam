@@ -1,0 +1,463 @@
+{
+  "pcam_vector_version": "1",
+  "kind": "runtime_vector",
+  "id": "initial-entry-effects-runtime",
+  "runtime_profile": {
+    "pcam_version": "3.0",
+    "kind": "runtime_profile",
+    "id": "pcam.reference.initial-entry-effects.v1",
+    "revision": 1,
+    "fault_policy": "ABORT_SIMULATION",
+    "limits": {
+      "max_actions_per_entity": 8,
+      "max_action_nesting_depth": 4,
+      "max_children_per_action": 4,
+      "max_quanta_per_action_per_tick": 8,
+      "max_internal_transitions_per_action_per_tick": 8,
+      "max_buffer_entries_per_action": 8,
+      "max_pending_events_per_entity": 8,
+      "max_candidates_per_tick": 32,
+      "max_effects_per_tick": 32,
+      "max_redirects_per_candidate": 4,
+      "max_definition_size_bytes": 65536,
+      "max_snapshot_size_bytes": 262144,
+      "max_extension_state_bytes": 4096,
+      "max_expression_depth": 64,
+      "max_expression_nodes": 4096
+    },
+    "rng_profiles": ["pcam.pcg32.v1"],
+    "network_profiles": [{"id": "pcam.local.v1", "topology": "LOCAL_DETERMINISTIC"}],
+    "extensions": {}
+  },
+  "definitions": [
+    {
+      "id": "ROOT",
+      "rate_scale": 1,
+      "units_per_tick": 0,
+      "register_declarations": {
+        "marker": {"type": "U64", "minimum": 0, "maximum": 10, "overflow": "FAULT"}
+      },
+      "register_initials": {"marker": 0},
+      "child_slot_capacities": {"SUB": 1},
+      "child_termination_policies": {"SUB": "TERMINATE_CHILD"},
+      "nodes": [
+        {
+          "id": "WAIT",
+          "mode": "EVENT_DRIVEN",
+          "entry_assignments": [{"target": "action.register.marker", "value": {"literal": 1}}],
+          "entry_effects": [
+            {
+              "effect_type": "trace.initial-entry",
+              "effect_class": "TRACE",
+              "authoritative": false,
+              "payload": {
+                "definition": "ROOT",
+                "instance": {"ref": "action.instance_id"},
+                "marker": {"ref": "action.register.marker"}
+              }
+            },
+            {
+              "effect_type": "test.delta",
+              "effect_class": "RESOURCE",
+              "authoritative": true,
+              "reducer": "SUM",
+              "payload": {"literal": 1}
+            }
+          ]
+        }
+      ],
+      "transitions": [
+        {
+          "id": "launch-child",
+          "source_node": "WAIT",
+          "evaluation_point": "PRE_ADVANCE",
+          "priority": 20,
+          "target_kind": "CHILD_ACTION",
+          "target_action": "CHILD",
+          "child_slot_id": "SUB",
+          "parent_policy": "CONTINUE",
+          "input_command": "CHILD",
+          "consume_policy": "ON_ACCEPT"
+        },
+        {
+          "id": "launch-action",
+          "source_node": "WAIT",
+          "evaluation_point": "PRE_ADVANCE",
+          "priority": 10,
+          "target_kind": "ACTION",
+          "target_action": "REPLACEMENT",
+          "source_disposition": "KEEP_SOURCE",
+          "input_command": "REPLACE",
+          "consume_policy": "ON_ACCEPT"
+        }
+      ]
+    },
+    {
+      "id": "DIRECT",
+      "rate_scale": 1,
+      "units_per_tick": 0,
+      "register_declarations": {
+        "marker": {"type": "U64", "minimum": 0, "maximum": 10, "overflow": "FAULT"}
+      },
+      "register_initials": {"marker": 0},
+      "nodes": [
+        {
+          "id": "RUN",
+          "mode": "EVENT_DRIVEN",
+          "entry_assignments": [{"target": "action.register.marker", "value": {"literal": 2}}],
+          "entry_effects": [
+            {
+              "effect_type": "trace.initial-entry",
+              "effect_class": "TRACE",
+              "authoritative": false,
+              "payload": {
+                "definition": "DIRECT",
+                "instance": {"ref": "action.instance_id"},
+                "marker": {"ref": "action.register.marker"}
+              }
+            },
+            {
+              "effect_type": "test.delta",
+              "effect_class": "RESOURCE",
+              "authoritative": true,
+              "reducer": "SUM",
+              "payload": {"literal": 2}
+            }
+          ]
+        }
+      ],
+      "transitions": []
+    },
+    {
+      "id": "CHILD",
+      "rate_scale": 1,
+      "units_per_tick": 0,
+      "register_declarations": {
+        "marker": {"type": "U64", "minimum": 0, "maximum": 10, "overflow": "FAULT"}
+      },
+      "register_initials": {"marker": 0},
+      "nodes": [
+        {
+          "id": "RUN",
+          "mode": "EVENT_DRIVEN",
+          "entry_assignments": [{"target": "action.register.marker", "value": {"literal": 3}}],
+          "entry_effects": [
+            {
+              "effect_type": "trace.initial-entry",
+              "effect_class": "TRACE",
+              "authoritative": false,
+              "payload": {
+                "definition": "CHILD",
+                "instance": {"ref": "action.instance_id"},
+                "marker": {"ref": "action.register.marker"}
+              }
+            },
+            {
+              "effect_type": "test.delta",
+              "effect_class": "RESOURCE",
+              "authoritative": true,
+              "reducer": "SUM",
+              "payload": {"literal": 3}
+            }
+          ]
+        }
+      ],
+      "transitions": []
+    },
+    {
+      "id": "REPLACEMENT",
+      "rate_scale": 1,
+      "units_per_tick": 0,
+      "register_declarations": {
+        "marker": {"type": "U64", "minimum": 0, "maximum": 10, "overflow": "FAULT"}
+      },
+      "register_initials": {"marker": 0},
+      "nodes": [
+        {
+          "id": "RUN",
+          "mode": "EVENT_DRIVEN",
+          "entry_assignments": [{"target": "action.register.marker", "value": {"literal": 4}}],
+          "entry_effects": [
+            {
+              "effect_type": "trace.initial-entry",
+              "effect_class": "TRACE",
+              "authoritative": false,
+              "payload": {
+                "definition": "REPLACEMENT",
+                "instance": {"ref": "action.instance_id"},
+                "marker": {"ref": "action.register.marker"}
+              }
+            },
+            {
+              "effect_type": "test.delta",
+              "effect_class": "RESOURCE",
+              "authoritative": true,
+              "reducer": "SUM",
+              "payload": {"literal": 4}
+            }
+          ]
+        }
+      ],
+      "transitions": []
+    }
+  ],
+  "interaction_rules": [],
+  "effect_registry": {"test.delta": ["STAMINA", 1]},
+  "initial_state": {
+    "resource_banks": {"1": {"STAMINA": 10}}
+  },
+  "ticks": [
+    {
+      "inputs": [
+        {
+          "input_id": "root",
+          "source_entity_id": 1,
+          "sequence": 0,
+          "command_id": "START",
+          "assigned_tick": 0,
+          "action_definition_id": "ROOT"
+        },
+        {
+          "input_id": "direct",
+          "source_entity_id": 1,
+          "sequence": 1,
+          "command_id": "START",
+          "assigned_tick": 0,
+          "action_definition_id": "DIRECT"
+        }
+      ],
+      "contacts": []
+    },
+    {
+      "inputs": [
+        {
+          "input_id": "child",
+          "source_entity_id": 1,
+          "sequence": 2,
+          "command_id": "CHILD",
+          "assigned_tick": 1
+        }
+      ],
+      "contacts": []
+    },
+    {
+      "inputs": [
+        {
+          "input_id": "replacement",
+          "source_entity_id": 1,
+          "sequence": 3,
+          "command_id": "REPLACE",
+          "assigned_tick": 2
+        }
+      ],
+      "contacts": []
+    }
+  ],
+  "expected": {
+    "definition_hashes": {
+      "ROOT": "f1b9dfea4cdae206fed43976db9cf981a49aca34b5e1fdb32fbd5683333aa4c4",
+      "DIRECT": "d1b1ec95e44a5833cbe93f858d49c3c3913b486cda6b11da4492a61995f0e5ab",
+      "CHILD": "9e4bc5d1dd7630770d86ebc06178296dc646be5bf8e9831ee2b5e77ce18288a5",
+      "REPLACEMENT": "9ac294030e02b8d912cd15c6b678b2a80d20aac8b846ce8a7c1338770cf96685"
+    },
+    "definition_set_hash": "8e56150cb54ef080e50d147c3aa9c49ef35af2fca4b1b6daad6d3f42fbc048a2",
+    "tick_state_digests": [
+      "085348dd6a45d8113c315b3e9846be137da0e76ce8d4fe660a9e9887f14373b9",
+      "f9af7083f97df1182adac367ff932e5a8a1b59a49eeffa46ac969fb80b39433b",
+      "8539c383a7aa2d8afd5e109b954448267d5d9d313f0c52f20be965b7139bf3c3"
+    ],
+    "final_state_digest": "8539c383a7aa2d8afd5e109b954448267d5d9d313f0c52f20be965b7139bf3c3",
+    "summary": {
+      "tick": 3,
+      "stamina": 20,
+      "next_action_instance_id": 5,
+      "actions": {
+        "1": {
+          "definition_hash": "d1b1ec95e44a5833cbe93f858d49c3c3913b486cda6b11da4492a61995f0e5ab",
+          "lifecycle": "RUNNING",
+          "marker": 2,
+          "emission_serial": 2,
+          "transition_serial": 0,
+          "parent_instance_id": null,
+          "parent_slot_id": null,
+          "child_instance_ids": []
+        },
+        "2": {
+          "definition_hash": "f1b9dfea4cdae206fed43976db9cf981a49aca34b5e1fdb32fbd5683333aa4c4",
+          "lifecycle": "RUNNING",
+          "marker": 1,
+          "emission_serial": 2,
+          "transition_serial": 2,
+          "parent_instance_id": null,
+          "parent_slot_id": null,
+          "child_instance_ids": [3]
+        },
+        "3": {
+          "definition_hash": "9e4bc5d1dd7630770d86ebc06178296dc646be5bf8e9831ee2b5e77ce18288a5",
+          "lifecycle": "RUNNING",
+          "marker": 3,
+          "emission_serial": 2,
+          "transition_serial": 0,
+          "parent_instance_id": 2,
+          "parent_slot_id": "SUB",
+          "child_instance_ids": []
+        },
+        "4": {
+          "definition_hash": "9ac294030e02b8d912cd15c6b678b2a80d20aac8b846ce8a7c1338770cf96685",
+          "lifecycle": "RUNNING",
+          "marker": 4,
+          "emission_serial": 2,
+          "transition_serial": 0,
+          "parent_instance_id": null,
+          "parent_slot_id": null,
+          "child_instance_ids": []
+        }
+      }
+    },
+    "traces": [
+      {
+        "emitted": [
+          {
+            "effect_id": "0:1:0",
+            "effect_type": "trace.initial-entry",
+            "effect_class": "TRACE",
+            "source_entity_id": 1,
+            "target_entity_id": 1,
+            "source_action_instance_id": 1,
+            "origin_tick": 0,
+            "priority": 0,
+            "payload": {"definition": "DIRECT", "instance": 1, "marker": 2},
+            "reducer": "ORDERED",
+            "authoritative": false
+          },
+          {
+            "effect_id": "0:1:1",
+            "effect_type": "test.delta",
+            "effect_class": "RESOURCE",
+            "source_entity_id": 1,
+            "target_entity_id": 1,
+            "source_action_instance_id": 1,
+            "origin_tick": 0,
+            "priority": 0,
+            "payload": 2,
+            "reducer": "SUM",
+            "authoritative": true
+          },
+          {
+            "effect_id": "0:2:0",
+            "effect_type": "trace.initial-entry",
+            "effect_class": "TRACE",
+            "source_entity_id": 1,
+            "target_entity_id": 1,
+            "source_action_instance_id": 2,
+            "origin_tick": 0,
+            "priority": 0,
+            "payload": {"definition": "ROOT", "instance": 2, "marker": 1},
+            "reducer": "ORDERED",
+            "authoritative": false
+          },
+          {
+            "effect_id": "0:2:1",
+            "effect_type": "test.delta",
+            "effect_class": "RESOURCE",
+            "source_entity_id": 1,
+            "target_entity_id": 1,
+            "source_action_instance_id": 2,
+            "origin_tick": 0,
+            "priority": 0,
+            "payload": 1,
+            "reducer": "SUM",
+            "authoritative": true
+          }
+        ],
+        "reduced": [
+          {
+            "effect_type": "test.delta",
+            "reducer": "SUM",
+            "target_entity_id": 1,
+            "value": 3,
+            "source_effect_ids": ["0:1:1", "0:2:1"]
+          }
+        ]
+      },
+      {
+        "emitted": [
+          {
+            "effect_id": "1:3:0",
+            "effect_type": "trace.initial-entry",
+            "effect_class": "TRACE",
+            "source_entity_id": 1,
+            "target_entity_id": 1,
+            "source_action_instance_id": 3,
+            "origin_tick": 1,
+            "priority": 0,
+            "payload": {"definition": "CHILD", "instance": 3, "marker": 3},
+            "reducer": "ORDERED",
+            "authoritative": false
+          },
+          {
+            "effect_id": "1:3:1",
+            "effect_type": "test.delta",
+            "effect_class": "RESOURCE",
+            "source_entity_id": 1,
+            "target_entity_id": 1,
+            "source_action_instance_id": 3,
+            "origin_tick": 1,
+            "priority": 0,
+            "payload": 3,
+            "reducer": "SUM",
+            "authoritative": true
+          }
+        ],
+        "reduced": [
+          {
+            "effect_type": "test.delta",
+            "reducer": "SUM",
+            "target_entity_id": 1,
+            "value": 3,
+            "source_effect_ids": ["1:3:1"]
+          }
+        ]
+      },
+      {
+        "emitted": [
+          {
+            "effect_id": "2:4:0",
+            "effect_type": "trace.initial-entry",
+            "effect_class": "TRACE",
+            "source_entity_id": 1,
+            "target_entity_id": 1,
+            "source_action_instance_id": 4,
+            "origin_tick": 2,
+            "priority": 0,
+            "payload": {"definition": "REPLACEMENT", "instance": 4, "marker": 4},
+            "reducer": "ORDERED",
+            "authoritative": false
+          },
+          {
+            "effect_id": "2:4:1",
+            "effect_type": "test.delta",
+            "effect_class": "RESOURCE",
+            "source_entity_id": 1,
+            "target_entity_id": 1,
+            "source_action_instance_id": 4,
+            "origin_tick": 2,
+            "priority": 0,
+            "payload": 4,
+            "reducer": "SUM",
+            "authoritative": true
+          }
+        ],
+        "reduced": [
+          {
+            "effect_type": "test.delta",
+            "reducer": "SUM",
+            "target_entity_id": 1,
+            "value": 4,
+            "source_effect_ids": ["2:4:1"]
+          }
+        ]
+      }
+    ]
+  }
+}
