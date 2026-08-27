@@ -29,7 +29,7 @@ from .model import (
     TransitionDefinition,
     validate_definition,
 )
-from .numeric import U64_MAX, apply_u64
+from .numeric import U64_MAX, add_i64, apply_u64, mul_i64
 from .rng import PCG32Stream
 from .state import ActionInstance, SimulationState
 
@@ -1980,15 +1980,38 @@ class TickExecutor:
             banks.setdefault(entity, {})
             banks[entity][effect.resource] = banks[entity].get(effect.resource, 0) + effect.amount
         authoritative = tuple(item for item in typed_effects if item.authoritative)
-        reduced, rejected = reduce_effects(authoritative)
+        try:
+            reduced, rejected = reduce_effects(authoritative)
+        except PCAMError as error:
+            message = (
+                "effect reduction integer overflow"
+                if error.fault == PCAMFault.INTEGER_OVERFLOW
+                else error.message
+            )
+            raise self._effect_fault_with_context(state, error, authoritative, message) from error
         for item in reduced:
+            sources = tuple(
+                effect
+                for effect in authoritative
+                if effect.effect_id in item.source_effect_ids
+            )
             registration = self.effect_registry.get(item.effect_type)
             if registration is None or type(item.value) is not int:
-                raise PCAMError(ResultCode.RUNTIME_FAULT, PCAMFault.UNKNOWN_EFFECT, item.effect_type)
+                error = PCAMError(ResultCode.RUNTIME_FAULT, PCAMFault.UNKNOWN_EFFECT, item.effect_type)
+                raise self._effect_fault_with_context(state, error, sources, error.message)
             resource, sign = registration
             entity = str(item.target_entity_id)
             banks.setdefault(entity, {})
-            banks[entity][resource] = banks[entity].get(resource, 0) + item.value * sign
+            try:
+                delta = mul_i64(item.value, sign)
+                banks[entity][resource] = add_i64(banks[entity].get(resource, 0), delta)
+            except PCAMError as error:
+                raise self._effect_fault_with_context(
+                    state,
+                    error,
+                    sources,
+                    "effect commit integer overflow",
+                ) from error
             reduction_trace.append(
                 {
                     "effect_type": item.effect_type,
@@ -2000,6 +2023,28 @@ class TickExecutor:
             )
         reduction_trace.extend({"effect_id": item.effect_id, "reason": item.reason} for item in rejected)
         return replace(state, resource_banks=banks, rng_streams=rng_streams), reduction_trace
+
+    @staticmethod
+    def _effect_fault_with_context(
+        state: SimulationState,
+        error: PCAMError,
+        effects: tuple[EffectEnvelope, ...],
+        message: str,
+    ) -> PCAMError:
+        source_ids = {effect.source_action_instance_id for effect in effects}
+        if len(source_ids) != 1:
+            return PCAMError(error.code, error.fault, message)
+        source_id = source_ids.pop()
+        action = state.action_instances.get(str(source_id))
+        if action is None:
+            return PCAMError(error.code, error.fault, message)
+        return PCAMError(
+            error.code,
+            error.fault,
+            message,
+            action_instance_id=source_id,
+            owner_entity_id=action.owner_entity_id,
+        )
 
     def _validate_limits(self, state: SimulationState, candidate_count: int, effect_count: int) -> None:
         if candidate_count > self.profile.max_candidates_per_tick or effect_count > self.profile.max_effects_per_tick:

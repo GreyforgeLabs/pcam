@@ -1,0 +1,141 @@
+{
+  "pcam_vector_version": "1",
+  "kind": "runtime_vector",
+  "id": "effect-fault-runtime",
+  "runtime_profile": {
+    "pcam_version": "3.0",
+    "kind": "runtime_profile",
+    "id": "pcam.reference.effect-fault.v1",
+    "revision": 1,
+    "fault_policy": "FAULT_ACTION",
+    "limits": {
+      "max_actions_per_entity": 8,
+      "max_action_nesting_depth": 4,
+      "max_children_per_action": 4,
+      "max_quanta_per_action_per_tick": 8,
+      "max_internal_transitions_per_action_per_tick": 8,
+      "max_buffer_entries_per_action": 8,
+      "max_pending_events_per_entity": 8,
+      "max_candidates_per_tick": 32,
+      "max_effects_per_tick": 32,
+      "max_redirects_per_candidate": 4,
+      "max_definition_size_bytes": 65536,
+      "max_snapshot_size_bytes": 262144,
+      "max_extension_state_bytes": 4096,
+      "max_expression_depth": 64,
+      "max_expression_nodes": 4096
+    },
+    "rng_profiles": ["pcam.pcg32.v1"],
+    "network_profiles": [
+      {"id": "pcam.local.v1", "topology": "LOCAL_DETERMINISTIC"}
+    ],
+    "extensions": {}
+  },
+  "definitions": [
+    {
+      "id": "A_STRIKER",
+      "rate_scale": 1,
+      "units_per_tick": 0,
+      "nodes": [{"id": "ACTIVE", "mode": "EVENT_DRIVEN"}],
+      "predicates": [{"id": "ACTIVE", "node_ids": ["ACTIVE"]}],
+      "semantic_facts": [
+        {
+          "fact": {
+            "fact_id": "strike",
+            "direction": "OFFENSE",
+            "effect_templates": [
+              {
+                "effect_type": "combat.damage",
+                "effect_class": "DAMAGE",
+                "payload": 9223372036854775807,
+                "reducer": "SUM"
+              }
+            ]
+          },
+          "when_predicate": "ACTIVE",
+          "hit_policy": {"kind": "UNBOUNDED", "receipt_on": "ON_CONTACT"}
+        }
+      ]
+    },
+    {
+      "id": "B_SIBLING",
+      "rate_scale": 1,
+      "units_per_tick": 0,
+      "nodes": [{"id": "RUN", "mode": "EVENT_DRIVEN"}]
+    }
+  ],
+  "interaction_rules": [
+    {
+      "rule_id": "materialize",
+      "stage": "MATERIALIZATION",
+      "order": 10,
+      "condition": {"literal": true},
+      "operations": [{"op": "MATERIALIZE"}]
+    }
+  ],
+  "effect_registry": {"combat.damage": ["hp", -1]},
+  "initial_state": {
+    "resource_banks": {"2": {"hp": 100}},
+    "slot_capacities": {}
+  },
+  "ticks": [
+    {
+      "inputs": [
+        {"input_id": "start-striker", "source_entity_id": 1, "sequence": 0, "command_id": "START", "assigned_tick": 0, "action_definition_id": "A_STRIKER"},
+        {"input_id": "start-sibling", "source_entity_id": 1, "sequence": 1, "command_id": "START", "assigned_tick": 0, "action_definition_id": "B_SIBLING"}
+      ],
+      "contacts": []
+    }
+  ],
+  "fault_tick": {
+    "inputs": [],
+    "contacts": [
+      {"candidate_id": "overflow-a", "source_instance_id": 1, "source_entity_id": 1, "target_entity_id": 2, "fact_id": "strike", "contact_id": "a"},
+      {"candidate_id": "overflow-b", "source_instance_id": 1, "source_entity_id": 1, "target_entity_id": 2, "fact_id": "strike", "contact_id": "b"}
+    ]
+  },
+  "cases": [
+    {
+      "policy": "FAULT_ACTION",
+      "pre_fault_digest": "835139260e7a52e6ca7b5741ce220b31a951dcf348e7049b43a9689f6500fe20",
+      "final_state_digest": "b8bcfdecb785e6b81c8e450faa50fa2efc2639b0983bbf7891e6c99a69e93c22",
+      "expected": {
+        "tick": 2,
+        "lifecycle": {"1": "FAULTED", "2": "RUNNING"},
+        "fault_records": {"1": "INTEGER_OVERFLOW", "2": null},
+        "entity_fault_owners": [],
+        "resources": {"2": {"hp": 100}},
+        "trace_faults": [
+          {"action_instance_id": 1, "code": "RUNTIME_FAULT", "contained": true, "fault": "INTEGER_OVERFLOW", "message": "effect reduction integer overflow", "owner_entity_id": 1, "policy": "FAULT_ACTION", "tick": 1}
+        ],
+        "trace_effects": [],
+        "ledger_count": 0
+      }
+    },
+    {
+      "policy": "FAULT_ENTITY",
+      "pre_fault_digest": "79e9ef2bc6e7950d8579d330b53289a8bde531a569f7ea46c9741773db3dbaa4",
+      "final_state_digest": "9f7d2c13b3967121c5c1ab56f3208514cb65255a33f907f739cd3ea091757d83",
+      "expected": {
+        "tick": 2,
+        "lifecycle": {"1": "FAULTED", "2": "FAULTED"},
+        "fault_records": {"1": "INTEGER_OVERFLOW", "2": "INTEGER_OVERFLOW"},
+        "entity_fault_owners": [1],
+        "resources": {"2": {"hp": 100}},
+        "trace_faults": [
+          {"action_instance_id": 1, "code": "RUNTIME_FAULT", "contained": true, "fault": "INTEGER_OVERFLOW", "message": "effect reduction integer overflow", "owner_entity_id": 1, "policy": "FAULT_ENTITY", "tick": 1}
+        ],
+        "trace_effects": [],
+        "ledger_count": 0
+      }
+    },
+    {
+      "policy": "ABORT_SIMULATION",
+      "pre_fault_digest": "3a35c73d4f818b8f984f39b2b38a9c42801b3b2cdd22c21221fb66514cc81040",
+      "fault": "INTEGER_OVERFLOW",
+      "message": "effect reduction integer overflow",
+      "action_instance_id": 1,
+      "owner_entity_id": 1
+    }
+  ]
+}

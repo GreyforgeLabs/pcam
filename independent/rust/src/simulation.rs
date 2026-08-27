@@ -2,7 +2,7 @@ use crate::arbitration::{
     ArbitrationState, Claim as ArbitrationClaim, Intent as ArbitrationIntent,
     arbitrate as arbitrate_intents,
 };
-use crate::effects::{EffectEnvelope, ReducedEffect, RejectedEffect, reduce_effects};
+use crate::effects::{EffectEnvelope, EffectError, ReducedEffect, RejectedEffect, reduce_effects};
 use crate::events::{EventEnvelope, deliver_due};
 use crate::faults::{FaultContext, contain_fault};
 use crate::interactions::{
@@ -786,13 +786,18 @@ impl SimulationRuntime {
             .filter(|effect| effect.authoritative)
             .cloned()
             .collect::<Vec<_>>();
-        let (reduced, rejected) =
-            reduce_effects(&authoritative_effects).map_err(|_| SimulationError::RuntimeFault)?;
+        let (reduced, rejected) = reduce_effects(&authoritative_effects)
+            .map_err(|error| effect_runtime_fault(error, &authoritative_effects, &work))?;
         for effect in &reduced {
+            let sources = authoritative_effects
+                .iter()
+                .filter(|source| effect.source_effect_ids.contains(&source.effect_id))
+                .cloned()
+                .collect::<Vec<_>>();
             let (resource, multiplier) = self
                 .effect_registry
                 .get(&effect.effect_type)
-                .ok_or(SimulationError::RuntimeFault)?;
+                .ok_or_else(|| effect_runtime_fault(EffectError::UnknownEffect, &sources, &work))?;
             if effects
                 .iter()
                 .filter(|source| {
@@ -801,21 +806,26 @@ impl SimulationRuntime {
                 })
                 .any(|source| source.authoritative)
             {
-                let value = effect.value.as_i64().ok_or(SimulationError::RuntimeFault)?;
+                let value = effect.value.as_i64().ok_or_else(|| {
+                    effect_runtime_fault(EffectError::UnknownEffect, &sources, &work)
+                })?;
                 let delta = value
                     .checked_mul(*multiplier)
-                    .ok_or(SimulationError::RuntimeFault)?;
-                let bank = work
+                    .ok_or_else(|| effect_commit_overflow_fault(&sources, &work))?;
+                let entity = effect.target_entity_id.to_string();
+                let current = work
                     .resource_banks
-                    .entry(effect.target_entity_id.to_string())
-                    .or_default();
-                let current = bank.get(resource).copied().unwrap_or(0);
-                bank.insert(
-                    resource.clone(),
-                    current
-                        .checked_add(delta)
-                        .ok_or(SimulationError::RuntimeFault)?,
-                );
+                    .get(&entity)
+                    .and_then(|bank| bank.get(resource))
+                    .copied()
+                    .unwrap_or(0);
+                let next = current
+                    .checked_add(delta)
+                    .ok_or_else(|| effect_commit_overflow_fault(&sources, &work))?;
+                work.resource_banks
+                    .entry(entity)
+                    .or_default()
+                    .insert(resource.clone(), next);
             }
         }
         self.finalize_children(&mut work)?;
@@ -1959,6 +1969,59 @@ fn interaction_runtime_fault(
         }
     };
     contextual_runtime_fault(fault, candidate_id, action_instance_id, owner_entity_id)
+}
+
+fn effect_runtime_fault(
+    error: EffectError,
+    effects: &[EffectEnvelope],
+    state: &SimulationState,
+) -> SimulationError {
+    let (fault, message) = match error {
+        EffectError::IntegerOverflow => ("INTEGER_OVERFLOW", "effect reduction integer overflow"),
+        EffectError::UnknownEffect => ("UNKNOWN_EFFECT", "effect reduction failed"),
+    };
+    effect_fault_context(fault, message, effects, state)
+}
+
+fn effect_commit_overflow_fault(
+    effects: &[EffectEnvelope],
+    state: &SimulationState,
+) -> SimulationError {
+    effect_fault_context(
+        "INTEGER_OVERFLOW",
+        "effect commit integer overflow",
+        effects,
+        state,
+    )
+}
+
+fn effect_fault_context(
+    fault: &str,
+    message: &str,
+    effects: &[EffectEnvelope],
+    state: &SimulationState,
+) -> SimulationError {
+    let source_ids = effects
+        .iter()
+        .map(|effect| effect.source_action_instance_id)
+        .collect::<BTreeSet<_>>();
+    let action = if source_ids.len() == 1 {
+        source_ids.iter().next().and_then(|source_id| {
+            state
+                .action_instances
+                .iter()
+                .find(|action| action.instance_id == *source_id)
+        })
+    } else {
+        None
+    };
+    SimulationError::Fault(FaultContext {
+        code: "RUNTIME_FAULT".to_owned(),
+        fault: fault.to_owned(),
+        message: message.to_owned(),
+        action_instance_id: action.map(|item| item.instance_id),
+        owner_entity_id: action.map(|item| item.owner_entity_id),
+    })
 }
 
 fn canonical_definition(raw: &Value) -> Result<Value, SimulationError> {
