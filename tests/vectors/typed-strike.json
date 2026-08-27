@@ -1,0 +1,110 @@
+{
+  "pcam_vector_version": "1",
+  "kind": "runtime_vector",
+  "definitions": [
+    {
+      "id": "TYPED_STRIKE",
+      "rate_scale": 1,
+      "units_per_tick": 0,
+      "nodes": [
+        {"id": "ACTIVE", "mode": "EVENT_DRIVEN"}
+      ],
+      "predicates": [
+        {"id": "ACTIVE_WINDOW", "node_ids": ["ACTIVE"]}
+      ],
+      "semantic_facts": [
+        {
+          "fact": {
+            "fact_id": "strike",
+            "direction": "OFFENSE",
+            "channels": ["STRIKE"],
+            "effect_templates": [
+              {
+                "effect_type": "combat.damage",
+                "effect_class": "DAMAGE",
+                "payload": 30,
+                "reducer": "SUM"
+              }
+            ]
+          },
+          "when_predicate": "ACTIVE_WINDOW",
+          "hit_policy": {
+            "kind": "ONCE_PER_ACTION_INSTANCE",
+            "receipt_on": "ON_IMPACT"
+          }
+        }
+      ]
+    }
+  ],
+  "interaction_rules": [
+    {
+      "rule_id": "materialize",
+      "stage": "MATERIALIZATION",
+      "order": 100,
+      "condition": {"literal": true},
+      "operations": [
+        {"op": "MATERIALIZE"}
+      ]
+    }
+  ],
+  "effect_registry": {
+    "combat.damage": ["hp", -1]
+  },
+  "initial_state": {
+    "resource_banks": {
+      "2": {"hp": 100}
+    }
+  },
+  "ticks": [
+    {
+      "inputs": [
+        {
+          "input_id": "start",
+          "source_entity_id": 1,
+          "sequence": 0,
+          "command_id": "START",
+          "assigned_tick": 0,
+          "action_definition_id": "TYPED_STRIKE"
+        }
+      ],
+      "contacts": [
+        {
+          "candidate_id": "c2",
+          "source_instance_id": 1,
+          "source_entity_id": 1,
+          "target_entity_id": 2,
+          "fact_id": "strike",
+          "contact_id": "b"
+        },
+        {
+          "candidate_id": "c1",
+          "source_instance_id": 1,
+          "source_entity_id": 1,
+          "target_entity_id": 2,
+          "fact_id": "strike",
+          "contact_id": "a"
+        }
+      ]
+    },
+    {"inputs": [], "contacts": []},
+    {"inputs": [], "contacts": []}
+  ],
+  "expected": {
+    "final_state_digest": "88815ed150f4bb8ed38bf3f15556851ef17fae01a263243e11541b0e3d12e044"
+  },
+  "rollback": {
+    "corrected_tick": 0,
+    "predicted_inputs": [],
+    "corrected_inputs": [
+      {
+        "input_id": "start",
+        "source_entity_id": 1,
+        "sequence": 0,
+        "command_id": "START",
+        "assigned_tick": 0,
+        "action_definition_id": "TYPED_STRIKE"
+      }
+    ],
+    "until_tick": 3
+  }
+}

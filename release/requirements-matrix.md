@@ -37,7 +37,7 @@ This matrix preserves the complete target. A row is complete only when its named
 | §39 generated tests | all listed generators plus determinism and continuation properties | missing |
 | §40 migration | v1/v2 importer warnings and version rejection vectors | missing |
 | §41 repository | required structure and documentation | partial: required lanes and authority files exist |
-| §42 tooling | all eleven commands with stable machine-readable result codes | partial: six implemented, five explicit reserved failures |
+| §42 tooling | all eleven commands with stable machine-readable result codes | partial: all eleven command paths execute with JSON envelopes; broader normative vectors and diagnostics remain open |
 | §43 licenses | CC BY 4.0 spec, Apache-2.0 or MIT code, vector permissions, trademark separation | missing |
 | §44 security | bounded untrusted-data validation and adversarial vectors | missing |
 | §45 release gates | eight evidence reports with no unresolved requirement | missing |

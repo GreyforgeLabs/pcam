@@ -12,6 +12,8 @@ from .canonical import canonical_dumps, canonical_hash
 from .errors import PCAMError, ResultCode
 from .pcam24 import compile_pcam24
 from .schema import load_document, validate_document
+from .state import SimulationState
+from .vectors import rollback_vector, run_vector
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -37,16 +39,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             "compile": _compile,
             "state-hash": _state_hash,
             "migrate-v2": _migrate_v2,
+            "run": _run,
+            "trace": _trace,
+            "snapshot": _snapshot,
+            "restore": _restore,
+            "rollback-test": _rollback_test,
         }.get(args.command)
-        if handler is None:
-            return _emit(
-                {
-                    "code": ResultCode.NOT_IMPLEMENTED.value,
-                    "command": args.command,
-                    "message": "command surface is reserved but not yet implemented",
-                },
-                exit_code=3,
-            )
+        assert handler is not None
         return handler(document)
     except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
         return _emit({"code": ResultCode.INVALID_INPUT.value, "message": str(exc)}, exit_code=2)
@@ -149,6 +148,88 @@ def _migrate_v2(document: Any) -> int:
         "extensions": {},
     }
     return _emit({"code": ResultCode.OK.value, "definition": migrated, "warnings": warnings})
+
+
+def _run(document: Any) -> int:
+    if not isinstance(document, dict):
+        return _emit({"code": ResultCode.INVALID_INPUT.value, "message": "runtime vector must be an object"}, 2)
+    result = run_vector(document)
+    mismatch = _expected_digest_mismatch(document, result.final_state.state_hash())
+    if mismatch:
+        return _emit(mismatch, 2)
+    return _emit(
+        {
+            "code": ResultCode.OK.value,
+            "final_state_digest": result.final_state.state_hash(),
+            "final_tick": result.final_state.tick,
+        }
+    )
+
+
+def _trace(document: Any) -> int:
+    if not isinstance(document, dict):
+        return _emit({"code": ResultCode.INVALID_INPUT.value, "message": "runtime vector must be an object"}, 2)
+    result = run_vector(document)
+    mismatch = _expected_digest_mismatch(document, result.final_state.state_hash())
+    if mismatch:
+        return _emit(mismatch, 2)
+    return _emit(
+        {
+            "code": ResultCode.OK.value,
+            "final_state_digest": result.final_state.state_hash(),
+            "traces": list(result.traces),
+        }
+    )
+
+
+def _snapshot(document: Any) -> int:
+    if not isinstance(document, dict):
+        return _emit({"code": ResultCode.INVALID_INPUT.value, "message": "runtime vector must be an object"}, 2)
+    result = run_vector(document)
+    return _emit(
+        {
+            "code": ResultCode.OK.value,
+            "snapshot": result.final_state.to_snapshot(),
+            "state_hash": result.final_state.state_hash(),
+        }
+    )
+
+
+def _restore(document: Any) -> int:
+    if not isinstance(document, dict):
+        return _emit({"code": ResultCode.INVALID_INPUT.value, "message": "snapshot must be an object"}, 2)
+    state = SimulationState.from_snapshot(document)
+    snapshot = state.to_snapshot()
+    return _emit({"code": ResultCode.OK.value, "snapshot": snapshot, "state_hash": state.state_hash()})
+
+
+def _rollback_test(document: Any) -> int:
+    if not isinstance(document, dict):
+        return _emit({"code": ResultCode.INVALID_INPUT.value, "message": "runtime vector must be an object"}, 2)
+    direct, corrected, traces = rollback_vector(document)
+    equivalent = direct.to_snapshot() == corrected.to_snapshot()
+    return _emit(
+        {
+            "code": ResultCode.OK.value if equivalent else ResultCode.RUNTIME_FAULT.value,
+            "corrected_digest": corrected.state_hash(),
+            "direct_digest": direct.state_hash(),
+            "equivalent": equivalent,
+            "resimulated_ticks": len(traces),
+        },
+        0 if equivalent else 2,
+    )
+
+
+def _expected_digest_mismatch(document: dict[str, Any], actual: str) -> dict[str, Any] | None:
+    expected = document.get("expected", {}).get("final_state_digest")
+    if expected is not None and expected != actual:
+        return {
+            "actual": actual,
+            "code": ResultCode.RUNTIME_FAULT.value,
+            "expected": expected,
+            "message": "runtime vector final digest mismatch",
+        }
+    return None
 
 
 def _emit(payload: dict[str, Any], exit_code: int = 0) -> int:

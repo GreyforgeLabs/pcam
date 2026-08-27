@@ -43,6 +43,7 @@ from .numeric import OverflowPolicy, apply_i64, apply_u64, euclidean_divmod, sca
 from .rng import PCG32Stream
 from .schema import Diagnostic, load_document, validate_document
 from .state import ActionInstance, SimulationState
+from .vectors import VectorRun, rollback_vector, run_vector
 
 __all__ = [
     "ActionDefinition",
@@ -84,6 +85,7 @@ __all__ = [
     "TickExecutor",
     "TickInput",
     "TransitionDefinition",
+    "VectorRun",
     "canonical_dumps",
     "canonical_effects",
     "canonical_events",
@@ -112,6 +114,8 @@ __all__ = [
     "reduce_effects",
     "receipt_required",
     "resolve_candidate",
+    "rollback_vector",
+    "run_vector",
     "select_entry",
     "add_token",
     "validate_document",

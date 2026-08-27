@@ -21,8 +21,39 @@ def test_compile_cli_returns_core_definition(capsys):
     assert result["definition"]["kind"] == "action"
 
 
-def test_reserved_cli_surface_fails_explicitly(capsys):
-    code = main(["run", str(ROOT / "tests" / "valid" / "minimal-action.json")])
+def test_runtime_cli_run_trace_snapshot_and_rollback(capsys):
+    vector = ROOT / "tests" / "vectors" / "typed-strike.json"
+    code = main(["run", str(vector)])
     result = json.loads(capsys.readouterr().out)
-    assert code == 3
-    assert result["code"] == "NOT_IMPLEMENTED"
+    assert code == 0
+    assert result["code"] == "OK"
+    assert result["final_tick"] == 3
+
+    code = main(["trace", str(vector)])
+    result = json.loads(capsys.readouterr().out)
+    assert code == 0
+    assert len(result["traces"]) == 3
+    assert result["traces"][0]["candidate_order"] == ["c1", "c2"]
+
+    code = main(["snapshot", str(vector)])
+    result = json.loads(capsys.readouterr().out)
+    assert code == 0
+    assert result["snapshot"]["tick"] == 3
+
+    code = main(["rollback-test", str(vector)])
+    result = json.loads(capsys.readouterr().out)
+    assert code == 0
+    assert result["equivalent"] is True
+
+
+def test_restore_cli_round_trips_snapshot(tmp_path, capsys):
+    vector = ROOT / "tests" / "vectors" / "typed-strike.json"
+    main(["snapshot", str(vector)])
+    generated = json.loads(capsys.readouterr().out)
+    snapshot_path = tmp_path / "snapshot.json"
+    snapshot_path.write_text(json.dumps(generated["snapshot"]), encoding="utf-8")
+    code = main(["restore", str(snapshot_path)])
+    restored = json.loads(capsys.readouterr().out)
+    assert code == 0
+    assert restored["snapshot"] == generated["snapshot"]
+    assert restored["state_hash"] == generated["state_hash"]
