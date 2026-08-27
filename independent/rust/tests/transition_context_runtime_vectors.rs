@@ -96,3 +96,33 @@ fn independent_complete_state_rejects_invalid_predicate_graphs() {
         assert_eq!(context.fault, case["fault"], "{}:fault", case["id"]);
     }
 }
+
+#[test]
+fn independent_complete_state_rejects_invalid_transition_bounds() {
+    let vector = vector();
+    for case in vector["transition_definition_fault_cases"]
+        .as_array()
+        .unwrap()
+    {
+        let mut document = vector.clone();
+        for field in ["cycle_delta", "target_step"] {
+            if case.get(field).is_some() {
+                document["definitions"][0]["transitions"][0][field] = case[field].clone();
+            }
+        }
+        if case.get("target_seekable").is_some() {
+            document["definitions"][0]["nodes"][1]["seekable"] = case["target_seekable"].clone();
+        }
+        if case.get("target_mode").is_some() {
+            document["definitions"][0]["nodes"][1]["mode"] = case["target_mode"].clone();
+            document["definitions"][0]["nodes"][1]["duration_quanta"] =
+                case["target_duration_quanta"].clone();
+        }
+        let error = SimulationRuntime::from_vector(&document).unwrap_err();
+        let SimulationError::Fault(context) = error else {
+            panic!("{}: unexpected error", case["id"]);
+        };
+        assert_eq!(context.code, "DEFINITION_REJECTED", "{}:code", case["id"]);
+        assert_eq!(context.fault, case["fault"], "{}:fault", case["id"]);
+    }
+}

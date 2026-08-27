@@ -561,6 +561,8 @@ def validate_definition(definition: ActionDefinition) -> None:
     for transition in definition.transitions:
         if transition.cycle_delta < 0:
             raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.INTEGER_OVERFLOW, transition.id)
+        if transition.target_step < 0:
+            raise PCAMError(ResultCode.DEFINITION_REJECTED, PCAMFault.INTEGER_OVERFLOW, transition.id)
         if transition.evaluation_point not in {"PRE_ADVANCE", "AFTER_QUANTUM", "POST_ADVANCE"}:
             raise PCAMError(
                 ResultCode.DEFINITION_REJECTED,

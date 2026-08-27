@@ -66,3 +66,23 @@ def test_python_complete_state_rejects_invalid_predicate_graphs():
             run_vector(document)
         assert raised.value.code.value == "DEFINITION_REJECTED", case["id"]
         assert raised.value.fault.value == case["fault"], case["id"]
+
+
+def test_python_complete_state_rejects_invalid_transition_bounds():
+    vector = _vector()
+    for case in vector["transition_definition_fault_cases"]:
+        document = json.loads(json.dumps(vector))
+        transition = document["definitions"][0]["transitions"][0]
+        target = document["definitions"][0]["nodes"][1]
+        for field in ("cycle_delta", "target_step"):
+            if field in case:
+                transition[field] = case[field]
+        if "target_seekable" in case:
+            target["seekable"] = case["target_seekable"]
+        if "target_mode" in case:
+            target["mode"] = case["target_mode"]
+            target["duration_quanta"] = case["target_duration_quanta"]
+        with pytest.raises(PCAMError) as raised:
+            run_vector(document)
+        assert raised.value.code.value == "DEFINITION_REJECTED", case["id"]
+        assert raised.value.fault.value == case["fault"], case["id"]

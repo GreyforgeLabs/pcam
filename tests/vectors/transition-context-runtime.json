@@ -161,5 +161,31 @@
         {"id": "FIRST", "expression": {"ref": "action.predicate.MISSING"}}
       ]
     }
+  ],
+  "transition_definition_fault_cases": [
+    {
+      "id": "negative-cycle-delta",
+      "fault": "INTEGER_OVERFLOW",
+      "cycle_delta": -1
+    },
+    {
+      "id": "negative-target-step",
+      "fault": "INTEGER_OVERFLOW",
+      "target_step": -1,
+      "target_seekable": true
+    },
+    {
+      "id": "nonseekable-target-step",
+      "fault": "STATE_INVARIANT_FAILURE",
+      "target_step": 1
+    },
+    {
+      "id": "timed-target-step-out-of-range",
+      "fault": "STATE_INVARIANT_FAILURE",
+      "target_step": 2,
+      "target_seekable": true,
+      "target_mode": "TIMED",
+      "target_duration_quanta": 2
+    }
   ]
 }

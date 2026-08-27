@@ -3009,6 +3009,23 @@ fn parse_definition(raw: &Value, hash: String) -> Result<Definition, SimulationE
         .unwrap_or_default()
         .iter()
         .map(|transition| {
+            let cycle_delta = definition_u64(transition, "cycle_delta", 0)?;
+            let target_step = definition_u64(transition, "target_step", 0)?;
+            let target_kind = transition
+                .get("target_kind")
+                .and_then(Value::as_str)
+                .unwrap_or("NODE")
+                .to_owned();
+            let target_node = transition
+                .get("target_node")
+                .and_then(Value::as_str)
+                .map(str::to_owned);
+            validate_simulation_transition_target(
+                raw,
+                &target_kind,
+                target_node.as_deref(),
+                target_step,
+            )?;
             let consume_policy = transition
                 .get("consume_policy")
                 .and_then(Value::as_str)
@@ -3027,10 +3044,7 @@ fn parse_definition(raw: &Value, hash: String) -> Result<Definition, SimulationE
                 priority: transition["priority"]
                     .as_i64()
                     .ok_or(SimulationError::InvalidVector)?,
-                cycle_delta: transition
-                    .get("cycle_delta")
-                    .and_then(Value::as_u64)
-                    .unwrap_or(0),
+                cycle_delta,
                 claims: transition
                     .get("claims")
                     .and_then(Value::as_array)
@@ -3042,19 +3056,9 @@ fn parse_definition(raw: &Value, hash: String) -> Result<Definition, SimulationE
                             .map_err(|_| SimulationError::InvalidVector)
                     })
                     .collect::<Result<Vec<_>, _>>()?,
-                target_kind: transition
-                    .get("target_kind")
-                    .and_then(Value::as_str)
-                    .unwrap_or("NODE")
-                    .to_owned(),
-                target_node: transition
-                    .get("target_node")
-                    .and_then(Value::as_str)
-                    .map(str::to_owned),
-                target_step: transition
-                    .get("target_step")
-                    .and_then(Value::as_u64)
-                    .unwrap_or(0),
+                target_kind,
+                target_node,
+                target_step,
                 target_action: transition
                     .get("target_action")
                     .and_then(Value::as_str)
@@ -3469,6 +3473,61 @@ fn validate_simulation_predicate(
     }
     visiting.remove(identifier);
     complete.insert(identifier.to_owned());
+    Ok(())
+}
+
+fn definition_u64(raw: &Value, field: &str, default: u64) -> Result<u64, SimulationError> {
+    match raw.get(field) {
+        None => Ok(default),
+        Some(value) => value
+            .as_u64()
+            .ok_or_else(|| definition_fault("INTEGER_OVERFLOW", &format!("{field} must be a U64"))),
+    }
+}
+
+fn validate_simulation_transition_target(
+    definition: &Value,
+    target_kind: &str,
+    target_node: Option<&str>,
+    target_step: u64,
+) -> Result<(), SimulationError> {
+    if target_kind != "NODE" {
+        return Ok(());
+    }
+    let target_node = target_node
+        .ok_or_else(|| definition_fault("MISSING_REFERENCE", "NODE target is missing"))?;
+    let target = array(definition, "nodes")?
+        .iter()
+        .find(|node| node.get("id").and_then(Value::as_str) == Some(target_node))
+        .ok_or_else(|| definition_fault("MISSING_REFERENCE", "NODE target does not exist"))?;
+    if target_step > 0
+        && !target
+            .get("seekable")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+    {
+        return Err(definition_fault(
+            "STATE_INVARIANT_FAILURE",
+            "nonzero target step requires a seekable target node",
+        ));
+    }
+    if target.get("mode").and_then(Value::as_str) == Some("TIMED") {
+        let duration = target
+            .get("duration_quanta")
+            .and_then(Value::as_u64)
+            .ok_or_else(|| {
+                definition_fault(
+                    "STATE_INVARIANT_FAILURE",
+                    "TIMED target requires a positive duration",
+                )
+            })?;
+        if target_step >= duration {
+            return Err(definition_fault(
+                "STATE_INVARIANT_FAILURE",
+                "target step must be less than the TIMED node duration",
+            ));
+        }
+    }
     Ok(())
 }
 
