@@ -4,6 +4,7 @@ use crate::arbitration::{
 };
 use crate::effects::{EffectEnvelope, EffectError, ReducedEffect, RejectedEffect, reduce_effects};
 use crate::events::{EventEnvelope, deliver_due};
+use crate::expression::{EvalError, evaluate as evaluate_expression};
 use crate::faults::{FaultContext, contain_fault};
 use crate::interactions::{
     EffectTemplate as InteractionEffectTemplate, InteractionCandidate, InteractionError,
@@ -90,6 +91,8 @@ struct SimulationTransition {
     source_disposition: String,
     event_type: Option<String>,
     input_command: Option<String>,
+    guard_predicate: Option<String>,
+    guard_expression: Option<Value>,
     consume_policy: String,
     effects: Vec<RuntimeEffect>,
 }
@@ -702,22 +705,24 @@ impl SimulationRuntime {
                     .get(&predicate.id)
                     .copied()
                     .unwrap_or(false);
-                action
-                    .predicate_truth_state
-                    .insert(predicate.id.clone(), now);
-                if predicate.track_edges && now != before {
-                    let serials = if now {
-                        &mut action.predicate_entry_serials
-                    } else {
-                        &mut action.predicate_exit_serials
-                    };
-                    let next = serials
-                        .get(&predicate.id)
-                        .copied()
-                        .unwrap_or(0)
-                        .checked_add(1)
-                        .ok_or(SimulationError::RuntimeFault)?;
-                    serials.insert(predicate.id.clone(), next);
+                if now != before {
+                    action
+                        .predicate_truth_state
+                        .insert(predicate.id.clone(), now);
+                    if predicate.track_edges {
+                        let serials = if now {
+                            &mut action.predicate_entry_serials
+                        } else {
+                            &mut action.predicate_exit_serials
+                        };
+                        let next = serials
+                            .get(&predicate.id)
+                            .copied()
+                            .unwrap_or(0)
+                            .checked_add(1)
+                            .ok_or(SimulationError::RuntimeFault)?;
+                        serials.insert(predicate.id.clone(), next);
+                    }
                 }
             }
         }
@@ -1165,6 +1170,55 @@ impl SimulationRuntime {
         Ok(())
     }
 
+    fn transition_guards_match(
+        &self,
+        state: &SimulationState,
+        action: &ActionSnapshot,
+        transition: &SimulationTransition,
+    ) -> Result<bool, SimulationError> {
+        let matched_input = transition
+            .input_command
+            .as_ref()
+            .and_then(|command| select_buffer_input(&action.input_buffer, command));
+        if transition.input_command.is_some() && matched_input.is_none() {
+            return Ok(false);
+        }
+        let matched_event = transition.event_type.as_ref().and_then(|event_type| {
+            action.event_inbox.iter().find(|event| {
+                event.get("event_type").and_then(Value::as_str) == Some(event_type.as_str())
+            })
+        });
+        if transition.event_type.is_some() && matched_event.is_none() {
+            return Ok(false);
+        }
+        if transition
+            .guard_predicate
+            .as_ref()
+            .is_some_and(|predicate| {
+                !action
+                    .predicate_truth_state
+                    .get(predicate)
+                    .copied()
+                    .unwrap_or(false)
+            })
+        {
+            return Ok(false);
+        }
+        let Some(expression) = &transition.guard_expression else {
+            return Ok(true);
+        };
+        let context = transition_guard_context(state, action, matched_input, matched_event)?;
+        evaluate_expression(
+            expression,
+            &context,
+            self.max_expression_depth,
+            self.max_expression_nodes,
+        )
+        .map_err(|error| transition_expression_fault(error, action))?
+        .as_bool()
+        .ok_or_else(|| transition_expression_fault(EvalError::StateInvariant, action))
+    }
+
     fn arbitrate_transition_stage(
         &self,
         state: &mut SimulationState,
@@ -1202,28 +1256,15 @@ impl SimulationRuntime {
                 .values()
                 .find(|definition| definition.hash == action.definition_hash)
                 .ok_or(SimulationError::RuntimeFault)?;
-            let mut eligible = definition
-                .transitions
-                .iter()
-                .filter(|transition| {
-                    transition.source_node == action.current_node_id
-                        && transition.evaluation_point == evaluation_point
-                })
-                .filter(|transition| {
-                    transition.input_command.as_ref().is_none_or(|command| {
-                        select_buffer_input(&action.input_buffer, command).is_some()
-                    })
-                })
-                .filter(|transition| {
-                    transition.event_type.as_ref().is_none_or(|event_type| {
-                        action.event_inbox.iter().any(|event| {
-                            event.get("event_type").and_then(Value::as_str)
-                                == Some(event_type.as_str())
-                        })
-                    })
-                })
-                .cloned()
-                .collect::<Vec<_>>();
+            let mut eligible = Vec::new();
+            for transition in &definition.transitions {
+                if transition.source_node == action.current_node_id
+                    && transition.evaluation_point == evaluation_point
+                    && self.transition_guards_match(state, &action, transition)?
+                {
+                    eligible.push(transition.clone());
+                }
+            }
             eligible.sort_by(|left, right| {
                 right
                     .priority
@@ -1757,24 +1798,27 @@ impl SimulationRuntime {
             }
             state.action_instances[index].quantum_accumulator = accumulated % definition.rate_scale;
             for _ in 0..quanta {
-                let action = &mut state.action_instances[index];
-                action.local_step = action
-                    .local_step
-                    .checked_add(1)
-                    .ok_or(SimulationError::RuntimeFault)?;
-                action.node_step = action
-                    .node_step
-                    .checked_add(1)
-                    .ok_or(SimulationError::RuntimeFault)?;
-                let mut eligible = definition
-                    .transitions
-                    .iter()
-                    .filter(|transition| {
-                        transition.source_node == action.current_node_id
-                            && transition.evaluation_point == "AFTER_QUANTUM"
-                    })
-                    .cloned()
-                    .collect::<Vec<_>>();
+                {
+                    let action = &mut state.action_instances[index];
+                    action.local_step = action
+                        .local_step
+                        .checked_add(1)
+                        .ok_or(SimulationError::RuntimeFault)?;
+                    action.node_step = action
+                        .node_step
+                        .checked_add(1)
+                        .ok_or(SimulationError::RuntimeFault)?;
+                }
+                let action = state.action_instances[index].clone();
+                let mut eligible = Vec::new();
+                for transition in &definition.transitions {
+                    if transition.source_node == action.current_node_id
+                        && transition.evaluation_point == "AFTER_QUANTUM"
+                        && self.transition_guards_match(state, &action, transition)?
+                    {
+                        eligible.push(transition.clone());
+                    }
+                }
                 eligible.sort_by(|left, right| {
                     right
                         .priority
@@ -1782,6 +1826,17 @@ impl SimulationRuntime {
                         .then_with(|| left.id.as_bytes().cmp(right.id.as_bytes()))
                 });
                 if let Some(transition) = eligible.into_iter().next() {
+                    if transition.input_command.is_some() && transition.consume_policy != "NEVER" {
+                        let matched_input = transition
+                            .input_command
+                            .as_ref()
+                            .and_then(|command| select_buffer_input(&action.input_buffer, command))
+                            .and_then(|input| input.get("input_id"))
+                            .and_then(Value::as_str)
+                            .ok_or(SimulationError::RuntimeFault)?
+                            .to_owned();
+                        remove_buffer_input(state, action_id, &matched_input)?;
+                    }
                     self.apply_simulation_transition(
                         state,
                         action_id,
@@ -2895,6 +2950,11 @@ fn parse_definition(raw: &Value, hash: String) -> Result<Definition, SimulationE
                     .get("input_command")
                     .and_then(Value::as_str)
                     .map(str::to_owned),
+                guard_predicate: transition
+                    .get("guard_predicate")
+                    .and_then(Value::as_str)
+                    .map(str::to_owned),
+                guard_expression: transition.get("guard_expression").cloned(),
                 consume_policy,
                 effects: transition
                     .get("effects")
@@ -3084,6 +3144,91 @@ fn remove_buffer_input(
         .input_buffer
         .retain(|entry| entry.get("input_id").and_then(Value::as_str) != Some(input_id));
     Ok(())
+}
+
+fn transition_guard_context(
+    state: &SimulationState,
+    action: &ActionSnapshot,
+    matched_input: Option<&Value>,
+    matched_event: Option<&Value>,
+) -> Result<BTreeMap<String, Value>, SimulationError> {
+    let mut context = BTreeMap::from([
+        ("action.instance_id".to_owned(), json!(action.instance_id)),
+        (
+            "action.owner_entity_id".to_owned(),
+            json!(action.owner_entity_id),
+        ),
+        ("action.lifecycle".to_owned(), json!(action.lifecycle_state)),
+        ("action.node".to_owned(), json!(action.current_node_id)),
+        ("action.node_step".to_owned(), json!(action.node_step)),
+        ("action.local_step".to_owned(), json!(action.local_step)),
+        ("action.cycle".to_owned(), json!(action.cycle)),
+        (
+            "action.transition_serial".to_owned(),
+            json!(action.transition_serial),
+        ),
+    ]);
+    for (identifier, value) in &action.captured_parameters {
+        flatten_guard_context(
+            &format!("action.parameter.{identifier}"),
+            value,
+            &mut context,
+        );
+    }
+    for (identifier, value) in &action.registers {
+        flatten_guard_context(
+            &format!("action.register.{identifier}"),
+            value,
+            &mut context,
+        );
+    }
+    for (identifier, value) in &action.predicate_truth_state {
+        context.insert(format!("action.predicate.{identifier}"), json!(value));
+    }
+    if let Some(resources) = state
+        .resource_banks
+        .get(&action.owner_entity_id.to_string())
+    {
+        for (identifier, value) in resources {
+            context.insert(format!("owner.resource.{identifier}"), json!(value));
+        }
+    }
+    if let Some(imports) = state.host_state.get("imports").and_then(Value::as_object) {
+        for (identifier, value) in imports {
+            flatten_guard_context(&format!("host.{identifier}"), value, &mut context);
+        }
+    }
+    if let Some(input) = matched_input {
+        flatten_guard_context("input", input, &mut context);
+    }
+    if let Some(event) = matched_event {
+        flatten_guard_context("event", event, &mut context);
+    }
+    Ok(context)
+}
+
+fn flatten_guard_context(prefix: &str, value: &Value, context: &mut BTreeMap<String, Value>) {
+    context.insert(prefix.to_owned(), value.clone());
+    if let Value::Object(object) = value {
+        for (key, nested) in object {
+            flatten_guard_context(&format!("{prefix}.{key}"), nested, context);
+        }
+    }
+}
+
+fn transition_expression_fault(error: EvalError, action: &ActionSnapshot) -> SimulationError {
+    let fault = match error {
+        EvalError::DivisionByZero => "DIVISION_BY_ZERO",
+        EvalError::IntegerOverflow => "INTEGER_OVERFLOW",
+        EvalError::StateInvariant => "STATE_INVARIANT_FAILURE",
+    };
+    SimulationError::Fault(FaultContext {
+        code: "RUNTIME_FAULT".to_owned(),
+        fault: fault.to_owned(),
+        message: "transition guard expression failed".to_owned(),
+        action_instance_id: Some(action.instance_id),
+        owner_entity_id: Some(action.owner_entity_id),
+    })
 }
 
 fn canonical_contacts(raw: &[Value]) -> Result<Vec<Value>, SimulationError> {

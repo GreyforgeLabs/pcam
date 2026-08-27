@@ -282,6 +282,10 @@ def test_python_transition_replacement_matches_shared_atomic_outcomes():
         document["definitions"][0]["transitions"][0]["consume_policy"] = case[
             "consume_policy"
         ]
+        document["definitions"][0]["transitions"][0]["guard_predicate"] = case[
+            "guard_predicate"
+        ]
+        document["ticks"][1]["inputs"][0]["payload"]["power"] = case["power"]
         run = run_vector(document)
         state = run.final_state
         summary = {

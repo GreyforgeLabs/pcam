@@ -1543,8 +1543,9 @@ class TickExecutor:
                     facts.append(f"{action.instance_id}:{predicate.id}")
                 if now != before:
                     truth[predicate.id] = now
-                    serials = entries if now else exits
-                    serials[predicate.id] = serials.get(predicate.id, 0) + 1
+                    if predicate.track_edges:
+                        serials = entries if now else exits
+                        serials[predicate.id] = serials.get(predicate.id, 0) + 1
                     changes.append({"instance_id": action.instance_id, "predicate": predicate.id, "value": now})
             for binding in definition.semantic_facts:
                 if truth.get(binding.when_predicate, False):

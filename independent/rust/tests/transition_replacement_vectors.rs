@@ -18,6 +18,9 @@ fn independent_transition_replacement_matches_shared_atomic_outcomes() {
         document["initial_state"]["resource_banks"]["1"]["STAMINA"] = case["stamina"].clone();
         document["definitions"][0]["transitions"][0]["consume_policy"] =
             case["consume_policy"].clone();
+        document["definitions"][0]["transitions"][0]["guard_predicate"] =
+            case["guard_predicate"].clone();
+        document["ticks"][1]["inputs"][0]["payload"]["power"] = case["power"].clone();
         let runtime = SimulationRuntime::from_vector(&document).unwrap();
         let mut state = runtime.initial_state(&document).unwrap();
         let mut digests = Vec::new();

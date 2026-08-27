@@ -35,7 +35,14 @@
       "rate_scale": 1,
       "units_per_tick": 0,
       "default_buffer_lifetime": 3,
-      "nodes": [{"id": "WAIT", "mode": "EVENT_DRIVEN"}],
+      "nodes": [
+        {"id": "WAIT", "mode": "EVENT_DRIVEN"},
+        {"id": "NEVER", "mode": "EVENT_DRIVEN"}
+      ],
+      "predicates": [
+        {"id": "READY", "node_ids": ["WAIT"]},
+        {"id": "BLOCKED", "node_ids": ["NEVER"]}
+      ],
       "slot_claims": [{"kind": "ACTION_SLOT", "key": "FULL_BODY", "amount": 1}],
       "transitions": [
         {
@@ -47,6 +54,8 @@
           "target_action": "DODGE",
           "source_disposition": "TERMINATE_SOURCE",
           "input_command": "REPLACE",
+          "guard_predicate": "READY",
+          "guard_expression": {"op": "eq", "args": [{"ref": "input.payload.power"}, {"literal": 7}]},
           "consume_policy": "ON_ATTEMPT"
         }
       ]
@@ -76,8 +85,8 @@
     },
     {
       "inputs": [
-        {"input_id": "replace", "source_entity_id": 1, "sequence": 1, "command_id": "REPLACE", "assigned_tick": 1},
-        {"input_id": "replace", "source_entity_id": 1, "sequence": 2, "command_id": "IGNORED_DUPLICATE", "assigned_tick": 1}
+        {"input_id": "replace", "source_entity_id": 1, "sequence": 1, "command_id": "REPLACE", "assigned_tick": 1, "payload": {"power": 7}},
+        {"input_id": "replace", "source_entity_id": 1, "sequence": 2, "command_id": "IGNORED_DUPLICATE", "assigned_tick": 1, "payload": {"power": 99}}
       ],
       "contacts": []
     }
@@ -86,26 +95,52 @@
     {
       "id": "replacement-accepted",
       "stamina": 5,
+      "power": 7,
+      "guard_predicate": "READY",
       "consume_policy": "ON_ACCEPT",
-      "tick_state_digests": ["4e03acfd673e749b8615f40bac4ab8640a6090a7d3b075b8fc4fbfbe151251d2", "33d5b79bd76b0c08e02047b9903c452ff3e2504db5fea2504fa4f740e5fa5a15"],
-      "final_state_digest": "33d5b79bd76b0c08e02047b9903c452ff3e2504db5fea2504fa4f740e5fa5a15",
-      "expected": {"tick": 2, "lifecycle": {"1": "TERMINATED", "2": "RUNNING"}, "definitions": {"1": "e589f19550a5b278ce6a555316d0ee4c82bac448bdd043c61b05d78b9a964ecb", "2": "6272d59782d71b7dbf48e58c57002542878c7de96496620070a6a5c3c319fe74"}, "transition_serials": {"1": 1, "2": 0}, "input_buffers": {"1": [], "2": []}, "stamina": 0, "slot": {"capacity": 1, "instance_ids": [2], "usage": 1}, "next_action_instance_id": 3}
+      "tick_state_digests": ["2c02bd9a75f1175185a5be20d8ae65541422348fb2e5ab4d19af8a667dd3fc53", "df8567895256ad7f60eb93e283b022f449f5450be4cdca6b0ec99df1570785a5"],
+      "final_state_digest": "df8567895256ad7f60eb93e283b022f449f5450be4cdca6b0ec99df1570785a5",
+      "expected": {"tick": 2, "lifecycle": {"1": "TERMINATED", "2": "RUNNING"}, "definitions": {"1": "50043450f04abab08d0b4ad0f60ed94c7a4ef64382bfa2a39275dd5822b7e354", "2": "6272d59782d71b7dbf48e58c57002542878c7de96496620070a6a5c3c319fe74"}, "transition_serials": {"1": 1, "2": 0}, "input_buffers": {"1": [], "2": []}, "stamina": 0, "slot": {"capacity": 1, "instance_ids": [2], "usage": 1}, "next_action_instance_id": 3}
     },
     {
       "id": "replacement-rejected-atomically",
       "stamina": 4,
+      "power": 7,
+      "guard_predicate": "READY",
       "consume_policy": "ON_ATTEMPT",
-      "tick_state_digests": ["4e05b45caebe7c539c9701fa4f16a3c5e231b756612459021bdbc7af4c028245", "0b8300d7ce52aa3cde9d03787584565f81658eafd6aa3306903d8c8815b18503"],
-      "final_state_digest": "0b8300d7ce52aa3cde9d03787584565f81658eafd6aa3306903d8c8815b18503",
-      "expected": {"tick": 2, "lifecycle": {"1": "RUNNING"}, "definitions": {"1": "022ab9cd7dcabc6bf72b742ca04c00d6ad5886f3b9d02272a11184f15fdb14ba"}, "transition_serials": {"1": 0}, "input_buffers": {"1": []}, "stamina": 4, "slot": {"capacity": 1, "instance_ids": [1], "usage": 1}, "next_action_instance_id": 2}
+      "tick_state_digests": ["c8daa7527a988aaf621e1c1f21d42c0a7511d02d25e76ca0336dd90a05caca99", "1de70c79157eb50505934a81dc31814a388bb29f32627cee1c0bf71e714cffe5"],
+      "final_state_digest": "1de70c79157eb50505934a81dc31814a388bb29f32627cee1c0bf71e714cffe5",
+      "expected": {"tick": 2, "lifecycle": {"1": "RUNNING"}, "definitions": {"1": "e24ae243efb1a9d775a23328fb70dcc2479868decd200c5a891b2c969c0dae11"}, "transition_serials": {"1": 0}, "input_buffers": {"1": []}, "stamina": 4, "slot": {"capacity": 1, "instance_ids": [1], "usage": 1}, "next_action_instance_id": 2}
     },
     {
       "id": "replacement-rejected-on-accept-retains-input",
       "stamina": 4,
+      "power": 7,
+      "guard_predicate": "READY",
       "consume_policy": "ON_ACCEPT",
-      "tick_state_digests": ["93c7bf3f0ff86cf341573e259acd823b42e2e1efbeea6c4f5f9a19b29a6fc8c2", "8442b38bd1f48a028df508c832cd6e8fd4711e63ae3b765b30b2e4e4d686da38"],
-      "final_state_digest": "8442b38bd1f48a028df508c832cd6e8fd4711e63ae3b765b30b2e4e4d686da38",
-      "expected": {"tick": 2, "lifecycle": {"1": "RUNNING"}, "definitions": {"1": "e589f19550a5b278ce6a555316d0ee4c82bac448bdd043c61b05d78b9a964ecb"}, "transition_serials": {"1": 0}, "input_buffers": {"1": [{"buffer_entry_id": "buffer:replace", "captured_tick": 1, "command_id": "REPLACE", "input_id": "replace", "payload": {}, "priority": 0, "remaining_eligibility_ticks": 2, "sequence": 1}]}, "stamina": 4, "slot": {"capacity": 1, "instance_ids": [1], "usage": 1}, "next_action_instance_id": 2}
+      "tick_state_digests": ["1f96a75125904aa41216ff55a0082516f2943f26825d1648326dd5f744f21fc6", "4b6d0d3f763001cdeb9a66c234a0ec986466dce6951c74976d1c6b0256102396"],
+      "final_state_digest": "4b6d0d3f763001cdeb9a66c234a0ec986466dce6951c74976d1c6b0256102396",
+      "expected": {"tick": 2, "lifecycle": {"1": "RUNNING"}, "definitions": {"1": "50043450f04abab08d0b4ad0f60ed94c7a4ef64382bfa2a39275dd5822b7e354"}, "transition_serials": {"1": 0}, "input_buffers": {"1": [{"buffer_entry_id": "buffer:replace", "captured_tick": 1, "command_id": "REPLACE", "input_id": "replace", "payload": {"power": 7}, "priority": 0, "remaining_eligibility_ticks": 2, "sequence": 1}]}, "stamina": 4, "slot": {"capacity": 1, "instance_ids": [1], "usage": 1}, "next_action_instance_id": 2}
+    },
+    {
+      "id": "replacement-guard-rejected-retains-input",
+      "stamina": 5,
+      "power": 6,
+      "guard_predicate": "READY",
+      "consume_policy": "ON_ACCEPT",
+      "tick_state_digests": ["2c02bd9a75f1175185a5be20d8ae65541422348fb2e5ab4d19af8a667dd3fc53", "7e2759e39096ee816e19dd4608e7290ed15dfa686c4485ece43268e06646c6b0"],
+      "final_state_digest": "7e2759e39096ee816e19dd4608e7290ed15dfa686c4485ece43268e06646c6b0",
+      "expected": {"tick": 2, "lifecycle": {"1": "RUNNING"}, "definitions": {"1": "50043450f04abab08d0b4ad0f60ed94c7a4ef64382bfa2a39275dd5822b7e354"}, "transition_serials": {"1": 0}, "input_buffers": {"1": [{"buffer_entry_id": "buffer:replace", "captured_tick": 1, "command_id": "REPLACE", "input_id": "replace", "payload": {"power": 6}, "priority": 0, "remaining_eligibility_ticks": 2, "sequence": 1}]}, "stamina": 5, "slot": {"capacity": 1, "instance_ids": [1], "usage": 1}, "next_action_instance_id": 2}
+    },
+    {
+      "id": "replacement-predicate-guard-rejected-retains-input",
+      "stamina": 5,
+      "power": 7,
+      "guard_predicate": "BLOCKED",
+      "consume_policy": "ON_ACCEPT",
+      "tick_state_digests": ["b679c6c1af1d30a113f6ac52b2dbe8e7163cbe98da3ce24cf72e37c25fcbd12e", "57abde19685df0f6efa3cdc36b4a25eb0789fa8e4fde6f8dbd0413166b3d1f53"],
+      "final_state_digest": "57abde19685df0f6efa3cdc36b4a25eb0789fa8e4fde6f8dbd0413166b3d1f53",
+      "expected": {"tick": 2, "lifecycle": {"1": "RUNNING"}, "definitions": {"1": "ff011643f08f4181ff1f1ec8ce835e520739f81aa12fcc738dfed88403718bac"}, "transition_serials": {"1": 0}, "input_buffers": {"1": [{"buffer_entry_id": "buffer:replace", "captured_tick": 1, "command_id": "REPLACE", "input_id": "replace", "payload": {"power": 7}, "priority": 0, "remaining_eligibility_ticks": 2, "sequence": 1}]}, "stamina": 5, "slot": {"capacity": 1, "instance_ids": [1], "usage": 1}, "next_action_instance_id": 2}
     }
   ]
 }

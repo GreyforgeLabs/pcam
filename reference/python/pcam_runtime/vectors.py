@@ -252,6 +252,7 @@ def _transition(value: dict[str, Any]) -> TransitionDefinition:
         child_slot_id=value.get("child_slot_id"),
         parent_policy=value.get("parent_policy"),
         guard_predicate=value.get("guard_predicate"),
+        guard_expression=value.get("guard_expression"),
         input_command=value.get("input_command"),
         event_type=value.get("event_type"),
         consume_policy=str(value.get("consume_policy", "ON_ACCEPT")),  # type: ignore[arg-type]
