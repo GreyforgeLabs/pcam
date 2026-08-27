@@ -52,6 +52,18 @@ def _nesting_runtime_document():
     return json.loads((ROOT / "tests/vectors/nesting-runtime.json").read_text(encoding="utf-8"))
 
 
+def _pre_stage_arbitration_document():
+    return json.loads(
+        (ROOT / "tests/vectors/pre-stage-arbitration.json").read_text(encoding="utf-8")
+    )
+
+
+def _multi_transition_arbitration_document():
+    return json.loads(
+        (ROOT / "tests/vectors/multi-transition-arbitration.json").read_text(encoding="utf-8")
+    )
+
+
 def test_python_typed_strike_matches_shared_full_state_identity_and_tick_digests():
     document = _document()
     expected = document["expected"]
@@ -351,3 +363,66 @@ def test_python_nesting_limit_matches_shared_success_and_atomic_fault():
         }
         assert [item["state_digest"] for item in run.traces] == case["tick_state_digests"]
         assert summary == case["expected"]
+
+
+def test_python_pre_stage_arbitrates_transitions_and_direct_starts_together():
+    vector = _pre_stage_arbitration_document()
+    for case in vector["cases"]:
+        document = json.loads(json.dumps(vector))
+        document["definitions"][0]["transitions"][0]["priority"] = case[
+            "transition_priority"
+        ]
+        run = run_vector(document)
+        state = run.final_state
+        summary = {
+            "tick": state.tick,
+            "lifecycle": {
+                key: action.lifecycle_state for key, action in state.action_instances.items()
+            },
+            "definitions": {
+                key: action.definition_hash for key, action in state.action_instances.items()
+            },
+            "transition_serials": {
+                key: action.transition_serial for key, action in state.action_instances.items()
+            },
+            "stamina": state.resource_banks["1"]["STAMINA"],
+            "slot": state.action_slots["1"]["FULL_BODY"],
+            "next_action_instance_id": state.next_action_instance_id,
+        }
+        assert {
+            identifier: definition.definition_hash
+            for identifier, definition in run.executor.definitions_by_id.items()
+        } == case["definition_hashes"]
+        assert run.executor.definition_set_hash == case["definition_set_hash"]
+        assert [item["state_digest"] for item in run.traces] == case["tick_state_digests"]
+        assert state.state_hash() == case["final_state_digest"]
+        assert summary == case["expected"], case["id"]
+
+
+def test_python_pre_stage_arbitrates_simultaneous_transitions_together():
+    document = _multi_transition_arbitration_document()
+    run = run_vector(document)
+    state = run.final_state
+    summary = {
+        "tick": state.tick,
+        "lifecycle": {
+            key: action.lifecycle_state for key, action in state.action_instances.items()
+        },
+        "definitions": {
+            key: action.definition_hash for key, action in state.action_instances.items()
+        },
+        "transition_serials": {
+            key: action.transition_serial for key, action in state.action_instances.items()
+        },
+        "stamina": state.resource_banks["1"]["STAMINA"],
+        "slot": state.action_slots["1"]["FULL_BODY"],
+        "next_action_instance_id": state.next_action_instance_id,
+    }
+    assert {
+        identifier: definition.definition_hash
+        for identifier, definition in run.executor.definitions_by_id.items()
+    } == document["definition_hashes"]
+    assert run.executor.definition_set_hash == document["definition_set_hash"]
+    assert [item["state_digest"] for item in run.traces] == document["tick_state_digests"]
+    assert state.state_hash() == document["final_state_digest"]
+    assert summary == document["expected"]

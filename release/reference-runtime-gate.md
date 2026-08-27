@@ -18,5 +18,5 @@ Direct starts now validate declared parameter bindings before allocation, deep-c
 
 ## Known remaining interpreter gaps
 
-- Independent normative-vector breadth remains insufficient to rule out divergence in multi-transition and transition-versus-start arbitration, redirected multi-target and broader ledger integration, broader effect classes, and broader fault origins despite exact atomic replacement, typed armor and parry, all five parent launch policies, all four child termination policies, bounded recursive child launches, and complete-state fault-trigger vectors.
+- Independent normative-vector breadth remains insufficient to rule out divergence in broader post-advance claim arbitration, redirected multi-target and broader ledger integration, broader effect classes, and broader fault origins despite exact one-pass pre-transition and direct-start arbitration, atomic replacement, typed armor and parry, all five parent launch policies, all four child termination policies, bounded recursive child launches, and complete-state fault-trigger vectors.
 - Linux ARM64 digest evidence is unavailable, so this gate cannot contribute to cross-platform closure.
