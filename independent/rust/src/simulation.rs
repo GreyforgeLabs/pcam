@@ -13,6 +13,7 @@ use crate::ledger::{
     HitPolicy as LedgerHitPolicy, LedgerContext, is_eligible as ledger_is_eligible,
     receipt_required, write_receipt,
 };
+use crate::rng::{Pcg32Stream, RngError};
 use crate::{CanonicalError, canonical_hash};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
@@ -85,6 +86,19 @@ struct SimulationTransition {
     source_disposition: String,
     event_type: Option<String>,
     input_command: Option<String>,
+    effects: Vec<RuntimeEffect>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct RuntimeEffect {
+    id: String,
+    kind: String,
+    source_entity_id: u64,
+    target_entity_id: u64,
+    source_action_instance_id: u64,
+    resource: String,
+    amount: i64,
+    priority: i64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -170,6 +184,7 @@ pub struct SimulationTrace {
     pub reduced: Vec<ReducedEffect>,
     pub rejected: Vec<RejectedEffect>,
     pub receipts: Vec<Value>,
+    pub rng_draws: Vec<Value>,
     pub state_digest: String,
 }
 
@@ -506,7 +521,14 @@ impl SimulationRuntime {
             pending_inputs: Vec::new(),
             resource_banks: serde_json::from_value(resource_banks)
                 .map_err(|_| SimulationError::InvalidVector)?,
-            rng_streams: BTreeMap::new(),
+            rng_streams: initial
+                .get("rng_streams")
+                .cloned()
+                .map(|streams| {
+                    serde_json::from_value(streams).map_err(|_| SimulationError::InvalidVector)
+                })
+                .transpose()?
+                .unwrap_or_default(),
             tick: 0,
         })
     }
@@ -537,6 +559,7 @@ impl SimulationRuntime {
                         reduced: Vec::new(),
                         rejected: Vec::new(),
                         receipts: Vec::new(),
+                        rng_draws: Vec::new(),
                         state_digest,
                     },
                 ))
@@ -588,13 +611,26 @@ impl SimulationRuntime {
         work.host_state = json!({"contacts": contacts, "imports": {}});
 
         let inputs = canonical_inputs(array(tick, "inputs")?)?;
+        let mut runtime_effects = Vec::new();
         let input_order = inputs
             .iter()
             .map(|input| string_field(input, "input_id").map(str::to_owned))
             .collect::<Result<Vec<_>, _>>()?;
-        self.arbitrate_transition_stage(&mut work, &inputs, "PRE_ADVANCE", true)?;
-        self.progress_actions(&mut work)?;
-        self.arbitrate_transition_stage(&mut work, &inputs, "POST_ADVANCE", false)?;
+        self.arbitrate_transition_stage(
+            &mut work,
+            &inputs,
+            "PRE_ADVANCE",
+            true,
+            &mut runtime_effects,
+        )?;
+        self.progress_actions(&mut work, &mut runtime_effects)?;
+        self.arbitrate_transition_stage(
+            &mut work,
+            &inputs,
+            "POST_ADVANCE",
+            false,
+            &mut runtime_effects,
+        )?;
 
         for action in &mut work.action_instances {
             let definition = self
@@ -781,6 +817,7 @@ impl SimulationRuntime {
             }));
         }
 
+        let rng_draws = self.commit_runtime_effects(&mut work, &runtime_effects)?;
         let authoritative_effects = effects
             .iter()
             .filter(|effect| effect.authoritative)
@@ -863,9 +900,97 @@ impl SimulationRuntime {
                 reduced,
                 rejected,
                 receipts,
+                rng_draws,
                 state_digest,
             },
         ))
+    }
+
+    fn commit_runtime_effects(
+        &self,
+        state: &mut SimulationState,
+        effects: &[RuntimeEffect],
+    ) -> Result<Vec<Value>, SimulationError> {
+        let mut ordered = effects.to_vec();
+        ordered.sort_by(|left, right| {
+            left.target_entity_id
+                .cmp(&right.target_entity_id)
+                .then_with(|| left.kind.as_bytes().cmp(right.kind.as_bytes()))
+                .then_with(|| right.priority.cmp(&left.priority))
+                .then_with(|| left.source_entity_id.cmp(&right.source_entity_id))
+                .then_with(|| {
+                    left.source_action_instance_id
+                        .cmp(&right.source_action_instance_id)
+                })
+                .then_with(|| left.id.as_bytes().cmp(right.id.as_bytes()))
+        });
+        let mut rng_draws = Vec::new();
+        for effect in ordered {
+            match effect.kind.as_str() {
+                "RNG_DRAW" => {
+                    let raw = state
+                        .rng_streams
+                        .get(&effect.resource)
+                        .cloned()
+                        .ok_or_else(|| {
+                            runtime_effect_fault("RNG_PROFILE_MISMATCH", &effect.resource, &effect)
+                        })?;
+                    let snapshot = serde_json::from_value::<Pcg32Stream>(raw).map_err(|_| {
+                        runtime_effect_fault("RNG_PROFILE_MISMATCH", &effect.resource, &effect)
+                    })?;
+                    let mut stream = Pcg32Stream::from_snapshot(snapshot).map_err(|error| {
+                        let fault = match error {
+                            RngError::DrawCountOverflow => "INTEGER_OVERFLOW",
+                            RngError::ProfileMismatch => "RNG_PROFILE_MISMATCH",
+                        };
+                        runtime_effect_fault(fault, &effect.resource, &effect)
+                    })?;
+                    let value = stream.draw_u32().map_err(|error| {
+                        let fault = match error {
+                            RngError::DrawCountOverflow => "INTEGER_OVERFLOW",
+                            RngError::ProfileMismatch => "RNG_PROFILE_MISMATCH",
+                        };
+                        runtime_effect_fault(fault, &effect.resource, &effect)
+                    })?;
+                    state.rng_streams.insert(
+                        effect.resource.clone(),
+                        serde_json::to_value(&stream).map_err(|_| SimulationError::RuntimeFault)?,
+                    );
+                    rng_draws.push(json!({
+                        "draw_count": stream.draw_count,
+                        "effect_id": effect.id,
+                        "effect_type": "pcam.rng.draw",
+                        "stream_id": effect.resource,
+                        "value": value,
+                    }));
+                }
+                "RESOURCE_DELTA" => {
+                    let entity = effect.target_entity_id.to_string();
+                    let current = state
+                        .resource_banks
+                        .get(&entity)
+                        .and_then(|bank| bank.get(&effect.resource))
+                        .copied()
+                        .unwrap_or(0);
+                    let next = current.checked_add(effect.amount).ok_or_else(|| {
+                        runtime_effect_fault("INTEGER_OVERFLOW", &effect.id, &effect)
+                    })?;
+                    state
+                        .resource_banks
+                        .entry(entity)
+                        .or_default()
+                        .insert(effect.resource, next);
+                }
+                _ => {
+                    return Err(runtime_effect_fault(
+                        "UNKNOWN_EFFECT",
+                        &effect.kind,
+                        &effect,
+                    ));
+                }
+            }
+        }
+        Ok(rng_draws)
     }
 
     fn arbitrate_transition_stage(
@@ -874,6 +999,7 @@ impl SimulationRuntime {
         inputs: &[Value],
         evaluation_point: &str,
         include_direct_starts: bool,
+        runtime_effects: &mut Vec<RuntimeEffect>,
     ) -> Result<(), SimulationError> {
         let action_ids = state
             .action_instances
@@ -1159,6 +1285,7 @@ impl SimulationRuntime {
                         state,
                         decision.intent.source_action_instance_id,
                         transition,
+                        runtime_effects,
                     )?;
                 }
                 "ACTION_START" => self.start_direct_action(
@@ -1408,7 +1535,11 @@ impl SimulationRuntime {
         Ok(())
     }
 
-    fn progress_actions(&self, state: &mut SimulationState) -> Result<(), SimulationError> {
+    fn progress_actions(
+        &self,
+        state: &mut SimulationState,
+        runtime_effects: &mut Vec<RuntimeEffect>,
+    ) -> Result<(), SimulationError> {
         let action_ids = state
             .action_instances
             .iter()
@@ -1472,7 +1603,12 @@ impl SimulationRuntime {
                         .then_with(|| left.id.as_bytes().cmp(right.id.as_bytes()))
                 });
                 if let Some(transition) = eligible.into_iter().next() {
-                    self.apply_simulation_transition(state, action_id, &transition)?;
+                    self.apply_simulation_transition(
+                        state,
+                        action_id,
+                        &transition,
+                        runtime_effects,
+                    )?;
                 }
                 if state.action_instances[index].lifecycle_state != "RUNNING" {
                     break;
@@ -1487,6 +1623,7 @@ impl SimulationRuntime {
         state: &mut SimulationState,
         action_id: u64,
         transition: &SimulationTransition,
+        runtime_effects: &mut Vec<RuntimeEffect>,
     ) -> Result<(), SimulationError> {
         let index = state
             .action_instances
@@ -1776,6 +1913,7 @@ impl SimulationRuntime {
             }
             _ => return Err(SimulationError::RuntimeFault),
         }
+        runtime_effects.extend(transition.effects.clone());
         Ok(())
     }
 
@@ -2021,6 +2159,46 @@ fn effect_fault_context(
         message: message.to_owned(),
         action_instance_id: action.map(|item| item.instance_id),
         owner_entity_id: action.map(|item| item.owner_entity_id),
+    })
+}
+
+fn runtime_effect_fault(fault: &str, message: &str, effect: &RuntimeEffect) -> SimulationError {
+    SimulationError::Fault(FaultContext {
+        code: "RUNTIME_FAULT".to_owned(),
+        fault: fault.to_owned(),
+        message: message.to_owned(),
+        action_instance_id: Some(effect.source_action_instance_id),
+        owner_entity_id: Some(effect.source_entity_id),
+    })
+}
+
+fn parse_runtime_effect(raw: &Value) -> Result<RuntimeEffect, SimulationError> {
+    Ok(RuntimeEffect {
+        id: string_field(raw, "id")?.to_owned(),
+        kind: raw
+            .get("kind")
+            .and_then(Value::as_str)
+            .unwrap_or("RESOURCE_DELTA")
+            .to_owned(),
+        source_entity_id: raw
+            .get("source_entity_id")
+            .and_then(Value::as_u64)
+            .unwrap_or(0),
+        target_entity_id: raw
+            .get("target_entity_id")
+            .and_then(Value::as_u64)
+            .unwrap_or(0),
+        source_action_instance_id: raw
+            .get("source_action_instance_id")
+            .and_then(Value::as_u64)
+            .unwrap_or(0),
+        resource: raw
+            .get("resource")
+            .and_then(Value::as_str)
+            .unwrap_or("hp")
+            .to_owned(),
+        amount: raw.get("amount").and_then(Value::as_i64).unwrap_or(0),
+        priority: raw.get("priority").and_then(Value::as_i64).unwrap_or(0),
     })
 }
 
@@ -2467,6 +2645,14 @@ fn parse_definition(raw: &Value, hash: String) -> Result<Definition, SimulationE
                     .get("input_command")
                     .and_then(Value::as_str)
                     .map(str::to_owned),
+                effects: transition
+                    .get("effects")
+                    .and_then(Value::as_array)
+                    .cloned()
+                    .unwrap_or_default()
+                    .iter()
+                    .map(parse_runtime_effect)
+                    .collect::<Result<Vec<_>, _>>()?,
             })
         })
         .collect::<Result<Vec<_>, SimulationError>>()?;
