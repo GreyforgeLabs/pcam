@@ -1,5 +1,5 @@
 site_name: PCAM v3
-site_description: Deterministic semantic action model for interactive simulation
+site_description: Retired archival draft of the PCAM v3 semantic action model
 site_url: https://greyforgelabs.github.io/pcam/
 site_author: Greyforge Labs
 repo_url: https://github.com/GreyforgeLabs/pcam
@@ -33,4 +33,3 @@ nav:
   - Evidence and Gates: evidence.md
   - Run the Reference: getting-started.md
   - Licensing: licensing.md
-

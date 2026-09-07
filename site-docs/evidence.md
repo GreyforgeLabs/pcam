@@ -12,13 +12,13 @@ PCAM v3 separates implementation progress from conformance claims. Passing tests
 | Extension profile | Closed for `3.0.0-draft.1` |
 | Licensing | Satisfied for draft distribution |
 | Migration | Satisfied |
-| Rollback | Closed for the current Normative Candidate |
+| Rollback | Closed for the final archived draft candidate |
 | Comparative experiment | Closed for the current bounded draft experiment |
 | Documentation claims | Closed for the current documentation set |
-| Reference runtime | Open |
-| Independent implementation | Open |
-| Networking profile | Open |
-| Cross-platform | Open |
+| Reference runtime | Administratively closed; remaining class work not pursued |
+| Independent implementation | Closed for the final draft candidate |
+| Networking profile | Closed |
+| Cross-platform | Closed |
 
 ## Zero conformance claims
 
@@ -34,9 +34,9 @@ The claims audit rejects prose that outruns this ledger.
 
 ## Cross-platform boundary
 
-Actual Linux x86-64 execution pins a shared Python and Rust suite digest. Matching Linux ARM64 execution is required before the cross-platform gate can close. Cross-compilation alone is not evidence.
+Actual Linux x86-64 and Linux ARM64 execution pin the same shared Python and Rust suite digest. Cross-compilation alone is not evidence.
 
-The public CI workflow runs both architectures and publishes ARM64 execution output as a reviewable artifact. The gate remains open until matching evidence is verified, committed, and the controlling gate documents are updated.
+The final manifests are committed archival evidence. Public CI reruns both architectures and verifies their pinned manifests without replacing them.
 
 ## Inspect the proof
 

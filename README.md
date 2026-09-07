@@ -7,11 +7,11 @@
   <img src="docs/assets/openforge-pcam.webp" alt="PCAM v3 OpenForge project artwork" width="720">
 </p>
 
-PCAM v3 is a draft deterministic semantic action-model standard for interactive simulation.
+PCAM v3 is a frozen draft deterministic semantic action-model standard for interactive simulation.
 
 The authoritative state is the complete action-machine state. Logical ticks provide ordering. PCAM-24 is an optional authoring and visualization profile. Presentation observes simulation state and never drives authoritative outcomes.
 
-This repository is under active implementation. It does not claim Stable, Normative, production-ready, cross-platform, rollback, performance, or novelty status. See [STATUS.md](STATUS.md) and the evidence ledger under `release/`.
+This repository is retired and archival-only. `v3.0.0-draft.1` is the final published candidate. It does not claim Stable, Normative, production-ready, cross-platform, rollback, performance, novelty, or any PCAM conformance-class status. See [STATUS.md](STATUS.md) and the evidence ledger under `release/`.
 
 Public documentation: [greyforgelabs.github.io/pcam](https://greyforgelabs.github.io/pcam/)
 
@@ -27,13 +27,13 @@ Public documentation: [greyforgelabs.github.io/pcam](https://greyforgelabs.githu
 - `release/` - requirement traceability and release-gate evidence
 - `examples/` - schema-complete canonical action, interaction, and pinned scenario artifacts
 
-## Current execution target
+## Final archive state
 
-The first vertical slice is one strike action that exercises schema validation, canonicalization, PCAM-24 compilation, integer progression, predicates, buffering, a directed contact, an interaction ledger, canonical effects, save and restore, trace output, state digests, and rollback correction. It uses the same architecture intended for the complete implementation.
+The final published candidate preserves one strike action that exercises schema validation, canonicalization, PCAM-24 compilation, integer progression, predicates, buffering, a directed contact, an interaction ledger, canonical effects, save and restore, trace output, state digests, and rollback correction. The remaining reference-runtime class gate is closed administratively as not pursued, not technically completed.
 
 ## Development
 
-The project targets Python 3.12 for the reference runtime and Rust for the independent implementation.
+The archived project targets Python 3.12 for the reference runtime and Rust for the independent implementation.
 
 ```bash
 python3 -m pytest reference/python/tests

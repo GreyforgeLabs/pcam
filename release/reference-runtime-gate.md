@@ -1,10 +1,10 @@
 # Reference Runtime Gate
 
-State: OPEN
+State: CLOSED ADMINISTRATIVELY; NOT PURSUED
 
 Required: complete interpreter, save and restore, state hashing, deterministic tracing, interaction resolver, PCAM-24 compiler, and no known normative-vector divergence.
 
-Current evidence: the Python interpreter executes the twelve-stage order, rational progression, all transition evaluation points and target kinds, canonical node and transition assignments and effects, predicate edges, directed interaction resolution, every ledger policy and core reducer, parent-child actions, freezes, events, RNG effects, complete-state snapshots, state digests, all three fault policies, rollback correction, a verified authoritative extension pilot, and all three bounded PCAM-24 lifecycle compilations. Complete runtime conformance remains unclaimed while the known gaps below are open.
+Current evidence: the Python interpreter executes the twelve-stage order, rational progression, all transition evaluation points and target kinds, canonical node and transition assignments and effects, predicate edges, directed interaction resolution, every ledger policy and core reducer, parent-child actions, freezes, events, RNG effects, complete-state snapshots, state digests, all three fault policies, rollback correction, a verified authoritative extension pilot, and all three bounded PCAM-24 lifecycle compilations. Complete runtime conformance remains unclaimed.
 
 The schema-complete canonical Heavy Strike and combat interaction examples now compile into runtime records and execute for 60 ticks with pinned document, definition-set, trace, and final-state digests. The scenario covers rational progression, explicit initial-node selection, expression-backed predicates and guards, parameter capture, simultaneous trade, armor modification, and duplicate-contact suppression.
 
@@ -17,6 +17,10 @@ Deterministic tracing now maps all 22 §35 fields through `trace-contract.json`,
 Direct starts now validate declared parameter bindings before allocation, deep-capture bounded values, preserve them through snapshots, and reject missing, unknown, or invalid bindings atomically. Action and child transition targets remain default-only as required by the Core target schema.
 
 `tests/vectors/mixed-stage-runtime.json` closes the bounded mixed-stage execution gap in Python and independent Rust. One exact scenario combines child launch and current-tick progression, semantic interaction, receipt and effect commit, freeze and child-result maintenance, complete mid-state restore, continuation equivalence, raw start-order invariance, and corrected-input retained replay that matches direct execution.
+
+## Final administrative closure
+
+The repository is retired and archival-only at `v3.0.0-draft.1`. Remaining reference-runtime class work is not pursued. This closure is administrative only and does not represent technical completion of `PCAM-RUN-3` or any other conformance class.
 
 ## Known remaining gate gaps
 

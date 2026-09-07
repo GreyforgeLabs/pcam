@@ -1,12 +1,12 @@
 # PCAM v3
 
-PCAM v3 is a deterministic semantic action-model standard for interactive simulation. It makes the complete action-machine state authoritative, uses logical ticks for ordering, and keeps presentation outside the authority boundary.
+PCAM v3 is a frozen draft deterministic semantic action-model standard for interactive simulation. It makes the complete action-machine state authoritative, uses logical ticks for ordering, and keeps presentation outside the authority boundary.
 
 PCAM-24 remains available as an optional authoring and visualization profile. It is not the authoritative simulation state.
 
-!!! warning "Normative Candidate"
+!!! warning "Retired archive"
 
-    The current version is `3.0.0-draft.1`. It is not Stable or Normative, and it claims no PCAM conformance class. The reference-runtime, independent-implementation, networking-profile, and cross-platform gates remain open.
+    The final published candidate is `v3.0.0-draft.1`. The repository is archival-only, not Stable or Normative, and claims no PCAM conformance class. Remaining development gates are administratively closed as not pursued, not technically completed.
 
 ## Why complete state matters
 
@@ -24,4 +24,3 @@ PCAM v3 treats those differences as authoritative. The model defines canonical o
 - [Shared test vectors](https://github.com/GreyforgeLabs/pcam/tree/main/tests)
 
 Autonomy, Engineered.
-

@@ -1,6 +1,6 @@
 # Run the Reference
 
-PCAM v3 targets Python 3.12 for the readable reference runtime and stable Rust for the independent implementation.
+PCAM v3 is retired and archival-only. The final published candidate targets Python 3.12 for the readable reference runtime and stable Rust for the independent implementation.
 
 ## Install the Python reference
 
@@ -40,4 +40,3 @@ python experiments/run_cross_platform.py --output tests/cross-platform/linux-arm
 ```
 
 The ARM64 result is valid only when the runner detects actual Linux ARM64 execution, Python and Rust agree, and the suite digest matches the pinned x86-64 evidence.
-

@@ -1,10 +1,12 @@
 # PCAM v3 Status
 
 - Version: `3.0.0-draft.1`
-- Status: Normative Candidate
+- Status: Retired archival draft
 - Owner: Greyforge Labs
-- Review event: completion of every release gate in specification §45
+- Final published candidate: `v3.0.0-draft.1`
+- Review event: administratively closed as not pursued
 - Stability: not Stable, Normative
+- Conformance classes claimed: none
 
 ## Gate summary
 
@@ -12,11 +14,11 @@
 |---|---|---|
 | Specification | closed | `release/specification-gate.md` |
 | Schemas | closed for draft.1 | `release/schema-gate.md` |
-| Reference runtime | open | `release/reference-runtime-gate.md` |
+| Reference runtime | closed administratively; not pursued | `release/reference-runtime-gate.md` |
 | Independent implementation | closed for current candidate | `release/independent-implementation-gate.md` |
 | Cross-platform | closed | `release/cross-platform-gate.md` |
 | Rollback | closed for normative candidate | `release/rollback-gate.md` |
 | Comparative experiments | closed for bounded draft experiment | `release/comparative-experiment-gate.md` |
 | Claims | closed for current documentation | `release/claims-gate.md` |
 
-The current Normative Candidate specification, schema, rollback, bounded comparative experiment, and documentation claims audits are closed. Stable, Normative status remains prohibited until every other §45 gate closes.
+The final published candidate is preserved for archival reproducibility only. Remaining open development gates are closed administratively as not pursued, not technically completed. Stable, Normative, and conformance-class claims remain prohibited.

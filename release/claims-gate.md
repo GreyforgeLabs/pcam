@@ -7,7 +7,7 @@ The repository must not claim perfect determinism, latency elimination, rollback
 Current approved claims:
 
 - PCAM v3 is a draft deterministic semantic action-model specification.
-- The project is under active local implementation.
+- The project is retired and archival-only at `v3.0.0-draft.1`.
 - Complete state, logical ticks, profile separation, and presentation non-authority are design requirements, not completed conformance claims.
 
 Machine-readable conformance authority: `conformance-claims.json`. It currently marks `PCAM-DEF-3`, `PCAM-RUN-3`, `PCAM-DET-3`, `PCAM-RB-3`, and `PCAM-24-3` as unclaimed. Prose must not contradict that manifest.

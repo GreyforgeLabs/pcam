@@ -1,5 +1,11 @@
 # Changelog
 
+## Archive revision 1 - 2026-08-28
+
+- Marked `v3.0.0-draft.1` as the final published candidate and the repository as retired and archival-only.
+- Closed remaining class work administratively as not pursued without adding a conformance claim.
+- Pinned reproducibility and Pages actions, minimized token permissions, and changed cross-platform CI to verify immutable committed evidence.
+
 ## Unreleased
 
 - Began the PCAM v3 conformance-first repository.
